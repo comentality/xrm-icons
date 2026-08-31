@@ -1,0 +1,39 @@
+# The clean-room rule
+
+This tool reimplements the *functionality* of [IconEngine](https://www.xrmtoolbox.com/plugins/PLIO.IconEngine.XrmToolBox/)
+(`PLIO.IconEngine.XrmToolBox`, by Rolf Stifter), which is closed source. Functionality is not
+copyrightable; a particular implementation is. The rule below is what keeps this project on the
+right side of that line, and it applies to anyone working on it, human or otherwise.
+
+## Everything here must derive from
+
+- IconEngine's public description — the [author's write-up](https://rolfstifter.be/xrmtoolbox/iconengine/)
+  and its [store page](https://www.xrmtoolbox.com/plugins/PLIO.IconEngine.XrmToolBox/)
+- Microsoft's public Dataverse documentation
+- our own design decisions
+
+## Off limits
+
+- Decompiling or disassembling the shipped `PLIO.IconEngine.XrmToolBox.dll`, by any tool.
+- Downloading the NuGet package in order to inspect what is in it.
+- **The binary-derived analysis of IconEngine in the sibling repo `xrm-librarian`** —
+  specifically `reports/blast/PLIO.IconEngine.XrmToolBox.md` and the per-assembly rows for that
+  package in `data/blast-radius.json` and `data/capabilities.json`. Those were produced by
+  walking the assembly's call graph. They are exactly the kind of knowledge a clean-room
+  implementation must not have, and they are the easiest thing to stumble into, because that
+  repo is a sibling of this one and grep does not know about clean rooms.
+
+Reading any of the above to decide how this tool should work defeats the point of having written
+it. Reading it out of curiosity, having already shipped, does too — you cannot unread it.
+
+## Where this implementation knowingly differs
+
+Worth recording, because "we made different choices" is the substance of the claim:
+
+- **The icon source.** IconEngine draws on Flaticon, which needs an API key and carries
+  attribution terms. This tool bundles Microsoft's Fluent UI System Icons, MIT licensed, inside
+  the assembly — no key, no network, no attribution obligation on what you store.
+- **Colour.** The default is `fill="currentColor"` so the app themes the icon, following
+  Microsoft's own guidance for table icons, rather than baking a colour in.
+- **Rendering.** No SVG library: the path grammar is parsed and rasterised in
+  `Icons/Logic/SvgPath.cs`, so the tool ships as one DLL.

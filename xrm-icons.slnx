@@ -1,0 +1,7 @@
+<Solution>
+  <Folder Name="/tests/">
+    <Project Path="tests/Icons.Tests/Icons.Tests.csproj" />
+    <Project Path="tests/Icons.UiHarness/Icons.UiHarness.csproj" />
+  </Folder>
+  <Project Path="Icons/Icons.csproj" />
+</Solution>

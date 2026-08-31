@@ -1,0 +1,438 @@
+using System;
+using System.Drawing;
+using System.Drawing.Drawing2D;
+using System.Windows.Forms;
+using Icons.Catalog;
+using Label = System.Windows.Forms.Label;
+
+namespace Icons
+{
+    /// <summary>
+    /// The window, built in code rather than by the designer so that what it does and how it is
+    /// laid out sit next to each other and neither can drift.
+    /// </summary>
+    public partial class IconsControl
+    {
+        private const int ThumbnailSize = 40;
+        private const int CellSize = 76;
+
+        private void BuildUi()
+        {
+            SuspendLayout();
+
+            Dock = DockStyle.Fill;
+            BackColor = SystemColors.Window;
+
+            var toolbar = BuildToolbar();
+
+            // A SplitContainer starts 150 pixels wide, whatever it is about to be docked into,
+            // and refuses any minimum or distance that does not fit that. So the proportions
+            // are set on the first layout that has a real width, not here.
+            _body = new SplitContainer
+            {
+                Dock = DockStyle.Fill,
+                Orientation = Orientation.Vertical,
+                SplitterWidth = 6
+            };
+
+            _body.Panel1.Controls.Add(BuildLibraryPane());
+            _body.Panel2.Controls.Add(BuildTargetPane());
+
+            Controls.Add(_body);
+            Controls.Add(toolbar);
+
+            SizeChanged += (s, e) => LaySplitter();
+
+            ResumeLayout(false);
+            PerformLayout();
+
+            LaySplitter();
+
+            // The library is inside this assembly, so it opens without a connection and the
+            // window has something in it from the first moment.
+            LoadCatalog();
+            SyncEnabled();
+        }
+
+        /// <summary>
+        /// Gives the two panes their proportions once there is enough width to hold them, and
+        /// then leaves the splitter alone so a drag is not undone by the next resize.
+        /// </summary>
+        private void LaySplitter()
+        {
+            if (_splitterLaid || _body == null) return;
+
+            const int libraryMinimum = 320;
+            const int targetMinimum = 300;
+            if (_body.Width < libraryMinimum + targetMinimum + _body.SplitterWidth) return;
+
+            _body.Panel1MinSize = libraryMinimum;
+            _body.Panel2MinSize = targetMinimum;
+            _body.SplitterDistance = Math.Max(libraryMinimum, _body.Width - 380);
+            _splitterLaid = true;
+        }
+
+        private ToolStrip BuildToolbar()
+        {
+            _loadButton = new ToolStripButton("Load tables")
+            {
+                DisplayStyle = ToolStripItemDisplayStyle.Text,
+                ToolTipText = "Read the tables and solutions from the connected environment"
+            };
+            _loadButton.Click += (s, e) => LoadEverything();
+
+            _applyButton = new ToolStripButton("Set as table icon")
+            {
+                DisplayStyle = ToolStripItemDisplayStyle.Text,
+                ToolTipText = "Store the chosen icon as a web resource, point the table at it, and publish"
+            };
+            _applyButton.Click += (s, e) => Apply();
+
+            _cancelButton = new ToolStripButton("Cancel")
+            {
+                DisplayStyle = ToolStripItemDisplayStyle.Text,
+                ToolTipText = "Stop before the next call. The one already sent cannot be recalled."
+            };
+            _cancelButton.Click += (s, e) => CancelWorker();
+
+            _aboutButton = new ToolStripButton("About the icons")
+            {
+                DisplayStyle = ToolStripItemDisplayStyle.Text,
+                Alignment = ToolStripItemAlignment.Right
+            };
+            _aboutButton.Click += (s, e) => ShowAbout();
+
+            _statusLabel = new ToolStripLabel("") { ForeColor = SystemColors.GrayText };
+
+            var toolbar = new ToolStrip
+            {
+                Dock = DockStyle.Top,
+                GripStyle = ToolStripGripStyle.Hidden,
+                RenderMode = ToolStripRenderMode.System
+            };
+            toolbar.Items.AddRange(new ToolStripItem[]
+            {
+                _loadButton,
+                new ToolStripSeparator(),
+                _applyButton,
+                _cancelButton,
+                new ToolStripSeparator(),
+                _statusLabel,
+                _aboutButton
+            });
+
+            return toolbar;
+        }
+
+        private Control BuildLibraryPane()
+        {
+            _searchBox = new TextBox { Dock = DockStyle.Fill };
+            _searchBox.TextChanged += (s, e) => ApplyFilter();
+
+            _styleBox = new ComboBox
+            {
+                Dock = DockStyle.Fill,
+                DropDownStyle = ComboBoxStyle.DropDownList
+            };
+            _styleBox.Items.AddRange(new object[] { "Both weights", "Regular", "Filled" });
+            _styleBox.SelectedIndex = 0;
+            _styleBox.SelectedIndexChanged += (s, e) => ApplyFilter();
+
+            _grid = new ListView
+            {
+                Dock = DockStyle.Fill,
+                View = View.LargeIcon,
+                VirtualMode = true,
+                OwnerDraw = true,
+                MultiSelect = false,
+                HideSelection = false,
+                BorderStyle = BorderStyle.None,
+                BackColor = SystemColors.Window,
+                // No images ever go in this list. It is here because the cell size in an icon
+                // view comes from the image list, and owner drawing does not change that.
+                LargeImageList = new ImageList { ImageSize = new Size(CellSize - 12, CellSize - 24) }
+            };
+            _grid.RetrieveVirtualItem += Grid_RetrieveVirtualItem;
+            _grid.DrawItem += Grid_DrawItem;
+            _grid.SelectedIndexChanged += Grid_SelectedIndexChanged;
+            _grid.ItemActivate += (s, e) => { if (_applyButton.Enabled) Apply(); };
+
+            var header = new TableLayoutPanel
+            {
+                Dock = DockStyle.Top,
+                ColumnCount = 4,
+                RowCount = 1,
+                Height = 30,
+                Padding = new Padding(6, 3, 6, 3)
+            };
+            header.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
+            header.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
+            header.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
+            header.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 130));
+            header.Controls.Add(new Label { Text = "Search", AutoSize = true, Anchor = AnchorStyles.Left, Padding = new Padding(0, 4, 6, 0) }, 0, 0);
+            header.Controls.Add(_searchBox, 1, 0);
+            header.Controls.Add(new Label { Text = "Weight", AutoSize = true, Anchor = AnchorStyles.Left, Padding = new Padding(10, 4, 6, 0) }, 2, 0);
+            header.Controls.Add(_styleBox, 3, 0);
+
+            var pane = new Panel { Dock = DockStyle.Fill };
+            pane.Controls.Add(_grid);
+            pane.Controls.Add(header);
+            return pane;
+        }
+
+        private Control BuildTargetPane()
+        {
+            _preview = new Panel { Dock = DockStyle.Top, Height = 140, BackColor = SystemColors.Window };
+            _preview.Paint += Preview_Paint;
+
+            _iconLabel = new Label
+            {
+                Dock = DockStyle.Top,
+                Height = 22,
+                Text = "No icon chosen",
+                Padding = new Padding(8, 3, 8, 0),
+                Font = new Font(Font, FontStyle.Bold)
+            };
+
+            _warningLabel = new Label
+            {
+                Dock = DockStyle.Top,
+                AutoSize = false,
+                Height = 46,
+                Visible = false,
+                ForeColor = Color.FromArgb(0x8A, 0x53, 0x00),
+                Padding = new Padding(8, 2, 8, 4)
+            };
+
+            _tableFilterBox = new TextBox { Dock = DockStyle.Fill };
+            _tableFilterBox.TextChanged += (s, e) => ShowTables();
+
+            _tableBox = new ComboBox { Dock = DockStyle.Fill, DropDownStyle = ComboBoxStyle.DropDownList };
+            _tableBox.SelectedIndexChanged += Table_SelectedIndexChanged;
+
+            _solutionBox = new ComboBox { Dock = DockStyle.Fill, DropDownStyle = ComboBoxStyle.DropDownList };
+            _solutionBox.SelectedIndexChanged += (s, e) => { SuggestName(); SyncEnabled(); };
+
+            _nameBox = new TextBox { Dock = DockStyle.Fill };
+            _nameBox.TextChanged += (s, e) => SyncEnabled();
+
+            _themeColour = new RadioButton
+            {
+                Text = "Follow the app theme",
+                Checked = true,
+                AutoSize = true,
+                Anchor = AnchorStyles.Left
+            };
+            _themeColour.CheckedChanged += Colour_ModeChanged;
+
+            _fixedColour = new RadioButton { Text = "Fixed colour", AutoSize = true, Anchor = AnchorStyles.Left };
+            _fixedColour.CheckedChanged += Colour_ModeChanged;
+
+            _colourButton = new Button { Text = "", Width = 40, Height = 22, BackColor = _colour, Anchor = AnchorStyles.Left };
+            _colourButton.Click += Colour_Pick;
+
+            _rasterBox = new CheckBox
+            {
+                Text = "Also write the three classic PNG icons",
+                AutoSize = true,
+                Anchor = AnchorStyles.Left
+            };
+
+            _troubleLabel = new Label
+            {
+                Dock = DockStyle.Bottom,
+                AutoSize = false,
+                Height = 52,
+                Visible = false,
+                ForeColor = Color.FromArgb(0xA4, 0x26, 0x2C),
+                Padding = new Padding(8, 4, 8, 4)
+            };
+
+            var form = new TableLayoutPanel
+            {
+                Dock = DockStyle.Fill,
+                ColumnCount = 2,
+                RowCount = 8,
+                Padding = new Padding(8, 6, 8, 6),
+                AutoScroll = true
+            };
+            form.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 86));
+            form.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
+
+            AddRow(form, 0, "Find table", _tableFilterBox);
+            AddRow(form, 1, "Table", _tableBox);
+            AddRow(form, 2, "Solution", _solutionBox);
+            AddRow(form, 3, "Web resource", _nameBox);
+            AddRow(form, 4, "Colour", _themeColour);
+            AddRow(form, 5, "", _fixedColour);
+            AddRow(form, 6, "", _colourButton);
+            AddRow(form, 7, "", _rasterBox);
+
+            var pane = new Panel { Dock = DockStyle.Fill };
+            pane.Controls.Add(form);
+            pane.Controls.Add(_troubleLabel);
+            pane.Controls.Add(_warningLabel);
+            pane.Controls.Add(_iconLabel);
+            pane.Controls.Add(_preview);
+            return pane;
+        }
+
+        private static void AddRow(TableLayoutPanel form, int row, string caption, Control control)
+        {
+            form.RowStyles.Add(new RowStyle(SizeType.Absolute, 28));
+            if (caption.Length > 0)
+            {
+                form.Controls.Add(new Label
+                {
+                    Text = caption,
+                    AutoSize = true,
+                    Anchor = AnchorStyles.Left,
+                    Padding = new Padding(0, 5, 6, 0)
+                }, 0, row);
+            }
+            form.Controls.Add(control, 1, row);
+        }
+
+        // ===== events =====
+
+        private void Grid_RetrieveVirtualItem(object sender, RetrieveVirtualItemEventArgs e)
+        {
+            // Virtual because the library is thousands of icons and a ListView that is handed
+            // all of them spends its first second building items nobody scrolls to.
+            if (e.ItemIndex < 0 || e.ItemIndex >= _shown.Count)
+            {
+                e.Item = new ListViewItem("");
+                return;
+            }
+
+            e.Item = new ListViewItem(_shown[e.ItemIndex].DisplayName);
+        }
+
+        private void Grid_DrawItem(object sender, DrawListViewItemEventArgs e)
+        {
+            if (e.ItemIndex < 0 || e.ItemIndex >= _shown.Count || _catalog == null) return;
+
+            var icon = _shown[e.ItemIndex];
+
+            // Not e.State: a virtual ListView reports every item as selected, because the item
+            // it hands back was built a moment ago by RetrieveVirtualItem and never told
+            // otherwise. The selection the control actually keeps is the one to ask.
+            var selected = _grid.SelectedIndices.Count > 0 && _grid.SelectedIndices[0] == e.ItemIndex;
+
+            if (selected)
+            {
+                using (var brush = new SolidBrush(SystemColors.Highlight))
+                    e.Graphics.FillRectangle(brush, e.Bounds);
+            }
+
+            var thumbnail = Thumbnail(icon, ThumbnailSize, selected ? SystemColors.HighlightText : _colour);
+            var x = e.Bounds.X + (e.Bounds.Width - ThumbnailSize) / 2;
+            e.Graphics.DrawImage(thumbnail, x, e.Bounds.Y + 6, ThumbnailSize, ThumbnailSize);
+
+            var caption = new Rectangle(
+                e.Bounds.X + 2,
+                e.Bounds.Y + ThumbnailSize + 8,
+                e.Bounds.Width - 4,
+                e.Bounds.Height - ThumbnailSize - 10);
+
+            TextRenderer.DrawText(
+                e.Graphics,
+                icon.DisplayName,
+                Font,
+                caption,
+                selected ? SystemColors.HighlightText : SystemColors.ControlText,
+                TextFormatFlags.HorizontalCenter | TextFormatFlags.WordBreak |
+                TextFormatFlags.EndEllipsis | TextFormatFlags.NoPrefix);
+        }
+
+        private void Grid_SelectedIndexChanged(object sender, EventArgs e)
+        {
+            if (_grid.SelectedIndices.Count == 0) { SelectIcon(null); return; }
+
+            var index = _grid.SelectedIndices[0];
+            SelectIcon(index >= 0 && index < _shown.Count ? _shown[index] : null);
+        }
+
+        private void Table_SelectedIndexChanged(object sender, EventArgs e)
+        {
+            SuggestName();
+
+            var table = _tableBox.SelectedItem as TableItem;
+            if (table != null && !table.Customizable)
+                _trouble = table.DisplayName + " is locked against customisation, so its icon cannot be changed.";
+            else if (_trouble != null && _trouble.Contains("locked against customisation"))
+                _trouble = null;
+
+            SyncEnabled();
+        }
+
+        private void Colour_ModeChanged(object sender, EventArgs e)
+        {
+            // Thumbnails are drawn in the chosen colour, so they all have to go.
+            ClearThumbnails();
+            _grid.Invalidate();
+            _preview.Invalidate();
+            SyncEnabled();
+        }
+
+        private void Colour_Pick(object sender, EventArgs e)
+        {
+            using (var dialog = new ColorDialog { Color = _colour, FullOpen = true })
+            {
+                if (dialog.ShowDialog(this) != DialogResult.OK) return;
+
+                _colour = dialog.Color;
+                _colourButton.BackColor = _colour;
+                ClearThumbnails();
+                _grid.Invalidate();
+                _preview.Invalidate();
+            }
+        }
+
+        private void Preview_Paint(object sender, PaintEventArgs e)
+        {
+            e.Graphics.Clear(SystemColors.Window);
+
+            if (_selectedIcon == null || _catalog == null)
+            {
+                TextRenderer.DrawText(e.Graphics, "Pick an icon from the library",
+                    Font, _preview.ClientRectangle, SystemColors.GrayText,
+                    TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter);
+                return;
+            }
+
+            // Light and dark side by side, because the default is an icon that takes its colour
+            // from the theme and the whole question is whether it survives both.
+            var half = _preview.ClientRectangle.Width / 2;
+            var light = new Rectangle(0, 0, half, _preview.ClientRectangle.Height);
+            var dark = new Rectangle(half, 0, _preview.ClientRectangle.Width - half, _preview.ClientRectangle.Height);
+
+            using (var brush = new SolidBrush(Color.FromArgb(0x1B, 0x1A, 0x19)))
+                e.Graphics.FillRectangle(brush, dark);
+
+            var onLight = _fixedColour.Checked ? _colour : Color.FromArgb(0x24, 0x24, 0x24);
+            var onDark = _fixedColour.Checked ? _colour : Color.FromArgb(0xF3, 0xF2, 0xF1);
+
+            e.Graphics.SmoothingMode = SmoothingMode.AntiAlias;
+            DrawPreview(e.Graphics, light, onLight);
+            DrawPreview(e.Graphics, dark, onDark);
+        }
+
+        private void DrawPreview(Graphics graphics, Rectangle area, Color colour)
+        {
+            const int big = 72;
+            const int small = 20;
+
+            var thumbnail = Thumbnail(_selectedIcon, big, colour);
+            graphics.DrawImage(thumbnail,
+                area.X + (area.Width - big) / 2,
+                area.Y + 18,
+                big, big);
+
+            // The size it will actually be seen at in a site map, next to the size that shows
+            // what it is.
+            var tiny = Thumbnail(_selectedIcon, small, colour);
+            graphics.DrawImage(tiny, area.X + (area.Width - small) / 2, area.Y + 104, small, small);
+        }
+    }
+}

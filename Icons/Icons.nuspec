@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="utf-8"?>
+<package xmlns="http://schemas.microsoft.com/packaging/2012/06/nuspec.xsd">
+  <metadata>
+    <id>Comentality.Icons</id>
+    <version>1.0.0</version>
+    <title>Icons</title>
+    <authors>Comentality</authors>
+    <license type="expression">MIT</license>
+    <projectUrl>https://github.com/comentality/xrm-icons</projectUrl>
+    <repository type="git" url="https://github.com/comentality/xrm-icons.git" branch="main" />
+    <icon>icon.png</icon>
+    <readme>docs\README.md</readme>
+    <description>Search a bundled library of Fluent icons and set one as a Dataverse table icon, web resource and publish included.</description>
+    <releaseNotes>v1.0.0
+- Search a library of 5,867 Microsoft Fluent icons in both weights, bundled inside the tool so it needs no API key and no outbound host beyond Dataverse.
+- Search understands Dynamics vocabulary: "account" finds the building icons, "contact" finds the people, "appointment" finds the calendars.
+- Preview the chosen icon on light and dark, at tile size and at the size a site map actually shows it.
+- Colour follows the app theme by default, which is what Microsoft recommends for a table icon; a fixed colour is available for brand work.
+- Setting an icon writes the SVG web resource, points the table's IconVectorName at it, and publishes both in one call.
+- Optionally also writes the three classic PNG icons for the small, medium and large properties.
+- Running it twice updates one web resource rather than leaving duplicates, and finds an unpublished one rather than failing to create a second.
+- Warns before writing when an icon carries its own colours, when a table is locked against customisation, and when a name would be refused - each before the round trip rather than after it.
+Full changelog, with screenshots: https://github.com/comentality/xrm-icons/releases/tag/v1.0.0
+</releaseNotes>
+    <tags>XrmToolBox Dynamics365 CRM PowerPlatform Dataverse Icon Icons SVG WebResource Customization</tags>
+    <dependencies>
+      <group targetFramework=".NETFramework4.8">
+        <dependency id="XrmToolBox" version="1.2025.7.71" />
+      </group>
+    </dependencies>
+  </metadata>
+  <files>
+    <file src="bin\Release\net48\Icons.dll" target="Plugins\Icons.dll" />
+    <file src="icon.png" target="icon.png" />
+    <file src="..\README.md" target="docs\README.md" />
+  </files>
+</package>

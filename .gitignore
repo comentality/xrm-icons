@@ -10,3 +10,4 @@ artifacts/
 .env
 # The private XrmToolBox instance xtb.ps1 builds, including its connection and token cache.
 tests/.xtb/
+tests/.ui/
