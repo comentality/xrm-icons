@@ -1,0 +1,12 @@
+bin/
+obj/
+.vs/
+*.user
+*.suo
+.claude/*
+!.claude/skills/
+.nuget-apikey
+artifacts/
+.env
+# The private XrmToolBox instance xtb.ps1 builds, including its connection and token cache.
+tests/.xtb/
