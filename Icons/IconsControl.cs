@@ -386,15 +386,42 @@ namespace Icons
             if (style == 1) wanted = wanted.Where(i => i.Style == IconStyle.Regular).ToList();
             else if (style == 2) wanted = wanted.Where(i => i.Style == IconStyle.Filled).ToList();
 
+            // The grid's selection is an index into the list that is about to be replaced, and
+            // clearing it raises SelectedIndexChanged, which would throw the chosen icon away.
+            var keep = _selectedIcon;
+
             _shown = IconSearch.Rank(wanted, _searchBox.Text);
 
+            _grid.SelectedIndices.Clear();
             _grid.VirtualListSize = _shown.Count;
+
+            // Follow the icon to wherever it landed in the new ranking. Without this the
+            // highlighted cell and the preview drift apart the moment somebody chooses an icon
+            // and then keeps typing: index 4 of the old order is a different icon in the new one.
+            var index = IndexOf(_shown, keep);
+            if (index >= 0)
+            {
+                _selectedIcon = keep;
+                _grid.SelectedIndices.Add(index);
+                _grid.EnsureVisible(index);
+            }
+            else
+            {
+                SelectIcon(null);
+            }
+
             _grid.Invalidate();
-
-            // The selection is an index into a list that just changed underneath it.
-            if (_selectedIcon != null && !_shown.Contains(_selectedIcon)) SelectIcon(null);
-
             SyncEnabled();
+        }
+
+        private static int IndexOf(IReadOnlyList<IconEntry> icons, IconEntry wanted)
+        {
+            if (wanted == null) return -1;
+
+            for (var i = 0; i < icons.Count; i++)
+                if (ReferenceEquals(icons[i], wanted)) return i;
+
+            return -1;
         }
 
         private void SelectIcon(IconEntry icon)

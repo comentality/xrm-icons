@@ -14,7 +14,7 @@ window.
 ## Install
 
 - **XrmToolBox Tool Library** — search for *Icons* and install it.
-- **Manually** — download `Icons.dll` from the
+- **Manually** — download `Comentality.Icons.dll` from the
   [latest release](https://github.com/comentality/xrm-icons/releases/latest), copy it into your
   XrmToolBox `Plugins` folder, and restart XrmToolBox.
 

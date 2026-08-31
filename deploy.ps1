@@ -12,9 +12,9 @@ if (-not $PluginDir) { $PluginDir = Join-Path $env:APPDATA "MscrmTools\XrmToolBo
 
 if (-not (Test-Path $PluginDir)) { New-Item -ItemType Directory -Path $PluginDir -Force | Out-Null }
 
-$source = Join-Path $PSScriptRoot "Icons\bin\Debug\net48\Icons.dll"
+$source = Join-Path $PSScriptRoot "Icons\bin\Debug\net48\Comentality.Icons.dll"
 if (-not (Test-Path $source)) { throw "No Debug build at $source - run .\build.ps1 first" }
 
 Copy-Item $source -Destination $PluginDir -Force
 
-Write-Host "Deployed Icons.dll to $PluginDir"
+Write-Host "Deployed Comentality.Icons.dll to $PluginDir"

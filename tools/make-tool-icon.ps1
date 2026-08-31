@@ -6,7 +6,7 @@
     XrmToolBox wants a 32px icon for the list and an 80px one for the tile, both as base64 in
     the plugin's export metadata, plus a PNG for the NuGet package. All three are one Fluent
     icon in the house colours - so rather than keep a hand-made PNG in the repo and hope it
-    stays in step, they are generated here through Icons.dll. If the renderer breaks, the
+    stays in step, they are generated here through the built assembly. If the renderer breaks, the
     tool's own icon is the first thing to look wrong.
 
 .EXAMPLE
@@ -25,7 +25,7 @@ param(
 $ErrorActionPreference = "Stop"
 
 $repo = Split-Path -Parent $PSScriptRoot
-$dll = Join-Path $repo "Icons\bin\Debug\net48\Icons.dll"
+$dll = Join-Path $repo "Icons\bin\Debug\net48\Comentality.Icons.dll"
 if (-not (Test-Path $dll)) { throw "Build the tool first: dotnet build Icons\Icons.csproj" }
 
 Add-Type -AssemblyName System.Drawing
