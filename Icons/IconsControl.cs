@@ -95,6 +95,9 @@ namespace Icons
         private TextBox _tableFilterBox;
         private ComboBox _solutionBox;
         private TextBox _nameBox;
+
+        /// <summary>The last name SuggestName wrote, so a hand-edited one is recognisable.</summary>
+        private string _suggestedName = "";
         private RadioButton _themeColour;
         private RadioButton _fixedColour;
         private Button _colourButton;
@@ -654,7 +657,13 @@ namespace Icons
             var solution = _solutionBox.SelectedItem as SolutionItem;
             if (table == null) return;
 
-            _nameBox.Text = WebResourceName.ForTable(solution?.Prefix ?? "new", table.LogicalName);
+            // A name the user has typed over is theirs. This gets called by every reload and by
+            // every table-filter keystroke that re-selects the same table, so it may only write
+            // into a box that is empty or still holds its own last suggestion.
+            if (_nameBox.Text.Length > 0 && _nameBox.Text != _suggestedName) return;
+
+            _suggestedName = WebResourceName.ForTable(solution?.Prefix ?? "new", table.LogicalName);
+            _nameBox.Text = _suggestedName;
         }
 
         protected override void Dispose(bool disposing)
