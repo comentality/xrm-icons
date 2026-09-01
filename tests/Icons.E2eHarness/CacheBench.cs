@@ -36,13 +36,24 @@ namespace Icons.E2eHarness
 
         private static readonly List<Row> Rows = new List<Row>();
 
-        private static string MetadataFolder
+        /// <summary>
+        /// Everywhere a cache file could land. The folder is the library's own business and it
+        /// is not the same one in XrmToolBox as it is out here: inside, it is under the roaming
+        /// profile beside the connections; out here it followed this exe into its build output.
+        /// Both are watched, so "the bench wrote a file" and "the bench touched a real
+        /// connection's file" are both answerable rather than assumed.
+        /// </summary>
+        private static IEnumerable<string> MetadataFolders
         {
             get
             {
-                return Path.Combine(
+                yield return Path.Combine(
                     Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
                     "MscrmTools", "XrmToolBox", "Metadata");
+
+                var appBase = AppDomain.CurrentDomain.BaseDirectory;
+                yield return Path.Combine(appBase, "Metadata");
+                yield return Path.GetFullPath(Path.Combine(appBase, "..", "Metadata"));
             }
         }
 
@@ -54,8 +65,8 @@ namespace Icons.E2eHarness
             var org = new Org(client);
             string seedName = null;
 
-            Say("cache folder: " + MetadataFolder);
-            Say("it holds " + before.Count + " file(s) before this run, none of them this bench's");
+            Say("watching for cache files in: " + string.Join(", ", MetadataFolders.Distinct()));
+            Say("they hold " + before.Count + " file(s) before this run, none of them this bench's");
 
             try
             {
@@ -88,7 +99,6 @@ namespace Icons.E2eHarness
                     findings.Add("the cold cache came back empty, so nothing below is worth reading");
                     return Report(findings, root);
                 }
-                coldRow.Note = FileNote(coldId);
 
                 // ===== the cache, warm, in the same process =====
 
@@ -108,7 +118,12 @@ namespace Icons.E2eHarness
                 // A fresh ConnectionDetail on the same connection id is XrmToolBox started again:
                 // nothing in memory, a cache file on disk, and a stamp to check it against.
 
-                Measure("MetadataCache, warm from disk (new instance, same connection)", 3, () =>
+                // Asked here rather than the moment the fill returned: the file is written
+                // through a temporary one, and looking for it too early says nothing was
+                // written when a second later there is 8 MB of it.
+                coldRow.Note = FileNote(coldId);
+
+                Measure("MetadataCache from its file (new instance, XrmToolBox starting)", 2, () =>
                 {
                     var warm = Detail(client, coldId, url, username);
                     Update(warm, false);
@@ -144,14 +159,17 @@ namespace Icons.E2eHarness
                 made.Stop();
                 Say("the org took " + made.ElapsedMilliseconds + "ms to create and publish it");
 
-                var stale = Detail(client, coldId, url, username);
-                var afterNewTable = Measure("MetadataCache after a new table (delta)", 1, () =>
+                // On the instance that has been held all along, which is what XrmToolBox keeps
+                // for a connection: the stamp says the org has moved, and this is what catching
+                // up costs. Not a fresh instance - that one has no memory of the org and would
+                // be measuring the startup load again.
+                var afterNewTable = Measure("MetadataCache delta on the held instance (new table)", 1, () =>
                 {
-                    Update(stale, false);
-                    return stale.MetadataCache == null ? 0 : stale.MetadataCache.Length;
+                    Update(cold, false);
+                    return cold.MetadataCache == null ? 0 : cold.MetadataCache.Length;
                 });
-                var cacheSawIt = stale.MetadataCache != null
-                                 && stale.MetadataCache.Any(e => e.LogicalName == Org.TableLogicalName);
+                var cacheSawIt = cold.MetadataCache != null
+                                 && cold.MetadataCache.Any(e => e.LogicalName == Org.TableLogicalName);
                 afterNewTable.Note = cacheSawIt ? "the new table is in it" : "THE NEW TABLE IS NOT IN IT";
                 if (!cacheSawIt)
                     findings.Add("a table created and published a moment ago is missing from the delta-updated cache");
@@ -169,12 +187,12 @@ namespace Icons.E2eHarness
                 seedName = org.SeedIcon(solution);
                 Say("set IconVectorName to " + seedName + " and published it");
 
-                var afterIcon = Measure("MetadataCache after an icon was written (delta)", 1, () =>
+                var afterIcon = Measure("MetadataCache delta on the held instance (icon written)", 1, () =>
                 {
-                    Update(stale, false);
-                    return stale.MetadataCache == null ? 0 : stale.MetadataCache.Length;
+                    Update(cold, false);
+                    return cold.MetadataCache == null ? 0 : cold.MetadataCache.Length;
                 });
-                var table = stale.MetadataCache?.FirstOrDefault(e => e.LogicalName == Org.TableLogicalName);
+                var table = cold.MetadataCache?.FirstOrDefault(e => e.LogicalName == Org.TableLogicalName);
                 var iconSeen = table != null && table.IconVectorName == seedName;
                 afterIcon.Note = iconSeen
                     ? "the icon is on it"
@@ -194,9 +212,7 @@ namespace Icons.E2eHarness
 
                 foreach (var id in ours)
                 {
-                    foreach (var file in Directory.Exists(MetadataFolder)
-                        ? Directory.GetFiles(MetadataFolder, id + "*")
-                        : new string[0])
+                    foreach (var file in CacheFiles(id + "*").ToList())
                     {
                         try { File.Delete(file); }
                         catch (Exception ex) { findings.Add("could not delete the bench's own cache file " + file + ": " + ex.Message); }
@@ -282,14 +298,22 @@ namespace Icons.E2eHarness
         private static Dictionary<string, string> Snapshot()
         {
             var seen = new Dictionary<string, string>();
-            if (!Directory.Exists(MetadataFolder)) return seen;
-
-            foreach (var file in Directory.GetFiles(MetadataFolder))
+            foreach (var file in CacheFiles("*"))
             {
                 var info = new FileInfo(file);
-                seen[info.Name] = info.Length + "@" + info.LastWriteTimeUtc.Ticks;
+                seen[info.FullName] = info.Length + "@" + info.LastWriteTimeUtc.Ticks;
             }
             return seen;
+        }
+
+        private static IEnumerable<string> CacheFiles(string pattern)
+        {
+            foreach (var folder in MetadataFolders.Distinct())
+            {
+                if (!Directory.Exists(folder)) continue;
+
+                foreach (var file in Directory.GetFiles(folder, pattern)) yield return file;
+            }
         }
 
         private static IEnumerable<string> Changed(Dictionary<string, string> before)
@@ -311,12 +335,10 @@ namespace Icons.E2eHarness
 
         private static string FileNote(Guid id)
         {
-            if (!Directory.Exists(MetadataFolder)) return "no cache folder";
+            var file = CacheFiles(id + "*").FirstOrDefault();
+            if (file == null) return "nothing was written to disk";
 
-            var file = Directory.GetFiles(MetadataFolder, id + "*").FirstOrDefault();
-            if (file == null) return "no file written";
-
-            return Path.GetExtension(file) + ", " + (new FileInfo(file).Length / 1024) + " KB on disk";
+            return (new FileInfo(file).Length / 1024) + " KB written to " + Path.GetDirectoryName(file);
         }
 
         // ===== saying what happened =====
