@@ -26,6 +26,22 @@ namespace Icons.E2eHarness
     /// </summary>
     internal static class Program
     {
+        /// <summary>
+        /// The borrowed sign in, as a connection. Made more than once: the bench needs a client
+        /// that has not spoken to the org yet, because the first call pays for the token and the
+        /// handshake and that is part of what it is measuring.
+        /// </summary>
+        internal static CrmServiceClient Connect(string url, string username, string cache)
+        {
+            return new CrmServiceClient(
+                "AuthType=OAuth;Url=" + url
+                + ";Username=" + username
+                + ";AppId=51f81489-12ee-4a9e-aaae-a2591f45987d"
+                + ";RedirectUri=app://58145B91-0C36-4500-8554-080854F2AC97"
+                + ";TokenCacheStorePath=" + cache
+                + ";LoginPrompt=Never;RequireNewInstance=True");
+        }
+
         [STAThread]
         private static int Main(string[] args)
         {
@@ -47,17 +63,19 @@ namespace Icons.E2eHarness
             Application.SetCompatibleTextRenderingDefault(false);
 
             Console.WriteLine("        connecting to " + url + " as " + username);
-            var client = new CrmServiceClient(
-                "AuthType=OAuth;Url=" + url
-                + ";Username=" + username
-                + ";AppId=51f81489-12ee-4a9e-aaae-a2591f45987d"
-                + ";RedirectUri=app://58145B91-0C36-4500-8554-080854F2AC97"
-                + ";TokenCacheStorePath=" + cache
-                + ";LoginPrompt=Never;RequireNewInstance=True");
+            var client = Connect(url, username, cache);
             if (!client.IsReady)
             {
                 Console.Error.WriteLine("The borrowed sign in did not take: " + client.LastCrmError);
                 return 3;
+            }
+
+            // A different question, asked of the same org through the same borrowed sign in:
+            // what XrmToolBox's metadata cache would be worth to this tool. No window is opened
+            // for it, so it answers before the run that needs one.
+            if (args.Contains("--bench-cache"))
+            {
+                return CacheBench.Run(client, url, username, cache, root);
             }
 
             var org = new Org(client);

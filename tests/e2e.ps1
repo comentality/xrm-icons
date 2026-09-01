@@ -7,6 +7,13 @@
 #   .\tests\e2e.ps1            # run it
 #   .\tests\e2e.ps1 -Keep      # leave the table and web resources there to look at
 #   .\tests\e2e.ps1 -FreshAuth # borrow the sandbox's sign in again from scratch
+#   .\tests\e2e.ps1 -BenchCache # no window: time XrmToolBox's metadata cache against the org
+#
+# -BenchCache answers whether this tool should read tables out of XrmToolBox's per-connection
+# metadata cache instead of asking the org: how long each way takes cold, warm and from disk,
+# and whether the cache tells the truth about a table or an icon made a minute ago. It uses
+# connection ids of its own, so no real connection's cache is written, and it says so at the
+# end if anything it did not create changed.
 #
 # The sign in is borrowed from the xtb.ps1 sandbox: run that once and sign in, and this can
 # run forever after with nobody at the keyboard. The borrowed cache lives in tests\.e2e and
@@ -19,7 +26,8 @@ param(
     [string]$Environment,
     [string]$Username,
     [switch]$Keep,
-    [switch]$FreshAuth
+    [switch]$FreshAuth,
+    [switch]$BenchCache
 )
 
 $ErrorActionPreference = "Stop"
@@ -63,6 +71,7 @@ if ($LASTEXITCODE -ne 0) { throw "Build failed with exit code $LASTEXITCODE." }
 
 $exe = Join-Path $tests "Icons.E2eHarness\bin\Debug\net48\Icons.E2eHarness.exe"
 $extra = @(); if ($Keep) { $extra += "--keep" }
+if ($BenchCache) { $extra += "--bench-cache" }
 
 & $exe $Environment $Username $cache $out @extra
 if ($LASTEXITCODE -eq 3 -and (Test-Path $sandboxCache)) {
