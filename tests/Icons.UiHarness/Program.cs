@@ -1,8 +1,11 @@
 using System;
+using System.Collections;
+using System.Collections.Generic;
 using System.Drawing;
 using System.Drawing.Imaging;
 using System.IO;
 using System.Linq;
+using System.Reflection;
 using System.Windows.Forms;
 
 namespace Icons.UiHarness
@@ -146,6 +149,8 @@ namespace Icons.UiHarness
                         Console.WriteLine("OK: apply stays dead until there is a table to apply to");
                     }
 
+                    failures += CheckNameSurvivesRebuild(control, form, outputDir);
+
                     form.Close();
                     Pump();
                 }
@@ -159,6 +164,119 @@ namespace Icons.UiHarness
             Console.WriteLine(failures == 0 ? "All harness checks passed." : failures + " harness check(s) failed.");
             Console.WriteLine("Screenshots in " + Path.GetFullPath(outputDir));
             return failures == 0 ? 0 : 1;
+        }
+
+        /// <summary>
+        /// A hand-edited web resource name must survive everything that rebuilds the table list
+        /// and re-selects the same table - a reload, or a single keystroke in the table filter.
+        /// Both fire SelectedIndexChanged, and SuggestName used to overwrite the box on every
+        /// one of them.
+        ///
+        /// There is no connection here, so the tables are seeded straight into the private
+        /// list. Reflection, because the product needs no seam for this and should not grow one.
+        /// </summary>
+        private static int CheckNameSurvivesRebuild(IconsControl control, Form form, string outputDir)
+        {
+            const BindingFlags Private = BindingFlags.Instance | BindingFlags.NonPublic;
+
+            var tablesField = typeof(IconsControl).GetField("_tables", Private);
+            var showTables = typeof(IconsControl).GetMethod("ShowTables", Private);
+            var itemType = typeof(IconsControl).GetNestedType("TableItem", BindingFlags.NonPublic);
+            if (tablesField == null || showTables == null || itemType == null)
+            {
+                Console.WriteLine("FAIL: the control's table plumbing has moved and the harness cannot seed it");
+                return 1;
+            }
+
+            var tables = (IList)Activator.CreateInstance(typeof(List<>).MakeGenericType(itemType));
+            tables.Add(SeededTable(itemType, "account", "Account"));
+            tables.Add(SeededTable(itemType, "contact", "Contact"));
+            tablesField.SetValue(control, tables);
+            showTables.Invoke(control, null);
+
+            var tableBox = RowControl(control, "Table") as ComboBox;
+            var filterBox = RowControl(control, "Find table") as TextBox;
+            var nameBox = RowControl(control, "Web resource") as TextBox;
+            if (tableBox == null || filterBox == null || nameBox == null)
+            {
+                Console.WriteLine("FAIL: could not find the table, filter and name rows");
+                return 1;
+            }
+
+            var failures = 0;
+
+            tableBox.SelectedIndex = 0;
+            if (nameBox.Text != "new_/icons/account.svg")
+            {
+                Console.WriteLine("FAIL: choosing Account suggested '" + nameBox.Text +
+                                  "', not new_/icons/account.svg");
+                failures++;
+            }
+
+            // An untouched box follows the table: the suggestion is a convenience, not a lock,
+            // and a fix that never overwrote anything would fail here.
+            tableBox.SelectedIndex = 1;
+            if (nameBox.Text != "new_/icons/contact.svg")
+            {
+                Console.WriteLine("FAIL: the suggestion did not follow the table change; the box holds '" +
+                                  nameBox.Text + "'");
+                failures++;
+            }
+            else
+            {
+                Console.WriteLine("OK: an untouched name follows the chosen table");
+            }
+
+            // Now the user types their own name, and then one keystroke lands in the table
+            // filter. The list rebuilds, Contact is re-selected, SelectedIndexChanged fires.
+            const string handEdited = "custom_/icons/handmade.svg";
+            nameBox.Text = handEdited;
+            filterBox.Text = "con";
+            Pump();
+
+            if (tableBox.Items.Count != 1)
+            {
+                Console.WriteLine("FAIL: filtering for 'con' should leave one table, not " + tableBox.Items.Count);
+                failures++;
+            }
+
+            if (nameBox.Text != handEdited)
+            {
+                Console.WriteLine("FAIL: a filter keystroke overwrote the hand-edited name with '" +
+                                  nameBox.Text + "'");
+                failures++;
+            }
+            else
+            {
+                Console.WriteLine("OK: the hand-edited name survives a filter keystroke re-adding its table");
+            }
+
+            Shoot(form, outputDir, "05-name-kept");
+            return failures;
+        }
+
+        private static object SeededTable(Type itemType, string logicalName, string displayName)
+        {
+            var item = Activator.CreateInstance(itemType, true);
+            itemType.GetField("LogicalName").SetValue(item, logicalName);
+            itemType.GetField("DisplayName").SetValue(item, displayName);
+            itemType.GetField("Customizable").SetValue(item, true);
+            return item;
+        }
+
+        /// <summary>
+        /// The input beside the given caption. Find() cannot tell these rows apart - the whole
+        /// target pane is one TableLayoutPanel, so every row sees every label - hence by cell.
+        /// </summary>
+        private static Control RowControl(Control root, string caption)
+        {
+            foreach (var panel in Descendants(root).OfType<TableLayoutPanel>())
+            {
+                var label = panel.Controls.OfType<Label>().FirstOrDefault(l => l.Text == caption);
+                if (label == null) continue;
+                return panel.GetControlFromPosition(1, panel.GetPositionFromControl(label).Row);
+            }
+            return null;
         }
 
         /// <summary>
