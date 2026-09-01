@@ -49,6 +49,19 @@ namespace Icons.E2eHarness
                        StringComparison.OrdinalIgnoreCase);
         }
 
+        /// <summary>
+        /// Tells the environment which solution this user works in, the way the maker portal
+        /// does. The run does this to itself so the tool has a real preference to read, and puts
+        /// back whatever was there on the way out - it is the signed-in user's own setting, not
+        /// the run's to keep.
+        /// </summary>
+        public void SetPreferredSolution(Guid solutionId)
+        {
+            var request = new OrganizationRequest("SetPreferredSolution");
+            request["SolutionId"] = solutionId;
+            _service.Execute(request);
+        }
+
         /// <summary>What the environment says this user works in, or an empty id.</summary>
         public Guid PreferredSolution()
         {

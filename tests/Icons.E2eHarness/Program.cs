@@ -71,6 +71,14 @@ namespace Icons.E2eHarness
             var seedName = org.SeedIcon(solution);
             Console.WriteLine("        seeded " + seedName + ", through " + solution.UniqueName);
 
+            // The tool chooses a solution only when the environment names one, so the run names
+            // one - the same way a person does, through the maker portal's preferred solution.
+            // Whatever was set before goes back at the end: it is the signed-in user's setting.
+            var preferredBefore = org.PreferredSolution();
+            org.SetPreferredSolution(solution.Id);
+            Console.WriteLine("        set the preferred solution to " + solution.UniqueName
+                              + " (it was " + (preferredBefore == Guid.Empty ? "unset" : preferredBefore.ToString()) + ")");
+
             // What the run learns as it goes: the name the tool suggested is the key to
             // everything the org is asked afterwards, and to what cleanup deletes.
             string vectorName = null;
@@ -110,6 +118,19 @@ namespace Icons.E2eHarness
                     Do = r => r.Probe.PickTable(Org.TableLogicalName),
                     Until = r => !string.IsNullOrWhiteSpace(r.Probe.Name.Text),
                     TimeoutMs = 10000
+                },
+                new Step
+                {
+                    Label = "the environment's preferred solution is the one chosen",
+                    Do = r =>
+                    {
+                        r.Check(r.Probe.SelectedSolution == solution.UniqueName,
+                            "the solution this user prefers should be the chosen one, and the box holds \""
+                            + (r.Probe.SelectedSolution ?? "nothing") + "\"");
+                        r.Check(r.Probe.Solutions.SelectedIndex == 0,
+                            "and it should be the row the list opens on, not one further down; it is row "
+                            + r.Probe.Solutions.SelectedIndex);
+                    }
                 },
                 new Step
                 {
@@ -333,6 +354,22 @@ namespace Icons.E2eHarness
             }
             finally
             {
+                // Before anything else, and whether the run is keeping its fixtures or not: the
+                // preferred solution belongs to the person signed in, not to this run.
+                if (preferredBefore != Guid.Empty)
+                {
+                    try
+                    {
+                        new Org(client).SetPreferredSolution(preferredBefore);
+                        Console.WriteLine("        put the preferred solution back to " + preferredBefore);
+                    }
+                    catch (Exception ex)
+                    {
+                        Console.WriteLine("        could not put the preferred solution back to "
+                                          + preferredBefore + ": " + ex.Message);
+                    }
+                }
+
                 if (keep)
                 {
                     Console.WriteLine("        kept: " + Org.TableLogicalName + " and "

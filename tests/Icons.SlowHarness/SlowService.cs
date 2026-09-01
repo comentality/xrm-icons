@@ -76,14 +76,23 @@ namespace Icons.SlowHarness
             service.Tables.Add(Table(flavour.ToLowerInvariant() + "_case", flavour + " Case"));
             service.Tables.Add(Table(flavour.ToLowerInvariant() + "_frozen", flavour + " Frozen", customizable: false));
             service.AddSolution("Default", "Default Solution", "new");
-            service.AddSolution(flavour, flavour + " Customisations", flavour.Substring(0, 3).ToLowerInvariant());
+
+            // An environment where somebody has set their preferred solution, which is what makes
+            // the tool choose one at all. Most scenarios here are about what happens after a
+            // solution is chosen, and would otherwise be scenarios about it not being.
+            service.PreferredSolution = service.AddSolution(
+                flavour, flavour + " Customisations", flavour.Substring(0, 3).ToLowerInvariant());
+
             return service;
         }
 
-        /// <summary>Returns the id, which is what a preferred solution is named by.</summary>
-        public Guid AddSolution(string uniqueName, string friendlyName, string prefix)
+        /// <summary>
+        /// Returns the id, which is what a preferred solution is named by. The id can be given
+        /// rather than generated, because the catch-alls have fixed ones the tool knows.
+        /// </summary>
+        public Guid AddSolution(string uniqueName, string friendlyName, string prefix, Guid id = default(Guid))
         {
-            var row = new Entity("solution", Guid.NewGuid());
+            var row = new Entity("solution", id == Guid.Empty ? Guid.NewGuid() : id);
             row["uniquename"] = uniqueName;
             row["friendlyname"] = friendlyName;
             row["p.customizationprefix"] = new AliasedValue("publisher", "customizationprefix", prefix);

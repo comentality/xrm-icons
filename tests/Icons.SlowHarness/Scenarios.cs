@@ -133,42 +133,59 @@ namespace Icons.SlowHarness
         }
 
         /// <summary>
-        /// An org whose first two solutions alphabetically are the two catch-alls - the CDS
-        /// default solution and the Default solution, one of them under a unique name generated
-        /// per environment. Preselecting either would put icons where nothing anybody ships can
-        /// see them, on the strength of a sort order. They sink to the bottom of the list
-        /// instead, so the row the box opens on is the row it should be writing through.
+        /// An environment where nobody has set a preferred solution, which is what the platform
+        /// reports by naming the CDS default solution - the same catch-all the Default solution
+        /// is, under a unique name generated per environment.
+        ///
+        /// That answer means "nobody said", and nobody said is not permission to pick. So nothing
+        /// is chosen, Apply stays dead, and the window says whose turn it is. Choosing the
+        /// alphabetically first solution instead would be a guess, and choosing the catch-all it
+        /// names would put icons where nothing this environment ships can see them.
         /// </summary>
         private static Scenario CatchAllNotPreselected()
         {
+            var cdsDefault = new Guid("00000001-0000-0000-0001-00000000009b");
+
             return new Scenario
             {
-                Name = "catch-alls-last",
-                Why = "the solution worth writing through is the top row, and the catch-alls sit under it",
+                Name = "no-preference-nothing-chosen",
+                Why = "with no preferred solution set, nothing is chosen for you and the catch-alls still sink",
                 Wire = s =>
                 {
                     s.Solutions.Clear();
-                    s.AddSolution("Cr89693", "Common Data Services Default Solution", "cr23c");
+                    s.AddSolution("Cr89693", "Common Data Services Default Solution", "cr23c", cdsDefault);
                     s.AddSolution("Default", "Default Solution", "new");
                     s.AddSolution("Contoso", "Contoso Customisations", "con");
+
+                    // What the platform answers when nobody has chosen: the catch-all itself.
+                    s.PreferredSolution = cdsDefault;
                     s.Latency = Slow("solutions", 300);
                 }
             }
                 .At(200, "press Load", r => r.Probe.PressLoad())
-                .At(1400, "see what the list opens on", r =>
+                .At(1400, "nothing is chosen, and the catch-alls are last", r =>
                 {
                     r.Check(r.Probe.Solutions.Items.Count == 3,
                         "all three should still be offered, and there are " + r.Probe.Solutions.Items.Count);
-                    r.Check(r.Probe.SelectedSolution == "Contoso",
-                        "the real solution should be the one chosen, and the box holds \""
+                    r.Check(r.Probe.SelectedSolution == null,
+                        "nothing should be chosen without a stated preference, and the box holds \""
                         + (r.Probe.SelectedSolution ?? "nothing") + "\"");
                     r.Check(r.Probe.SolutionNames().FirstOrDefault() != null
                             && r.Probe.SolutionNames()[0].Contains("Contoso"),
-                        "and it should be the top row, not a selection made three rows down; the list reads: "
+                        "the real solution should still be the top row to choose; the list reads: "
                         + string.Join(", ", r.Probe.SolutionNames()));
-                    r.Check(r.Probe.Solutions.SelectedIndex == 0,
-                        "the chosen row should be the first, and it is row "
-                        + r.Probe.Solutions.SelectedIndex);
+                    r.Check((r.Probe.Warning ?? "").IndexOf("no preferred solution",
+                                StringComparison.OrdinalIgnoreCase) >= 0,
+                        "and the window should say whose turn it is, but the warning line says \""
+                        + (r.Probe.Warning ?? "nothing") + "\"");
+                })
+                .At(1700, "with an icon and a table, Apply is still dead", r =>
+                {
+                    r.Probe.PickFirstIcon();
+                    r.Probe.PickTable("contoso_account");
+
+                    r.Check(!r.Probe.Apply.Enabled,
+                        "everything but the solution is chosen, and that alone must keep Apply dead");
                 });
         }
 

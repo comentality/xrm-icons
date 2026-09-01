@@ -46,6 +46,13 @@ namespace Icons
             public string FriendlyName;
             public string Prefix;
 
+            /// <summary>
+            /// Whether this is the solution the environment says the user works in. The only
+            /// thing that gets chosen for somebody: everything else is a guess about where their
+            /// icons belong, and the wrong guess is one nobody notices until it ships.
+            /// </summary>
+            public bool Preferred;
+
             public override string ToString()
             {
                 return FriendlyName + "  [" + Prefix + "_]";
@@ -126,9 +133,10 @@ namespace Icons
         /// </summary>
         private string _typedFolder;
 
-        /// <summary>What is worth knowing about the chosen icon, and about the name it would go under.</summary>
+        /// <summary>What is worth knowing about the chosen icon, the solution, and the name.</summary>
         private string _iconConcern;
         private string _nameConcern;
+        private string _solutionConcern;
         private RadioButton _themeColour;
         private RadioButton _fixedColour;
         private Button _colourButton;
@@ -189,9 +197,25 @@ namespace Icons
                 WebResourceName.Validate(_nameBox.Text) == null;
 
             _nameConcern = NameConcern();
+            _solutionConcern = SolutionConcern();
             ShowConcerns();
 
             UpdateStatus();
+        }
+
+        /// <summary>
+        /// Why nothing is chosen in the solution box, or null. Only ever the case when the
+        /// environment has no preferred solution to name, because that is the one thing this tool
+        /// will choose for somebody - so the line says what to do rather than what went wrong.
+        /// </summary>
+        private string SolutionConcern()
+        {
+            if (Busy || _solutions.Count == 0) return null;
+            if (_solutionBox.SelectedItem is SolutionItem) return null;
+
+            return "Choose the solution new web resources go into. This environment has no " +
+                   "preferred solution set, so there is nothing to choose for you - and the " +
+                   "default solutions are not it.";
         }
 
         /// <summary>
@@ -230,7 +254,7 @@ namespace Icons
         /// </summary>
         private void ShowConcerns()
         {
-            var text = string.Join("  ", new[] { _iconConcern, _nameConcern }
+            var text = string.Join("  ", new[] { _iconConcern, _solutionConcern, _nameConcern }
                 .Where(concern => !string.IsNullOrEmpty(concern)));
 
             _warningLabel.Text = text;
@@ -396,8 +420,17 @@ namespace Icons
                         .Where(s => !string.IsNullOrWhiteSpace(s.UniqueName))
                         .ToList();
 
-                    // Whose choice this is, when the environment has one to give.
+                    // Whose choice this is, when the environment has one to give. A catch-all
+                    // coming back is not one: the platform answers GetPreferredSolution with the
+                    // CDS default solution when nobody has set a preference, so that answer means
+                    // "nobody said", and nobody said is not permission to pick.
                     var preferred = PreferredSolution(Service);
+                    foreach (var solution in solutions)
+                    {
+                        solution.Preferred = preferred != Guid.Empty
+                                             && solution.Id == preferred
+                                             && !IsACatchAll(solution);
+                    }
 
                     // The one that should be chosen goes to the top of the list rather than being
                     // chosen quietly wherever it happens to sort. A dropped-down list that opens
@@ -405,7 +438,7 @@ namespace Icons
                     // reads as the answer, with the catch-alls kept below it for the org that
                     // really does write through one. Ordering is stable, so within each group the
                     // query's own by-name order survives.
-                    args.Result = solutions.OrderBy(s => Rank(s, preferred)).ToList();
+                    args.Result = solutions.OrderBy(Rank).ToList();
                 },
                 PostWorkCallBack = args =>
                 {
@@ -447,11 +480,12 @@ namespace Icons
 
                     if (_solutionBox.Items.Count > 0)
                     {
-                        // The first row, which the sort above has already made the right one: a
-                        // real solution when the org has any, a catch-all only when it has
-                        // nothing else. Writing into a catch-all is legal and almost never what
-                        // somebody wants, so it is offered rather than chosen.
-                        _solutionBox.SelectedIndex = 0;
+                        // Only a solution somebody actually chose gets chosen here, which is the
+                        // preferred one and nothing else - it sorts first, so this is row 0 when
+                        // there is one and no row at all when there is not. Alphabetical order is
+                        // not a preference, and a catch-all is where icons go to be invisible to
+                        // everything the environment ships.
+                        _solutionBox.SelectedIndex = _solutions.FindIndex(s => s.Preferred);
                     }
                     else
                     {
@@ -502,16 +536,11 @@ namespace Icons
         /// <summary>
         /// Where a solution sorts: the environment's own answer first, then the real solutions in
         /// the order the query gave them, then the catch-alls.
-        ///
-        /// A preferred solution that is itself a catch-all is not promoted. The platform answers
-        /// GetPreferredSolution with the CDS default solution when nobody has set one, so a
-        /// catch-all coming back is indistinguishable from no answer at all - and putting icons
-        /// somewhere nothing you ship can see them is the thing this ordering exists to avoid.
         /// </summary>
-        private static int Rank(SolutionItem solution, Guid preferred)
+        private static int Rank(SolutionItem solution)
         {
-            if (IsACatchAll(solution)) return 2;
-            return preferred != Guid.Empty && solution.Id == preferred ? 0 : 1;
+            if (solution.Preferred) return 0;
+            return IsACatchAll(solution) ? 2 : 1;
         }
 
         /// <summary>
