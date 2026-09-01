@@ -12,3 +12,5 @@ artifacts/
 tests/.xtb/
 tests/.ui/
 tests/.slow/
+# The e2e run's shots and its borrowed token cache, which is a sign in and must never be committed.
+tests/.e2e/

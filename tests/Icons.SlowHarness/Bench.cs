@@ -177,7 +177,7 @@ namespace Icons.SlowHarness
         /// protected, because outside a host nothing has any business setting one - so a harness
         /// standing in for the host reaches it the way it reaches everything else here.
         /// </summary>
-        private static void Connect(IconsControl control, Microsoft.Xrm.Sdk.IOrganizationService service)
+        public static void Connect(IconsControl control, Microsoft.Xrm.Sdk.IOrganizationService service)
         {
             const BindingFlags any = BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic
                                      | BindingFlags.DeclaredOnly;
@@ -233,7 +233,7 @@ namespace Icons.SlowHarness
     /// The confirm is answered OK, everything else closed: WM_CLOSE on an OKCancel box is its
     /// Cancel button, which would silently call off every apply the suite tries to make.
     /// </summary>
-    internal class Dialogs
+    public class Dialogs
     {
         private const int WM_CLOSE = 0x0010;
         private const int BM_CLICK = 0x00F5;

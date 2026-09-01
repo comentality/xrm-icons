@@ -1,0 +1,25 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net48</TargetFramework>
+    <!-- A console app that opens a window: the findings go to stdout, and the window is the
+         real tool doing real writes. -->
+    <OutputType>Exe</OutputType>
+    <UseWindowsForms>true</UseWindowsForms>
+    <LangVersion>latest</LangVersion>
+    <IsPackable>false</IsPackable>
+    <RootNamespace>Icons.E2eHarness</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- The control derives from PluginControlBase, and the connection is a CrmServiceClient:
+         both live in the same package the tool itself keeps private. -->
+    <PackageReference Include="XrmToolBoxPackage" Version="1.2025.7.71" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\Icons\Icons.csproj" />
+    <!-- For the bench: Probe, Dialogs, QuietForm, Capture, and the way a connection is handed
+         to the control. The slow scenarios themselves are not run from here. -->
+    <ProjectReference Include="..\Icons.SlowHarness\Icons.SlowHarness.csproj" />
+  </ItemGroup>
+</Project>
