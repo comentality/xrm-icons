@@ -11,8 +11,9 @@ bench lives, and how to run it. Read the global skill first; nothing there is re
 - **LoadTables** — one `RetrieveAllEntitiesRequest`, then chains LoadSolutions on success.
 - **LoadSolutions** — one `RetrieveMultiple` over `solution` joined to `publisher`. Failure is
   non-fatal: the tool falls back to the default solution and must say so.
-- **Apply** — the only cancelable one. Hands off to `IconApplier.Apply`, which makes up to
-  eight round trips with a cancellation check between each.
+- **Apply** — the only cancelable one. Hands off to `IconApplier.Apply`: five round trips
+  without raster icons (find, create-or-update, table-read, table-update, publish), eleven
+  with them (a find and a write per raster slot), a cancellation check between each.
 
 The in-flight state is `_loadingTables`, `_loadingSolutions`, `_applying`, and the stale-result
 guard is `_generation`. The invariant the callbacks keep: **a callback may only touch the flags
@@ -57,3 +58,7 @@ past the desktop edge; `ICONS_HARNESS_ONSCREEN=1` puts them in front to watch.
 - The staleness pin needs the old org's answer to land **last** (`stale-answer-discarded`);
   in the ordering where the new answer lands last, a missing generation check self-heals and
   the scenario cannot fail.
+- Only the tables callback's flag ordering is pinned (`switch-mid-load`). The same
+  generation-before-flags ordering in the solutions and apply callbacks is symmetric but
+  unpinned: the arrangement that would catch it - a new apply already in flight on the new
+  org when the old org's cancelled callback lands - is not worth the scenario it would take.
