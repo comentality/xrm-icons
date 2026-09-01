@@ -647,6 +647,21 @@ namespace Icons.SlowHarness
                     r.Check(r.Probe.Name.Text.IndexOf("contoso_case", StringComparison.Ordinal) >= 0,
                         "with a name suggested for that one rather than the last one, and the box holds \""
                         + r.Probe.Name.Text + "\"");
+                })
+                .At(5600, "give the next one an icon too", r => r.Probe.PressApply())
+                .At(7200, "and stop at the one that cannot take an icon", r =>
+                {
+                    // What is left in the list is locked against customisation. It is in the
+                    // unset-only list honestly - it has no icon and never will - but landing on
+                    // it would cost the click the advance is there to save.
+                    r.Check(r.Probe.TableNames().Any(n => n.Contains("(contoso_frozen)")),
+                        "the locked table should still be listed, and the list holds: "
+                        + string.Join(", ", r.Probe.TableNames()));
+                    r.Check(r.Probe.Tables.SelectedItem == null,
+                        "but nothing may land on it, and the box holds \""
+                        + r.Probe.Tables.SelectedItem + "\"");
+                    r.Check(!r.Probe.Apply.Enabled,
+                        "so with nothing left to apply to, Apply has to be dead again");
                 });
         }
 

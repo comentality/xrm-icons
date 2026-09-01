@@ -637,8 +637,26 @@ namespace Icons
             if (_tableBox.SelectedIndex >= 0) return;
             if (_tableBox.Items.Count == 0) return;
 
-            // The row that took its index, or the last one when it was the end of the list.
-            _tableBox.SelectedIndex = Math.Min(Math.Max(wasAt, 0), _tableBox.Items.Count - 1);
+            // The row that took its index, or the last one when it was the end of the list -
+            // skipping the tables locked against customisation, which are in the unset-only list
+            // because they have no icon and will never take one. Landing on a dead end costs the
+            // click it was meant to save.
+            var start = Math.Min(Math.Max(wasAt, 0), _tableBox.Items.Count - 1);
+
+            for (var i = start; i < _tableBox.Items.Count; i++)
+                if (Customizable(i)) { _tableBox.SelectedIndex = i; return; }
+
+            for (var i = start - 1; i >= 0; i--)
+                if (Customizable(i)) { _tableBox.SelectedIndex = i; return; }
+
+            // Nothing left in the list that can be given an icon. Leave the box empty rather
+            // than land on something that cannot be applied to.
+        }
+
+        private bool Customizable(int index)
+        {
+            var table = _tableBox.Items[index] as TableItem;
+            return table != null && table.Customizable;
         }
 
         // ===== the icon library =====
