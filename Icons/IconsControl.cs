@@ -83,6 +83,12 @@ namespace Icons
         private List<TableItem> _tables = new List<TableItem>();
         private List<SolutionItem> _solutions = new List<SolutionItem>();
 
+        /// <summary>
+        /// Where this org already keeps its icons, learned from the tables and solutions that
+        /// were just read. Until a load lands it knows nothing and suggests the convention.
+        /// </summary>
+        private IconLocations _locations = IconLocations.None;
+
         /// <summary>Thumbnails already drawn. Cleared when the colour changes.</summary>
         private readonly Dictionary<string, Bitmap> _thumbnails = new Dictionary<string, Bitmap>();
 
@@ -151,15 +157,20 @@ namespace Icons
             _fixedColour.Enabled = !_applying;
             _colourButton.Enabled = !_applying && _fixedColour.Checked;
 
-            // Writing needs all three: something to draw, somewhere to put it, and a name that
-            // Dataverse will accept. Offering Apply without them buys one round trip and an
-            // error dialog.
+            // Writing needs all four: something to draw, a table to put it on, an unmanaged
+            // solution to file the new web resource in, and a name that Dataverse will accept.
+            // Offering Apply without them buys one round trip and an error dialog.
+            //
+            // The solution is required rather than optional because the alternative is not
+            // "no solution" - it is the default solution, where a web resource is invisible to
+            // whatever the org actually ships, and moving it afterwards is somebody's afternoon.
             var table = _tableBox.SelectedItem as TableItem;
             _applyButton.Enabled =
                 !Busy &&
                 _selectedIcon != null &&
                 table != null &&
                 table.Customizable &&
+                _solutionBox.SelectedItem is SolutionItem &&
                 WebResourceName.Validate(_nameBox.Text) == null;
 
             UpdateStatus();
@@ -325,19 +336,27 @@ namespace Icons
 
                     if (args.Error != null)
                     {
-                        // Not fatal: without a solution the tool still works, it just writes to
-                        // the default one. Say so rather than leaving an empty box unexplained -
-                        // and empty the box, or it keeps offering last time's solution while the
-                        // message promises the default one.
+                        // Fatal to applying, though not to browsing: a new web resource has to be
+                        // filed somewhere, and the only somewhere left would be the default
+                        // solution. Empty the box as well as saying so, or it keeps offering last
+                        // time's solution as though this load had answered.
                         _solutions = new List<SolutionItem>();
                         _solutionBox.Items.Clear();
-                        _trouble = "Could not load solutions, so new web resources will go to the default solution: " +
+                        _locations = IconLocations.From(_tables.Select(t => t.CurrentIcon), null);
+                        _trouble = "Could not load solutions, and an icon needs one to go in, so nothing " +
+                                   "can be applied until this load works. Press Load tables again: " +
                                    args.Error.Message;
                         SyncEnabled();
                         return;
                     }
 
                     _solutions = (List<SolutionItem>)args.Result;
+
+                    // Before the box is filled, because selecting a row in it suggests a name and
+                    // the suggestion is only as good as what has been learned by then.
+                    _locations = IconLocations.From(
+                        _tables.Select(t => t.CurrentIcon),
+                        _solutions.Select(s => s.Prefix));
 
                     _solutionBox.BeginUpdate();
                     _solutionBox.Items.Clear();
@@ -347,13 +366,25 @@ namespace Icons
                     if (_solutionBox.Items.Count > 0)
                     {
                         // Prefer an actual solution over the catch-all: writing into Default is
-                        // legal and almost never what somebody wants.
+                        // legal and almost never what somebody wants. It stays in the list, for
+                        // the orgs that have nothing else, but it is never the one picked for you.
                         var index = _solutions.FindIndex(s =>
                             !s.UniqueName.Equals("Default", StringComparison.OrdinalIgnoreCase) &&
                             !s.UniqueName.Equals("Active", StringComparison.OrdinalIgnoreCase));
                         _solutionBox.SelectedIndex = index >= 0 ? index : 0;
                     }
+                    else
+                    {
+                        // Nothing to file a web resource in, which is not a state to discover at
+                        // the end of an apply that cannot be made.
+                        _trouble = "This connection sees no unmanaged solution to put a web resource in, " +
+                                   "so an icon cannot be applied. It needs one whose publisher prefix the " +
+                                   "web resource can be named with.";
+                    }
 
+                    // The box may have selected nothing to raise an event about, and the folder
+                    // just learned is worth a better suggestion either way.
+                    SuggestName();
                     SyncEnabled();
                 }
             });
@@ -528,7 +559,20 @@ namespace Icons
 
             var table = _tableBox.SelectedItem as TableItem;
             var icon = _selectedIcon;
+            var solution = _solutionBox.SelectedItem as SolutionItem;
             if (table == null || icon == null || _catalog == null) return;
+
+            // SyncEnabled will not have let it get here. Said again anyway, because this is the
+            // one thing between an icon and the default solution, and the button is not the only
+            // way in - a double-click on a cell applies too.
+            if (solution == null)
+            {
+                MessageBox.Show(this,
+                    "Pick the unmanaged solution the new web resource should go in first. Without one it " +
+                    "would land in the default solution, where nothing you ship can see it.",
+                    "No solution chosen", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return;
+            }
 
             var name = _nameBox.Text.Trim();
             var problem = WebResourceName.Validate(name);
@@ -553,11 +597,11 @@ namespace Icons
 
             var confirm = MessageBox.Show(this,
                 "Set " + icon.DisplayName + " as the icon for " + table.DisplayName + "?\n\n" +
-                "This writes the web resource " + name + " and publishes the table." + replacing + handover,
+                "This writes the web resource " + name + ", adding it to " + solution.FriendlyName +
+                " if it is new, and publishes the table." + replacing + handover,
                 "Set table icon", MessageBoxButtons.OKCancel, MessageBoxIcon.Question);
             if (confirm != DialogResult.OK) return;
 
-            var solution = _solutionBox.SelectedItem as SolutionItem;
             var mode = _fixedColour.Checked ? IconColourMode.Fixed : IconColourMode.Theme;
 
             string svg;
@@ -580,7 +624,7 @@ namespace Icons
                 TableLogicalName = table.LogicalName,
                 Svg = svg,
                 WebResourceName = name,
-                SolutionUniqueName = solution?.UniqueName,
+                SolutionUniqueName = solution.UniqueName,
                 IncludeRasterIcons = _rasterBox.Checked,
                 Image = image,
                 RasterColour = _colour
@@ -688,6 +732,8 @@ namespace Icons
 
             _tables = new List<TableItem>();
             _solutions = new List<SolutionItem>();
+            // Where the last org kept its icons says nothing about where this one does.
+            _locations = IconLocations.None;
             _tableBox.Items.Clear();
             _solutionBox.Items.Clear();
             _trouble = null;
@@ -755,7 +801,9 @@ namespace Icons
             // into a box that is empty or still holds its own last suggestion.
             if (_nameBox.Text.Length > 0 && _nameBox.Text != _suggestedName) return;
 
-            _suggestedName = WebResourceName.ForTable(solution?.Prefix ?? "new", table.LogicalName);
+            // Where the org keeps its icons beats where this tool would have put them: the table's
+            // own icon if it has a writable one, otherwise the folder the rest of them are in.
+            _suggestedName = _locations.NameFor(table.CurrentIcon, solution?.Prefix ?? "new", table.LogicalName);
             _nameBox.Text = _suggestedName;
         }
 
