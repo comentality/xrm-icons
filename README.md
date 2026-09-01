@@ -88,6 +88,7 @@ the licence travels with the bundle so you can check that for yourself.
 
 ```powershell
 .\build.ps1                 # build and drop Icons.dll into your XrmToolBox Plugins folder
+.\xtb.ps1                   # build and launch a private XrmToolBox containing nothing but this tool
 dotnet test tests\Icons.Tests\Icons.Tests.csproj
 .\tests\ui.ps1              # open the real control in a bare window and photograph it
 .\tests\slow.ps1            # drive it against a Dataverse that answers in seconds, and misbehaves
