@@ -41,6 +41,7 @@ namespace Icons
 
         private sealed class SolutionItem
         {
+            public Guid Id;
             public string UniqueName;
             public string FriendlyName;
             public string Prefix;
@@ -384,22 +385,27 @@ namespace Icons
                     publisher.EntityAlias = "p";
                     publisher.Columns = new ColumnSet("customizationprefix");
 
-                    args.Result = Service.RetrieveMultiple(query).Entities
+                    var solutions = Service.RetrieveMultiple(query).Entities
                         .Select(e => new SolutionItem
                         {
+                            Id = e.Id,
                             UniqueName = e.GetAttributeValue<string>("uniquename"),
                             FriendlyName = e.GetAttributeValue<string>("friendlyname"),
                             Prefix = (e.GetAttributeValue<AliasedValue>("p.customizationprefix")?.Value as string) ?? "new"
                         })
                         .Where(s => !string.IsNullOrWhiteSpace(s.UniqueName))
-                        // The one that should be chosen goes to the top of the list rather than
-                        // being chosen quietly wherever it happens to sort. A dropped-down list
-                        // that opens on its third row reads as an arbitrary default; one that
-                        // opens on its first reads as the answer, with the catch-alls kept below
-                        // it for the org that really does write through one. Ordering is stable,
-                        // so within each group the query's own by-name order survives.
-                        .OrderBy(s => IsACatchAll(s) ? 1 : 0)
                         .ToList();
+
+                    // Whose choice this is, when the environment has one to give.
+                    var preferred = PreferredSolution(Service);
+
+                    // The one that should be chosen goes to the top of the list rather than being
+                    // chosen quietly wherever it happens to sort. A dropped-down list that opens
+                    // on its third row reads as an arbitrary default; one that opens on its first
+                    // reads as the answer, with the catch-alls kept below it for the org that
+                    // really does write through one. Ordering is stable, so within each group the
+                    // query's own by-name order survives.
+                    args.Result = solutions.OrderBy(s => Rank(s, preferred)).ToList();
                 },
                 PostWorkCallBack = args =>
                 {
@@ -464,19 +470,76 @@ namespace Icons
             });
         }
 
+        /// <summary>The Default solution's fixed id, the same in every environment.</summary>
+        private static readonly Guid DefaultSolution = new Guid("fd140aaf-4df4-11dd-bd17-0019b9312238");
+
+        /// <summary>The Active solution's fixed id. Not normally visible, but asked for anyway.</summary>
+        private static readonly Guid ActiveSolution = new Guid("fd140aae-4df4-11dd-bd17-0019b9312238");
+
         /// <summary>
-        /// The solutions everything unmanaged falls into when nobody chooses: the default
-        /// solution, the active one, and the CDS default solution beside them. The last has a
-        /// unique name generated per environment - Cr89693 and the like - so its friendly name is
-        /// the only stable handle on it. An environment that has renamed it simply gets what
-        /// every other solution gets: offered, and offered first if it sorts first.
+        /// The CDS default solution's fixed id. This one is worth an id rather than a name: its
+        /// unique name is generated per environment - Cr89693 and the like - and its friendly
+        /// name is English, so a localised environment would not be recognised by name at all.
+        /// </summary>
+        private static readonly Guid CdsDefaultSolution = new Guid("00000001-0000-0000-0001-00000000009b");
+
+        /// <summary>
+        /// The solutions everything unmanaged falls into when nobody chooses. Matched by id
+        /// first, and by name as well, so an environment where one of these ids is not what it is
+        /// here is still recognised - and one that has renamed them still is too.
         /// </summary>
         private static bool IsACatchAll(SolutionItem solution)
         {
-            return solution.UniqueName.Equals("Default", StringComparison.OrdinalIgnoreCase)
+            return solution.Id == DefaultSolution
+                   || solution.Id == ActiveSolution
+                   || solution.Id == CdsDefaultSolution
+                   || solution.UniqueName.Equals("Default", StringComparison.OrdinalIgnoreCase)
                    || solution.UniqueName.Equals("Active", StringComparison.OrdinalIgnoreCase)
                    || string.Equals(solution.FriendlyName, "Common Data Services Default Solution",
                        StringComparison.OrdinalIgnoreCase);
+        }
+
+        /// <summary>
+        /// Where a solution sorts: the environment's own answer first, then the real solutions in
+        /// the order the query gave them, then the catch-alls.
+        ///
+        /// A preferred solution that is itself a catch-all is not promoted. The platform answers
+        /// GetPreferredSolution with the CDS default solution when nobody has set one, so a
+        /// catch-all coming back is indistinguishable from no answer at all - and putting icons
+        /// somewhere nothing you ship can see them is the thing this ordering exists to avoid.
+        /// </summary>
+        private static int Rank(SolutionItem solution, Guid preferred)
+        {
+            if (IsACatchAll(solution)) return 2;
+            return preferred != Guid.Empty && solution.Id == preferred ? 0 : 1;
+        }
+
+        /// <summary>
+        /// The solution this user has told the maker portal they work in, or an empty id.
+        ///
+        /// GetPreferredSolution is an unbound function with no parameters, whose one response
+        /// field is the whole solution row. It is asked here rather than guessed at, because a
+        /// preference somebody has actually stated beats anything a sort order can infer.
+        /// </summary>
+        private static Guid PreferredSolution(IOrganizationService service)
+        {
+            try
+            {
+                var response = service.Execute(new OrganizationRequest("GetPreferredSolution"));
+
+                object value;
+                if (!response.Results.TryGetValue("PreferredSolution", out value)) return Guid.Empty;
+
+                var row = value as Entity;
+                return row?.Id ?? Guid.Empty;
+            }
+            catch (Exception)
+            {
+                // An environment from before the preferred solution existed, or one with the
+                // feature switched off, answers this by refusing it. Nothing is wrong; there is
+                // just nothing to hear, and the ordering below it stands on its own.
+                return Guid.Empty;
+            }
         }
 
         private void ShowTables()

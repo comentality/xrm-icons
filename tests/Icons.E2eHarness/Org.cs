@@ -32,9 +32,40 @@ namespace Icons.E2eHarness
         /// <summary>An unmanaged solution and its publisher prefix, as the tool sees them.</summary>
         public sealed class SolutionRef
         {
+            public Guid Id;
             public string UniqueName;
             public string FriendlyName;
             public string Prefix;
+        }
+
+        private static bool IsACatchAll(SolutionRef solution)
+        {
+            return solution.Id == new Guid("fd140aaf-4df4-11dd-bd17-0019b9312238")
+                   || solution.Id == new Guid("fd140aae-4df4-11dd-bd17-0019b9312238")
+                   || solution.Id == new Guid("00000001-0000-0000-0001-00000000009b")
+                   || solution.UniqueName.Equals("Default", StringComparison.OrdinalIgnoreCase)
+                   || solution.UniqueName.Equals("Active", StringComparison.OrdinalIgnoreCase)
+                   || solution.FriendlyName.Equals("Common Data Services Default Solution",
+                       StringComparison.OrdinalIgnoreCase);
+        }
+
+        /// <summary>What the environment says this user works in, or an empty id.</summary>
+        public Guid PreferredSolution()
+        {
+            try
+            {
+                var response = _service.Execute(new OrganizationRequest("GetPreferredSolution"));
+
+                object value;
+                if (!response.Results.TryGetValue("PreferredSolution", out value)) return Guid.Empty;
+
+                var row = value as Entity;
+                return row?.Id ?? Guid.Empty;
+            }
+            catch (Exception)
+            {
+                return Guid.Empty;
+            }
         }
 
         /// <summary>
@@ -65,6 +96,7 @@ namespace Icons.E2eHarness
             var solutions = _service.RetrieveMultiple(query).Entities
                 .Select(e => new SolutionRef
                 {
+                    Id = e.Id,
                     UniqueName = e.GetAttributeValue<string>("uniquename"),
                     FriendlyName = e.GetAttributeValue<string>("friendlyname") ?? "",
                     Prefix = e.GetAttributeValue<AliasedValue>("p.customizationprefix")?.Value as string
@@ -72,13 +104,13 @@ namespace Icons.E2eHarness
                 .Where(s => !string.IsNullOrWhiteSpace(s.UniqueName) && !string.IsNullOrWhiteSpace(s.Prefix))
                 .ToList();
 
-            // The same catch-alls the tool declines to pick for you, skipped the same way, so the
-            // run seeds through the solution the tool is about to choose.
-            var chosen = solutions.FirstOrDefault(s =>
-                             !s.UniqueName.Equals("Default", StringComparison.OrdinalIgnoreCase) &&
-                             !s.UniqueName.Equals("Active", StringComparison.OrdinalIgnoreCase) &&
-                             !s.FriendlyName.Equals("Common Data Services Default Solution",
-                                 StringComparison.OrdinalIgnoreCase))
+            // The tool's own order, mirrored: the environment's stated preference first, then the
+            // real solutions, then the catch-alls. The run has to seed through the solution the
+            // tool is about to choose, or the name it suggests is under the wrong publisher.
+            var preferred = PreferredSolution();
+
+            var chosen = solutions.FirstOrDefault(s => s.Id == preferred && preferred != Guid.Empty && !IsACatchAll(s))
+                         ?? solutions.FirstOrDefault(s => !IsACatchAll(s))
                          ?? solutions.FirstOrDefault();
 
             if (chosen == null)

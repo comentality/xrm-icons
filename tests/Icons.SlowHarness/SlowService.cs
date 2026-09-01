@@ -54,6 +54,12 @@ namespace Icons.SlowHarness
 
         public readonly List<EntityMetadata> Tables = new List<EntityMetadata>();
         public readonly List<Entity> Solutions = new List<Entity>();
+
+        /// <summary>
+        /// What GetPreferredSolution answers with. Empty means the environment refuses the
+        /// message, which is what one without the feature does.
+        /// </summary>
+        public Guid PreferredSolution = Guid.Empty;
         private readonly Dictionary<Guid, Entity> _webResources = new Dictionary<Guid, Entity>();
 
         /// <summary>How long this call should take. The whole point of the harness.</summary>
@@ -74,13 +80,15 @@ namespace Icons.SlowHarness
             return service;
         }
 
-        public void AddSolution(string uniqueName, string friendlyName, string prefix)
+        /// <summary>Returns the id, which is what a preferred solution is named by.</summary>
+        public Guid AddSolution(string uniqueName, string friendlyName, string prefix)
         {
             var row = new Entity("solution", Guid.NewGuid());
             row["uniquename"] = uniqueName;
             row["friendlyname"] = friendlyName;
             row["p.customizationprefix"] = new AliasedValue("publisher", "customizationprefix", prefix);
             Solutions.Add(row);
+            return row.Id;
         }
 
         public static EntityMetadata Table(string logicalName, string schemaName, bool customizable = true,
@@ -224,6 +232,34 @@ namespace Icons.SlowHarness
             if (request is PublishXmlRequest)
             {
                 return Answer(Begin("publish"), () => (OrganizationResponse)new PublishXmlResponse());
+            }
+
+            if (request.RequestName == "GetPreferredSolution")
+            {
+                return Answer(Begin("preferred-solution"), () =>
+                {
+                    // An environment from before the preferred solution, or one with the feature
+                    // off, refuses the message rather than answering it with nothing. That is the
+                    // default here, because most environments the tool meets are still like that.
+                    if (PreferredSolution == Guid.Empty)
+                        throw new FaultException<OrganizationServiceFault>(
+                            new OrganizationServiceFault
+                            {
+                                Message = "The request GetPreferredSolution is not recognised."
+                            });
+
+                    Entity row;
+                    lock (_lock)
+                    {
+                        row = Solutions.FirstOrDefault(s => s.Id == PreferredSolution)
+                              ?? new Entity("solution", PreferredSolution);
+                    }
+
+                    return (OrganizationResponse)new OrganizationResponse
+                    {
+                        Results = { { "PreferredSolution", Clone(row) } }
+                    };
+                });
             }
 
             throw new NotSupportedException("Nothing in the tool executes " + request.GetType().Name + ".");

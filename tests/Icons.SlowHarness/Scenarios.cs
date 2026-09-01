@@ -48,7 +48,49 @@ namespace Icons.SlowHarness
                 RasterHandover(),
                 PrefixMismatchWarned(),
                 CatchAllNotPreselected(),
+                PreferredSolutionWins(),
             };
+        }
+
+        /// <summary>
+        /// An environment that knows which solution this user works in, because they told the
+        /// maker portal. GetPreferredSolution is the only source here that is a stated preference
+        /// rather than an inference, so it beats the sort order - the solution it names goes to
+        /// the top even though it sorts last.
+        /// </summary>
+        private static Scenario PreferredSolutionWins()
+        {
+            return new Scenario
+            {
+                Name = "preferred-solution-wins",
+                Why = "a solution the user has actually chosen outranks anything a sort order can infer",
+                Wire = s =>
+                {
+                    s.Solutions.Clear();
+                    s.AddSolution("Adatum", "Adatum Customisations", "ada");
+                    s.AddSolution("Default", "Default Solution", "new");
+                    var zephyr = s.AddSolution("Zephyr", "Zephyr Customisations", "zep");
+
+                    s.PreferredSolution = zephyr;
+                    s.Latency = Slow("solutions", 300);
+                }
+            }
+                .At(200, "press Load", r => r.Probe.PressLoad())
+                .At(1400, "the stated preference is the top row", r =>
+                {
+                    r.Check(r.Probe.SelectedSolution == "Zephyr",
+                        "the environment's own answer should be the one chosen, and the box holds \""
+                        + (r.Probe.SelectedSolution ?? "nothing") + "\"");
+                    r.Check(r.Probe.Solutions.SelectedIndex == 0,
+                        "and it should be the top row, not a selection made further down; it is row "
+                        + r.Probe.Solutions.SelectedIndex);
+                    r.Check(r.Probe.SolutionNames().Length == 3,
+                        "with everything else still offered under it, and the list reads: "
+                        + string.Join(", ", r.Probe.SolutionNames()));
+                    r.Check(r.Service.Log("preferred-solution").Count == 1,
+                        "asked once per load, and it was asked "
+                        + r.Service.Log("preferred-solution").Count + " times");
+                });
         }
 
         /// <summary>

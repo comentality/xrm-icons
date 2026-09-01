@@ -63,7 +63,8 @@ resources, update table definitions and publish customisations.
 3. Search for an icon and select it.
 4. Pick the table, and the unmanaged solution new web resources go into. The solution is required:
    without one they would land in the default solution, where nothing you ship can see them. The
-   list opens on the one worth writing through, with the default solutions kept below it. The
+   list opens on the solution you set as your preferred one in the maker portal, if you have;
+   otherwise on the first real one, with the default solutions kept below it. The
    web resource name is suggested from where this environment already keeps its icons — the name
    the table already uses, or the folder its neighbours are in, or `new_/icons/account.svg` in an
    environment with no icons yet to learn from — and you can type any path over it.
