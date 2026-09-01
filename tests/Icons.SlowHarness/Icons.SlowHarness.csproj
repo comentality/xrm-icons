@@ -1,0 +1,22 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net48</TargetFramework>
+    <!-- A console app that opens windows: the findings go to stdout, and the windows are what
+         the findings are about. -->
+    <OutputType>Exe</OutputType>
+    <UseWindowsForms>true</UseWindowsForms>
+    <LangVersion>latest</LangVersion>
+    <IsPackable>false</IsPackable>
+    <RootNamespace>Icons.SlowHarness</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- The control derives from PluginControlBase, so hosting it needs the same package the
+         tool itself keeps private. -->
+    <PackageReference Include="XrmToolBoxPackage" Version="1.2025.7.71" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\Icons\Icons.csproj" />
+  </ItemGroup>
+</Project>

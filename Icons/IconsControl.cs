@@ -222,11 +222,14 @@ namespace Icons
                     // The tab can be closed while this was on the wire; the callback still runs.
                     if (IsDisposed) return;
 
+                    // A stale answer's flags are not its own to touch: the generation only moves
+                    // on through UpdateConnection, which reset them - and a newer fetch may have
+                    // raised one again, which this callback must not lower mid-flight.
+                    if (generation != _generation) return;
+
                     // Whatever happens below, this flag comes up - including on the error path,
                     // or one timeout leaves the button dead for the rest of the session.
                     _loadingTables = false;
-
-                    if (generation != _generation) { SyncEnabled(); return; }
 
                     if (args.Error != null)
                     {
@@ -297,15 +300,19 @@ namespace Icons
                 {
                     if (IsDisposed) return;
 
-                    _loadingSolutions = false;
+                    // Same as the tables: a stale answer may not touch the flags.
+                    if (generation != _generation) return;
 
-                    if (generation != _generation) { SyncEnabled(); return; }
+                    _loadingSolutions = false;
 
                     if (args.Error != null)
                     {
                         // Not fatal: without a solution the tool still works, it just writes to
-                        // the default one. Say so rather than leaving an empty box unexplained.
+                        // the default one. Say so rather than leaving an empty box unexplained -
+                        // and empty the box, or it keeps offering last time's solution while the
+                        // message promises the default one.
                         _solutions = new List<SolutionItem>();
+                        _solutionBox.Items.Clear();
                         _trouble = "Could not load solutions, so new web resources will go to the default solution: " +
                                    args.Error.Message;
                         SyncEnabled();
@@ -581,9 +588,11 @@ namespace Icons
                 {
                     if (IsDisposed) return;
 
-                    _applying = false;
+                    // Same as the loads: a stale answer may not touch the flags. A connection
+                    // change already cancelled this worker, reset the flags and said so.
+                    if (generation != _generation) return;
 
-                    if (generation != _generation) { SyncEnabled(); return; }
+                    _applying = false;
 
                     // Read Cancelled before Result: touching Result after a cancel rethrows.
                     if (args.Cancelled || args.Error is IconApplier.CancelledException)
@@ -625,6 +634,11 @@ namespace Icons
         {
             base.UpdateConnection(newService, detail, actionName, parameter);
 
+            // A write still out belongs to the org this control is leaving. The call on the
+            // wire cannot be recalled, but the ones behind it can - and must be, or the tool
+            // keeps changing an environment the window no longer shows.
+            var applying = _applying;
+
             // A different org has different tables. Bump the generation so anything still on
             // the wire for the old one is discarded rather than shown as this one's.
             _generation++;
@@ -638,6 +652,16 @@ namespace Icons
             _solutionBox.Items.Clear();
             _trouble = null;
             _outcome = null;
+
+            if (applying)
+            {
+                // Only the apply is marked cancelable, so only the apply may be cancelled here.
+                // Its callback will land with a stale generation and say nothing, so this line
+                // is the only report the user gets of what the old org may be left holding.
+                CancelWorker();
+                _trouble = "The connection changed while an icon was being applied. The previous " +
+                           "environment may or may not have been changed - reconnect to it to see.";
+            }
 
             SyncEnabled();
         }

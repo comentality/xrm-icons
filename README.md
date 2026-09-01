@@ -90,6 +90,7 @@ the licence travels with the bundle so you can check that for yourself.
 .\build.ps1                 # build and drop Icons.dll into your XrmToolBox Plugins folder
 dotnet test tests\Icons.Tests\Icons.Tests.csproj
 .\tests\ui.ps1              # open the real control in a bare window and photograph it
+.\tests\slow.ps1            # drive it against a Dataverse that answers in seconds, and misbehaves
 .\tools\build-catalog.ps1   # rebuild the icon bundle from @fluentui/svg-icons
 .\tools\make-tool-icon.ps1  # redraw the tool's own icon, using the tool's own renderer
 ```

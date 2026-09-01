@@ -1,0 +1,99 @@
+using System;
+using System.Linq;
+using System.Reflection;
+using System.Windows.Forms;
+
+namespace Icons.SlowHarness
+{
+    /// <summary>
+    /// The control from the outside, which is where a user is. Everything a scenario presses is
+    /// pressed for real - PerformClick, a row picked, text typed - and everything it reads is
+    /// what is on screen at that moment.
+    ///
+    /// It gets there through reflection, the same trade the UI harness makes: the fields are
+    /// private because nothing outside the control has any business with them, and widening
+    /// them for a test bench would be a worse thing to do to the tool than this is.
+    /// </summary>
+    public class Probe
+    {
+        private const BindingFlags Priv = BindingFlags.NonPublic | BindingFlags.Instance;
+
+        private readonly IconsControl _control;
+
+        public Probe(IconsControl control)
+        {
+            _control = control;
+        }
+
+        public T Field<T>(string name)
+        {
+            var field = typeof(IconsControl).GetField(name, Priv);
+            if (field == null) throw new MissingFieldException("IconsControl", name);
+            return (T)field.GetValue(_control);
+        }
+
+        // ===== what is on screen =====
+
+        public ToolStripButton Load { get { return Field<ToolStripButton>("_loadButton"); } }
+        public ToolStripButton Apply { get { return Field<ToolStripButton>("_applyButton"); } }
+        public ToolStripButton Cancel { get { return Field<ToolStripButton>("_cancelButton"); } }
+
+        public string Status { get { return Field<ToolStripLabel>("_statusLabel").Text; } }
+
+        /// <summary>The red line at the bottom, or null while it is hidden.</summary>
+        public string Trouble
+        {
+            get
+            {
+                var label = Field<Label>("_troubleLabel");
+                return label.Visible ? label.Text : null;
+            }
+        }
+
+        public ComboBox Tables { get { return Field<ComboBox>("_tableBox"); } }
+        public ComboBox Solutions { get { return Field<ComboBox>("_solutionBox"); } }
+        public TextBox Name { get { return Field<TextBox>("_nameBox"); } }
+        public ListView Grid { get { return Field<ListView>("_grid"); } }
+
+        /// <summary>
+        /// What the tool thinks is outstanding. Read directly rather than inferred from the
+        /// buttons, because "the flag came back up" has to be checkable apart from whatever
+        /// SyncEnabled did with it.
+        /// </summary>
+        public bool LoadingTables { get { return Field<bool>("_loadingTables"); } }
+        public bool LoadingSolutions { get { return Field<bool>("_loadingSolutions"); } }
+        public bool Applying { get { return Field<bool>("_applying"); } }
+
+        public string[] TableNames()
+        {
+            return Tables.Items.Cast<object>().Select(i => i.ToString()).ToArray();
+        }
+
+        // ===== what a user does =====
+
+        public void PressLoad() { Load.PerformClick(); }
+
+        public void PressApply() { Apply.PerformClick(); }
+
+        public void PressCancel() { Cancel.PerformClick(); }
+
+        /// <summary>Picks the first icon of the grid, exactly as a click on its cell would.</summary>
+        public void PickFirstIcon()
+        {
+            if (Grid.VirtualListSize == 0) throw new InvalidOperationException("The grid is empty.");
+            Grid.SelectedIndices.Clear();
+            Grid.SelectedIndices.Add(0);
+        }
+
+        /// <summary>Picks the table whose entry mentions the given name.</summary>
+        public void PickTable(string logicalName)
+        {
+            var index = Tables.Items.Cast<object>().ToList()
+                .FindIndex(i => i.ToString().Contains("(" + logicalName + ")"));
+            if (index < 0)
+                throw new InvalidOperationException("No table called " + logicalName + " in the list: "
+                                                    + string.Join(", ", TableNames()));
+            Tables.SelectedIndex = index;
+        }
+    }
+}
