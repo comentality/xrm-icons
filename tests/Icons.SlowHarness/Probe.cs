@@ -114,6 +114,18 @@ namespace Icons.SlowHarness
 
         public void PressCancel() { Cancel.PerformClick(); }
 
+        /// <summary>
+        /// Enter, in the search box. Sent to the handler rather than through the message queue:
+        /// a harness window is not always the focused one, and a keystroke that lands nowhere
+        /// would pass this by proving nothing.
+        /// </summary>
+        public void PressEnterInSearch()
+        {
+            var handler = typeof(IconsControl).GetMethod("Search_KeyDown", Priv);
+            if (handler == null) throw new MissingMethodException("IconsControl", "Search_KeyDown");
+            handler.Invoke(_control, new object[] { Search, new KeyEventArgs(Keys.Enter) });
+        }
+
         /// <summary>Picks the first icon of the grid, exactly as a click on its cell would.</summary>
         public void PickFirstIcon()
         {

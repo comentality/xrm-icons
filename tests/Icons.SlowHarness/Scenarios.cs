@@ -658,6 +658,14 @@ namespace Icons.SlowHarness
                         "and the status line should own up to a narrowed library, saying \""
                         + r.Probe.Status + "\"");
                 })
+                .At(1500, "press Enter in the search box", r =>
+                {
+                    r.Probe.PressEnterInSearch();
+
+                    r.Check(r.Probe.Grid.SelectedIndices.Count == 1,
+                        "Enter should land on the first result rather than beeping, and "
+                        + r.Probe.Grid.SelectedIndices.Count + " cells are selected");
+                })
                 .At(1600, "pick another one", r =>
                 {
                     r.Probe.PickTable("contoso_case");

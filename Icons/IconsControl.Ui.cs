@@ -128,6 +128,7 @@ namespace Icons
         {
             _searchBox = new TextBox { Dock = DockStyle.Fill };
             _searchBox.TextChanged += (s, e) => ApplyFilter();
+            _searchBox.KeyDown += Search_KeyDown;
 
             _styleBox = new ComboBox
             {
@@ -370,6 +371,27 @@ namespace Icons
                 selected ? SystemColors.HighlightText : SystemColors.ControlText,
                 TextFormatFlags.HorizontalCenter | TextFormatFlags.WordBreak |
                 TextFormatFlags.EndEllipsis | TextFormatFlags.NoPrefix);
+        }
+
+        /// <summary>
+        /// Enter, out of the search box and into the results. Reaching for the mouse is the
+        /// longest part of choosing an icon; from here it is the arrow keys, and Enter on a cell
+        /// activates it, which applies.
+        /// </summary>
+        private void Search_KeyDown(object sender, KeyEventArgs e)
+        {
+            if (e.KeyCode != Keys.Enter) return;
+
+            // Whether or not there is anywhere to go: a text box on a form with no accept button
+            // beeps at Enter, and being beeped at for pressing it is not an answer.
+            e.SuppressKeyPress = true;
+            e.Handled = true;
+
+            if (_shown.Count == 0) return;
+
+            _grid.Focus();
+            if (_grid.SelectedIndices.Count == 0) _grid.SelectedIndices.Add(0);
+            _grid.EnsureVisible(_grid.SelectedIndices[0]);
         }
 
         private void Grid_SelectedIndexChanged(object sender, EventArgs e)
