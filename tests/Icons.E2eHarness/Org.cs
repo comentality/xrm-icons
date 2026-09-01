@@ -232,7 +232,16 @@ namespace Icons.E2eHarness
                 ColumnSet = new ColumnSet("webresourceid", "name", "webresourcetype", "content", "ismanaged")
             };
             query.Criteria.AddCondition("name", ConditionOperator.Equal, name);
-            return _service.RetrieveMultiple(query).Entities.ToList();
+
+            // Unpublished, for the same reason the tool asks that way: a web resource created but
+            // never published is invisible to a plain RetrieveMultiple while the platform still
+            // refuses a second one under its name. A run that stops before its first publish would
+            // otherwise leave a seed that neither its own cleanup nor the next run's seeding can
+            // see - and the next run would then be refused the name by the server.
+            var response = (RetrieveUnpublishedMultipleResponse)_service.Execute(
+                new RetrieveUnpublishedMultipleRequest { Query = query });
+
+            return response.EntityCollection.Entities.ToList();
         }
 
         /// <summary>
