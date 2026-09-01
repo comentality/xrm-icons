@@ -150,6 +150,7 @@ namespace Icons.UiHarness
                     }
 
                     failures += CheckNameSurvivesRebuild(control, form, outputDir);
+                    failures += CheckUnsetOnlyFilter(control, form, outputDir);
 
                     form.Close();
                     Pump();
@@ -255,12 +256,118 @@ namespace Icons.UiHarness
             return failures;
         }
 
-        private static object SeededTable(Type itemType, string logicalName, string displayName)
+
+        /// <summary>
+        /// The unset-only filter, with no connection and seeded tables. It is a narrowing on top
+        /// of the text filter rather than instead of it - the two have to stack, or "cont" plus
+        /// "no icon yet" quietly means one or the other - and unticking gives the list back.
+        /// </summary>
+        private static int CheckUnsetOnlyFilter(IconsControl control, Form form, string outputDir)
+        {
+            const BindingFlags Private = BindingFlags.Instance | BindingFlags.NonPublic;
+
+            var tablesField = typeof(IconsControl).GetField("_tables", Private);
+            var showTables = typeof(IconsControl).GetMethod("ShowTables", Private);
+            var itemType = typeof(IconsControl).GetNestedType("TableItem", BindingFlags.NonPublic);
+            if (tablesField == null || showTables == null || itemType == null)
+            {
+                Console.WriteLine("FAIL: the control's table plumbing has moved and the harness cannot seed it");
+                return 1;
+            }
+
+            var tables = (IList)Activator.CreateInstance(typeof(List<>).MakeGenericType(itemType));
+            tables.Add(SeededTable(itemType, "account", "Account", "new_/icons/account.svg"));
+            tables.Add(SeededTable(itemType, "contact", "Contact"));
+            tables.Add(SeededTable(itemType, "contract", "Contract", "new_/icons/contract.svg"));
+            tablesField.SetValue(control, tables);
+
+            var tableBox = RowControl(control, "Table") as ComboBox;
+            var filterBox = RowControl(control, "Find table") as TextBox;
+            var unsetOnly = Descendants(control)
+                .OfType<CheckBox>()
+                .FirstOrDefault(c => c.Text.StartsWith("Only tables", StringComparison.Ordinal));
+
+            if (tableBox == null || filterBox == null || unsetOnly == null)
+            {
+                Console.WriteLine("FAIL: could not find the table row, the filter row and the unset-only box");
+                return 1;
+            }
+
+            var failures = 0;
+
+            filterBox.Text = "";
+            showTables.Invoke(control, null);
+            Pump();
+
+            if (tableBox.Items.Count != 3)
+            {
+                Console.WriteLine("FAIL: unfiltered, all three seeded tables should be offered, not " +
+                                  tableBox.Items.Count);
+                failures++;
+            }
+
+            unsetOnly.Checked = true;
+            Pump();
+
+            if (tableBox.Items.Count != 1 || !tableBox.Items[0].ToString().Contains("(contact)"))
+            {
+                Console.WriteLine("FAIL: only Contact has no icon, and the list offers " + Listed(tableBox));
+                failures++;
+            }
+            else
+            {
+                Console.WriteLine("OK: the unset-only box leaves out the tables that already have an icon");
+            }
+
+            // Both at once. "cont" alone is Contact and Contract; with no icon yet it is Contact
+            // alone, and a filter that replaced the other rather than narrowing would give two.
+            filterBox.Text = "cont";
+            Pump();
+
+            if (tableBox.Items.Count != 1 || !tableBox.Items[0].ToString().Contains("(contact)"))
+            {
+                Console.WriteLine("FAIL: 'cont' and no-icon-yet should leave Contact alone, and leaves " +
+                                  Listed(tableBox));
+                failures++;
+            }
+            else
+            {
+                Console.WriteLine("OK: the text filter and the unset-only box narrow together");
+            }
+
+            Shoot(form, outputDir, "06-unset-only");
+
+            unsetOnly.Checked = false;
+            Pump();
+
+            if (tableBox.Items.Count != 2)
+            {
+                Console.WriteLine("FAIL: unticking should give back both 'cont' tables, and gives " +
+                                  Listed(tableBox));
+                failures++;
+            }
+            else
+            {
+                Console.WriteLine("OK: unticking gives the tables that have icons back");
+            }
+
+            return failures;
+        }
+
+        private static string Listed(ComboBox box)
+        {
+            return box.Items.Count == 0
+                ? "nothing"
+                : string.Join(", ", box.Items.Cast<object>().Select(i => i.ToString()));
+        }
+        private static object SeededTable(Type itemType, string logicalName, string displayName,
+                                          string currentIcon = null)
         {
             var item = Activator.CreateInstance(itemType, true);
             itemType.GetField("LogicalName").SetValue(item, logicalName);
             itemType.GetField("DisplayName").SetValue(item, displayName);
             itemType.GetField("Customizable").SetValue(item, true);
+            itemType.GetField("CurrentIcon").SetValue(item, currentIcon);
             return item;
         }
 

@@ -44,6 +44,7 @@ namespace Icons.SlowHarness
                 CancelApply(),
                 ApplyFails(),
                 SwitchMidApply(),
+                UnsetOnlyFilter(),
             };
         }
 
@@ -414,6 +415,67 @@ namespace Icons.SlowHarness
                         + string.Join(", ", r.Service.Log().Select(c => c.Label)));
                     r.Check(!r.Dialogs.Contains("Done"),
                         "nothing may report a write that was abandoned: " + string.Join(" | ", r.Dialogs));
+                });
+        }
+
+        /// <summary>
+        /// "Only tables with no icon yet" is a working list, and the point of a working list is
+        /// that it gets shorter. A table that already carries an icon is never in it, and one
+        /// that has just been given an icon leaves it the moment the write lands - not at the
+        /// next reload, which on a slow link is the difference between a list you can work down
+        /// and one you have to keep re-reading.
+        /// </summary>
+        private static Scenario UnsetOnlyFilter()
+        {
+            return new Scenario
+            {
+                Name = "unset-only-filter",
+                Why = "the unset-only list must leave out what has an icon, and drop what just got one",
+                Wire = s =>
+                {
+                    s.Tables.Add(SlowService.Table("contoso_settled", "Contoso Settled",
+                        icon: "new_/icons/settled.svg"));
+                    s.Latency = Slow("webresource-find", 600);
+                }
+            }
+                .At(200, "press Load", r => r.Probe.PressLoad())
+                .At(1800, "narrow to the tables with no icon", r =>
+                {
+                    r.Check(r.Probe.TableNames().Any(n => n.Contains("(contoso_settled)")),
+                        "the unfiltered list should hold every table, and holds: "
+                        + string.Join(", ", r.Probe.TableNames()));
+
+                    r.Probe.UnsetOnly.Checked = true;
+
+                    r.Check(!r.Probe.TableNames().Any(n => n.Contains("(contoso_settled)")),
+                        "a table that already has an icon has no business in the unset list, which holds: "
+                        + string.Join(", ", r.Probe.TableNames()));
+                    r.Check(r.Probe.TableNames().Any(n => n.Contains("(contoso_account)")),
+                        "and one still without an icon has to stay in it, and the list holds: "
+                        + string.Join(", ", r.Probe.TableNames()));
+                })
+                .At(2300, "pick an icon and a table", r =>
+                {
+                    r.Probe.PickFirstIcon();
+                    r.Probe.PickTable("contoso_account");
+                })
+                .At(2800, "press Apply and confirm", r => r.Probe.PressApply())
+                .At(3100, "while the write is out", r =>
+                    r.Check(r.Probe.TableNames().Any(n => n.Contains("(contoso_account)")),
+                        "nothing has landed yet, so the table must still be listed, and the list holds: "
+                        + string.Join(", ", r.Probe.TableNames())))
+                .At(5200, "the table it was given to leaves the list", r =>
+                {
+                    r.Check(r.Probe.Status.IndexOf("Set ", StringComparison.Ordinal) >= 0,
+                        "the write should have landed, and the status line says \"" + r.Probe.Status + "\"");
+                    r.Check(!r.Probe.TableNames().Any(n => n.Contains("(contoso_account)")),
+                        "the table just given an icon should have left the unset list, which holds: "
+                        + string.Join(", ", r.Probe.TableNames()));
+                    r.Check(r.Probe.TableNames().Any(n => n.Contains("(contoso_case)")),
+                        "the tables still waiting for one must stay, and the list holds: "
+                        + string.Join(", ", r.Probe.TableNames()));
+                    r.Check(!r.Probe.Apply.Enabled,
+                        "with nothing left selected to apply to, Apply has to be dead again");
                 });
         }
     }

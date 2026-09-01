@@ -207,6 +207,17 @@ namespace Icons
             _tableFilterBox = new TextBox { Dock = DockStyle.Fill };
             _tableFilterBox.TextChanged += (s, e) => ShowTables();
 
+            // The common errand is "which of these has nobody given an icon yet", and the
+            // answer is already in hand: the load reads IconVectorName with everything else,
+            // so this narrows the list without another round trip.
+            _unsetOnlyBox = new CheckBox
+            {
+                Text = "Only tables with no icon yet",
+                AutoSize = true,
+                Anchor = AnchorStyles.Left
+            };
+            _unsetOnlyBox.CheckedChanged += (s, e) => ShowTables();
+
             _tableBox = new ComboBox { Dock = DockStyle.Fill, DropDownStyle = ComboBoxStyle.DropDownList };
             _tableBox.SelectedIndexChanged += Table_SelectedIndexChanged;
 
@@ -252,7 +263,7 @@ namespace Icons
             {
                 Dock = DockStyle.Fill,
                 ColumnCount = 2,
-                RowCount = 8,
+                RowCount = 9,
                 Padding = new Padding(8, 6, 8, 6),
                 AutoScroll = true
             };
@@ -260,13 +271,14 @@ namespace Icons
             form.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
 
             AddRow(form, 0, "Find table", _tableFilterBox);
-            AddRow(form, 1, "Table", _tableBox);
-            AddRow(form, 2, "Solution", _solutionBox);
-            AddRow(form, 3, "Web resource", _nameBox);
-            AddRow(form, 4, "Colour", _themeColour);
-            AddRow(form, 5, "", _fixedColour);
-            AddRow(form, 6, "", _colourButton);
-            AddRow(form, 7, "", _rasterBox);
+            AddRow(form, 1, "", _unsetOnlyBox);
+            AddRow(form, 2, "Table", _tableBox);
+            AddRow(form, 3, "Solution", _solutionBox);
+            AddRow(form, 4, "Web resource", _nameBox);
+            AddRow(form, 5, "Colour", _themeColour);
+            AddRow(form, 6, "", _fixedColour);
+            AddRow(form, 7, "", _colourButton);
+            AddRow(form, 8, "", _rasterBox);
 
             var pane = new Panel { Dock = DockStyle.Fill };
             pane.Controls.Add(form);

@@ -30,6 +30,10 @@ resources, update table definitions and publish customisations.
   tables after what they mean. Searching for `account` finds the buildings and briefcases,
   `contact` finds the people, `appointment` finds the calendars, `case` finds the headsets. An
   icon actually named for your word still wins; the mapping only fills in where nothing is.
+- **See which tables still need one** — the load reads each table's current icon along with
+  everything else, so *Only tables with no icon yet* narrows the list to the ones nobody has got
+  to, without another round trip. A table leaves that list the moment you give it an icon, so it
+  stays a working list rather than something to re-read.
 - **See it before you commit** — the chosen icon is previewed on light and on dark, at a size
   that shows what it is and at the size a site map really renders it.
 - **Colour that survives a theme change** — by default the icon is written with

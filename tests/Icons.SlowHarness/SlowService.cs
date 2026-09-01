@@ -83,12 +83,16 @@ namespace Icons.SlowHarness
             Solutions.Add(row);
         }
 
-        public static EntityMetadata Table(string logicalName, string schemaName, bool customizable = true)
+        public static EntityMetadata Table(string logicalName, string schemaName, bool customizable = true,
+                                          string icon = null)
         {
             var metadata = new EntityMetadata { LogicalName = logicalName, SchemaName = schemaName };
             // The interesting properties have no public setters; they are set the way the
             // deserialiser would set them on the way in over the wire.
             Set(metadata, "IsCustomizable", new BooleanManagedProperty(customizable));
+            // This one does have a setter - the applier writes it - so a table that already
+            // carries an icon is made the same way the tool would leave it.
+            if (icon != null) metadata.IconVectorName = icon;
             return metadata;
         }
 

@@ -93,6 +93,7 @@ namespace Icons
         private ListView _grid;
         private ComboBox _tableBox;
         private TextBox _tableFilterBox;
+        private CheckBox _unsetOnlyBox;
         private ComboBox _solutionBox;
         private TextBox _nameBox;
 
@@ -132,6 +133,7 @@ namespace Icons
 
             _tableBox.Enabled = !Busy && _tables.Count > 0;
             _tableFilterBox.Enabled = !Busy && _tables.Count > 0;
+            _unsetOnlyBox.Enabled = !Busy && _tables.Count > 0;
             _solutionBox.Enabled = !Busy && _solutions.Count > 0;
             _nameBox.Enabled = !_applying;
             _rasterBox.Enabled = !_applying;
@@ -347,10 +349,12 @@ namespace Icons
         private void ShowTables()
         {
             var filter = (_tableFilterBox.Text ?? "").Trim();
+            var unsetOnly = _unsetOnlyBox.Checked;
             var matching = _tables.Where(t =>
-                filter.Length == 0 ||
-                t.DisplayName.IndexOf(filter, StringComparison.OrdinalIgnoreCase) >= 0 ||
-                t.LogicalName.IndexOf(filter, StringComparison.OrdinalIgnoreCase) >= 0);
+                (!unsetOnly || string.IsNullOrEmpty(t.CurrentIcon)) &&
+                (filter.Length == 0 ||
+                 t.DisplayName.IndexOf(filter, StringComparison.OrdinalIgnoreCase) >= 0 ||
+                 t.LogicalName.IndexOf(filter, StringComparison.OrdinalIgnoreCase) >= 0));
 
             var previous = _tableBox.SelectedItem as TableItem;
 
@@ -619,6 +623,12 @@ namespace Icons
 
                     // The list in memory now disagrees with the org unless this is written back.
                     table.CurrentIcon = name;
+
+                    // And the list on screen disagrees with the list in memory unless it is
+                    // rebuilt: a table just given an icon has no business still being offered
+                    // under "only tables with no icon yet". It drops out of the combo, which is
+                    // the point - that one is done.
+                    ShowTables();
 
                     _outcome = "Set " + icon.DisplayName + " on " + table.DisplayName;
                     SyncEnabled();
