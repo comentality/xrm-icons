@@ -15,10 +15,11 @@ namespace Icons.E2eHarness
     ///
     ///   Icons.E2eHarness.exe &lt;org url&gt; &lt;username&gt; &lt;token cache&gt; &lt;output folder&gt; [--keep]
     ///
-    /// It creates a table of its own, drives the same control the other harnesses drive through
-    /// the whole workflow - load, search, pick, apply, re-apply, the classic PNGs - and then asks
-    /// the org what actually got written. Everything it creates it deletes on the way out;
-    /// --keep leaves it there to look at.
+    /// It creates a table of its own, gives it an icon in a folder of its own so there is a
+    /// convention to be read, drives the same control the other harnesses drive through the whole
+    /// workflow - load, search, pick, apply, re-apply, the classic PNGs, a path typed by hand -
+    /// and then asks the org what actually got written. Everything it creates it deletes on the
+    /// way out; --keep leaves it there to look at.
     ///
     /// The sign in is borrowed, not performed: the token cache is a copy of the one the xtb.ps1
     /// sandbox saved, so this can run with nobody at the keyboard. No cache, no run.
@@ -62,11 +63,20 @@ namespace Icons.E2eHarness
             var org = new Org(client);
             org.EnsureTable();
 
+            // The fixture table arrives with an icon already on it, in a folder of its own that
+            // this tool would never have guessed. Everything about the suggestion is judged
+            // against that: an org that already keeps its icons somewhere has an answer, and the
+            // tool is supposed to read it rather than impose one.
+            var solution = org.PickSolution();
+            var seedName = org.SeedIcon(solution);
+            Console.WriteLine("        seeded " + seedName + ", through " + solution.UniqueName);
+
             // What the run learns as it goes: the name the tool suggested is the key to
             // everything the org is asked afterwards, and to what cleanup deletes.
             string vectorName = null;
             Guid vectorId = Guid.Empty;
             string firstContent = null;
+            string typedName = null;
             Func<string, string> raster = slot =>
             {
                 if (vectorName == null) return null;
@@ -100,6 +110,36 @@ namespace Icons.E2eHarness
                     Do = r => r.Probe.PickTable(Org.TableLogicalName),
                     Until = r => !string.IsNullOrWhiteSpace(r.Probe.Name.Text),
                     TimeoutMs = 10000
+                },
+                new Step
+                {
+                    Label = "the suggestion follows the icon the table already has",
+                    Do = r => r.Check(r.Probe.Name.Text == seedName,
+                        "the table already carries " + seedName
+                        + ", which is the name a second icon for it belongs under, and the box offers \""
+                        + r.Probe.Name.Text + "\"")
+                },
+                new Step
+                {
+                    Label = "a solution is required",
+                    Do = r =>
+                    {
+                        // Nothing else here has changed: an icon and a table are chosen and the
+                        // name is good. Only the solution goes away, and it alone has to be
+                        // enough to stop the write - the default solution is where a web resource
+                        // goes when nobody chooses, and it is not a choice anybody makes on purpose.
+                        var chosen = r.Probe.Solutions.SelectedIndex;
+                        r.Probe.Solutions.SelectedIndex = -1;
+                        r.Check(!r.Probe.Apply.Enabled,
+                            "with no solution chosen there is nowhere to file the web resource, so Apply must be dead");
+
+                        r.Probe.Solutions.SelectedIndex = chosen;
+                        r.Check(r.Probe.Apply.Enabled,
+                            "and live again the moment a solution is chosen back");
+                        r.Check(r.Probe.Name.Text == seedName,
+                            "the name must survive the solution going and coming back, and the box holds \""
+                            + r.Probe.Name.Text + "\"");
+                    }
                 },
                 new Step
                 {
@@ -226,6 +266,61 @@ namespace Icons.E2eHarness
                                 raster(slot) + " should actually hold a PNG");
                         }
                     }
+                },
+                new Step
+                {
+                    Label = "type a path of your own",
+                    Do = r =>
+                    {
+                        // The guess is a suggestion, not a decision. Whatever the tool worked out,
+                        // a typed name has to be the one that is written - and it has to be
+                        // written under the prefix of the solution the write is going through, or
+                        // the platform refuses the create.
+                        r.Probe.Raster.Checked = false;
+                        typedName = r.Probe.SelectedPrefix + "_/e2etyped/icon.svg";
+                        r.Probe.Name.Text = typedName;
+
+                        r.Check(r.Probe.Apply.Enabled,
+                            "a valid typed name should leave Apply live");
+                    }
+                },
+                new Step
+                {
+                    Label = "apply to the typed path",
+                    Do = r => r.Probe.PressApply(),
+                    Until = r => !r.Probe.Applying && r.Probe.Apply.Enabled,
+                    TimeoutMs = 240000
+                },
+                new Step
+                {
+                    Label = "the icon went where it was typed",
+                    Do = r =>
+                    {
+                        r.Check(r.Probe.Trouble == null,
+                            "nothing should be wrong after applying to a typed path, and the trouble line says \""
+                            + (r.Probe.Trouble ?? "") + "\"");
+
+                        var found = org.WebResourcesNamed(typedName);
+                        r.Check(found.Count == 1,
+                            "the typed name should be carried by exactly one web resource, and it is carried by "
+                            + found.Count);
+
+                        var table = org.TableIcons();
+                        r.Check(table.IconVectorName == typedName,
+                            "the table should point at the typed name, and IconVectorName is \""
+                            + (table.IconVectorName ?? "nothing") + "\"");
+
+                        if (found.Count != 1) return;
+
+                        // The reason a solution is required at all: a web resource that only ever
+                        // reached the default solution is one nothing you ship can see.
+                        var holders = org.SolutionsHolding(found[0].Id);
+                        r.Check(holders.Any(h => string.Equals(h, r.Probe.SelectedSolution,
+                                    StringComparison.OrdinalIgnoreCase)),
+                            "the new web resource should be in the chosen solution "
+                            + r.Probe.SelectedSolution + ", and it is in: "
+                            + (holders.Count == 0 ? "nothing" : string.Join(", ", holders)));
+                    }
                 }
             };
 
@@ -241,12 +336,17 @@ namespace Icons.E2eHarness
                 if (keep)
                 {
                     Console.WriteLine("        kept: " + Org.TableLogicalName + " and "
-                                      + (vectorName ?? "no web resources yet"));
+                                      + string.Join(", ", new[] { seedName, vectorName, typedName }
+                                          .Where(n => n != null)));
                 }
                 else
                 {
                     Console.WriteLine("        cleaning up after the run");
-                    var names = new[] { vectorName, raster("small"), raster("medium"), raster("large") };
+                    var names = new[]
+                    {
+                        seedName, vectorName, typedName,
+                        raster("small"), raster("medium"), raster("large")
+                    };
                     foreach (var problem in new Org(client).Cleanup(names))
                     {
                         Console.WriteLine("        " + problem);

@@ -66,6 +66,25 @@ namespace Icons.SlowHarness
         public bool LoadingSolutions { get { return Field<bool>("_loadingSolutions"); } }
         public bool Applying { get { return Field<bool>("_applying"); } }
 
+        /// <summary>
+        /// The unique name and publisher prefix of the solution the box is showing, or null when
+        /// it is showing nothing. The row's caption is a friendly name and a prefix; what a write
+        /// actually goes through is neither, so it is read off the item itself.
+        /// </summary>
+        public string SelectedSolution { get { return SolutionField("UniqueName"); } }
+
+        public string SelectedPrefix { get { return SolutionField("Prefix"); } }
+
+        private string SolutionField(string name)
+        {
+            var item = Solutions.SelectedItem;
+            if (item == null) return null;
+
+            var field = item.GetType().GetField(name);
+            if (field == null) throw new MissingFieldException("SolutionItem", name);
+            return (string)field.GetValue(item);
+        }
+
         public string[] TableNames()
         {
             return Tables.Items.Cast<object>().Select(i => i.ToString()).ToArray();

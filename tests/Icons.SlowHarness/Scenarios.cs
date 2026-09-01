@@ -168,17 +168,18 @@ namespace Icons.SlowHarness
         }
 
         /// <summary>
-        /// The solutions query fails on a reload, after a first load that worked. Losing the
-        /// solutions is not fatal and the tool says new web resources will go to the default
-        /// solution - so the box must not quietly keep offering the solution it loaded last
-        /// time, or the window promises one thing and the write does another.
+        /// The solutions query fails on a reload, after a first load that worked. A new web
+        /// resource has to be filed somewhere, and the only somewhere left is the default
+        /// solution - so this stops an apply rather than falling back to it. The box must not
+        /// quietly keep offering the solution it loaded last time either: that one would be
+        /// written into on the strength of an answer this load never gave.
         /// </summary>
         private static Scenario SolutionsFailOnReload()
         {
             return new Scenario
             {
                 Name = "solutions-fail-on-reload",
-                Why = "a failed solutions load must not leave last time's solution selected",
+                Why = "with no solution loaded there is nowhere to write, and Apply must say so by being dead",
                 Wire = s =>
                 {
                     s.Latency = Slow("solutions", 200);
@@ -196,15 +197,24 @@ namespace Icons.SlowHarness
                             && r.Probe.Solutions.SelectedItem.ToString().Contains("Contoso"),
                         "with the real solution preferred over Default");
                 })
-                .At(1400, "press Load again", r => r.Probe.PressLoad())
-                .At(2800, "the reload loses the solutions", r =>
+                .At(1400, "choose an icon and a table", r =>
                 {
-                    r.Check((r.Probe.Trouble ?? "").IndexOf("default solution", StringComparison.OrdinalIgnoreCase) >= 0,
-                        "the trouble line should say where new web resources will go, and says \""
+                    r.Probe.PickFirstIcon();
+                    r.Probe.PickTable("contoso_account");
+                    r.Check(r.Probe.Apply.Enabled,
+                        "everything an apply needs is chosen, so Apply should be live");
+                })
+                .At(1700, "press Load again", r => r.Probe.PressLoad())
+                .At(3100, "the reload loses the solutions", r =>
+                {
+                    r.Check((r.Probe.Trouble ?? "").IndexOf("needs one", StringComparison.OrdinalIgnoreCase) >= 0,
+                        "the trouble line should say an icon needs a solution to go in, and says \""
                         + (r.Probe.Trouble ?? "nothing") + "\"");
                     r.Check(r.Probe.Solutions.SelectedItem == null,
-                        "nothing may stay selected in the solution box, or the write contradicts the promise - it holds \""
+                        "nothing may stay selected in the solution box, or the write goes somewhere this load never confirmed - it holds \""
                         + (r.Probe.Solutions.SelectedItem == null ? "nothing" : r.Probe.Solutions.SelectedItem.ToString()) + "\"");
+                    r.Check(!r.Probe.Apply.Enabled,
+                        "and Apply must be dead with nowhere to put the web resource");
                 });
         }
 
