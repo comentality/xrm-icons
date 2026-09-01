@@ -74,6 +74,10 @@ after it:
   rather than half-doing it.
 - An icon that carries its own colours — a handful do, such as the pride flags — warns that
   recolouring will not take, rather than silently ignoring your colour.
+- Asking for the PNGs on a table whose classic icons somebody else set names those icons,
+  and what the write would point the three slots at instead. Taking a slot over is not the
+  same as replacing it: what it points at now is left in the solution, and this tool never
+  deletes a web resource.
 - **Cancel** actually cancels. The call already on the wire cannot be recalled, but on a slow
   link the ones behind it are most of the wait, and those are stopped.
 

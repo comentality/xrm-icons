@@ -45,6 +45,7 @@ namespace Icons.SlowHarness
                 ApplyFails(),
                 SwitchMidApply(),
                 UnsetOnlyFilter(),
+                RasterHandover(),
             };
         }
 
@@ -476,6 +477,54 @@ namespace Icons.SlowHarness
                         + string.Join(", ", r.Probe.TableNames()));
                     r.Check(!r.Probe.Apply.Enabled,
                         "with nothing left selected to apply to, Apply has to be dead again");
+                });
+        }
+
+        /// <summary>
+        /// A custom table that arrived with both a vector icon and classic ones, set by
+        /// somebody else long before this tool existed. Asking for the PNGs takes those three
+        /// slots over - which is the one thing the window has to say out loud before it happens,
+        /// because what they point at now is left behind rather than replaced.
+        ///
+        /// The wording is pinned by the unit tests. What is pinned here is the wiring: that the
+        /// load reads the classic slots at all, that the confirm builds with them without
+        /// falling over, and that a run with four web resources instead of one still lands.
+        /// </summary>
+        private static Scenario RasterHandover()
+        {
+            return new Scenario
+            {
+                Name = "raster-handover",
+                Why = "asking for the PNGs on a table whose classic slots point elsewhere must go through",
+                Wire = s =>
+                {
+                    s.Tables.Add(SlowService.Table("contoso_legacy", "Contoso Legacy",
+                        icon: "abc_/images/thing.svg",
+                        small: "abc_/images/thing16.png",
+                        medium: "abc_/images/thing32.png"));
+                    s.Latency = Slow("webresource-find", 300);
+                }
+            }
+                .At(200, "press Load", r => r.Probe.PressLoad())
+                .At(1600, "pick an icon, the old table, and the PNGs", r =>
+                {
+                    r.Probe.PickFirstIcon();
+                    r.Probe.PickTable("contoso_legacy");
+                    r.Probe.Raster.Checked = true;
+                })
+                .At(2100, "press Apply and confirm", r => r.Probe.PressApply())
+                .At(6500, "count what was written", r =>
+                {
+                    r.Check(r.Service.Log("webresource-find").Count == 4,
+                        "the vector and the three PNGs should each be looked up once, and there were "
+                        + r.Service.Log("webresource-find").Count);
+                    r.Check(r.Service.Log("publish").Count == 1,
+                        "one publish, and there were " + r.Service.Log("publish").Count);
+                    r.Check(r.Dialogs.Count(d => d == "Set table icon") == 1,
+                        "one confirm, and there were: " + string.Join(" | ", r.Dialogs));
+                    r.Check(r.Probe.Status.IndexOf("Set ", StringComparison.Ordinal) >= 0,
+                        "and the write should have landed, but the status line says \""
+                        + r.Probe.Status + "\"");
                 });
         }
     }

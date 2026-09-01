@@ -132,11 +132,11 @@ namespace Icons.Logic
                 if (request.Image == null)
                     throw new ArgumentException("Raster icons were asked for but no drawing was supplied.", nameof(request));
 
-                foreach (var raster in RasterSlots)
+                foreach (var raster in RasterIcons.Slots)
                 {
                     Stop(cancelled);
 
-                    var name = RasterName(request.WebResourceName, raster.Key);
+                    var name = RasterIcons.NameFor(request.WebResourceName, raster.Key);
                     progress("Storing " + name);
 
                     var png = ToPng(request.Image, raster.Value.Width, raster.Value.Height, request.RasterColour);
@@ -205,22 +205,6 @@ namespace Icons.Logic
                              (result.WebResourceIds.Count == 1 ? "" : "s"));
 
             return result;
-        }
-
-        private static readonly Dictionary<IconSlot, Size> RasterSlots = new Dictionary<IconSlot, Size>
-        {
-            { IconSlot.Small, new Size(16, 16) },
-            { IconSlot.Medium, new Size(32, 32) },
-            // Not square, and not a mistake: this is the shape Dataverse has always wanted here.
-            { IconSlot.Large, new Size(66, 48) },
-        };
-
-        private static string RasterName(string vectorName, IconSlot slot)
-        {
-            var stem = vectorName.EndsWith(".svg", StringComparison.OrdinalIgnoreCase)
-                ? vectorName.Substring(0, vectorName.Length - 4)
-                : vectorName;
-            return stem + "_" + slot.ToString().ToLowerInvariant() + ".png";
         }
 
         private static byte[] ToPng(SvgImage image, int width, int height, Color colour)

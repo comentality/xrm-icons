@@ -24,6 +24,15 @@ namespace Icons
             public bool Customizable;
             public string CurrentIcon;
 
+            /// <summary>
+            /// What the three classic slots point at now. Read with everything else because it
+            /// costs nothing to - the same call already answers it - and because a write that
+            /// includes the PNGs takes these over without touching what they point at now.
+            /// </summary>
+            public string CurrentSmall;
+            public string CurrentMedium;
+            public string CurrentLarge;
+
             public override string ToString()
             {
                 return DisplayName + "  (" + LogicalName + ")";
@@ -218,7 +227,10 @@ namespace Icons
                             LogicalName = e.LogicalName,
                             DisplayName = e.DisplayName?.UserLocalizedLabel?.Label ?? e.SchemaName ?? e.LogicalName,
                             Customizable = e.IsCustomizable == null || e.IsCustomizable.Value,
-                            CurrentIcon = e.IconVectorName
+                            CurrentIcon = e.IconVectorName,
+                            CurrentSmall = e.IconSmallName,
+                            CurrentMedium = e.IconMediumName,
+                            CurrentLarge = e.IconLargeName
                         })
                         .OrderBy(t => t.DisplayName, StringComparer.CurrentCultureIgnoreCase)
                         .ToList();
@@ -531,9 +543,17 @@ namespace Icons
                 ? ""
                 : "\n\nThis replaces its current icon, " + table.CurrentIcon + ".";
 
+            // Only when the PNGs are being written: nothing happens to the classic slots
+            // otherwise, and an unasked-for opinion about the table's older icons is not this
+            // tool's to give.
+            var handover = _rasterBox.Checked
+                ? RasterIcons.Handover(name, table.CurrentSmall, table.CurrentMedium, table.CurrentLarge)
+                : null;
+            if (handover != null) handover = "\n\n" + handover;
+
             var confirm = MessageBox.Show(this,
                 "Set " + icon.DisplayName + " as the icon for " + table.DisplayName + "?\n\n" +
-                "This writes the web resource " + name + " and publishes the table." + replacing,
+                "This writes the web resource " + name + " and publishes the table." + replacing + handover,
                 "Set table icon", MessageBoxButtons.OKCancel, MessageBoxIcon.Question);
             if (confirm != DialogResult.OK) return;
 
@@ -624,6 +644,12 @@ namespace Icons
 
                     // The list in memory now disagrees with the org unless this is written back.
                     table.CurrentIcon = name;
+                    if (request.IncludeRasterIcons)
+                    {
+                        table.CurrentSmall = RasterIcons.NameFor(name, IconSlot.Small);
+                        table.CurrentMedium = RasterIcons.NameFor(name, IconSlot.Medium);
+                        table.CurrentLarge = RasterIcons.NameFor(name, IconSlot.Large);
+                    }
 
                     // And the list on screen disagrees with the list in memory unless it is
                     // rebuilt: a table just given an icon has no business still being offered
