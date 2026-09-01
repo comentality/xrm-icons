@@ -19,6 +19,7 @@ namespace Icons.Tests
             new IconEntry("arrow_trending_lines", IconStyle.Regular),
             new IconEntry("calendar_clock", IconStyle.Regular),
             new IconEntry("mail_read", IconStyle.Regular),
+            new IconEntry("cart", IconStyle.Regular),
         };
 
         private static List<string> Names(string query)
@@ -109,6 +110,47 @@ namespace Icons.Tests
 
             Assert.That(results.First(), Is.EqualTo("building"));
             Assert.That(results, Does.Contain("building_bank"));
+        }
+
+        [Test]
+        public void A_table_name_seeds_the_search_with_itself()
+        {
+            Assert.That(IconSearch.SeedFor(Library, "Account"), Is.EqualTo("account"));
+            Assert.That(IconSearch.SeedFor(Library, "Contact"), Is.EqualTo("contact"));
+        }
+
+        [Test]
+        public void A_two_word_table_falls_back_to_the_word_the_library_knows()
+        {
+            // Every term has to hit, and nothing here is a sale. The whole name would show an
+            // empty grid, so the seed is the word that means something: the order.
+            Assert.That(IconSearch.SeedFor(Library, "Sales Order"), Is.EqualTo("order"));
+
+            // And the last word is only a preference, not a rule: fall further back when it
+            // turns out to be the empty one.
+            Assert.That(IconSearch.SeedFor(Library, "Person Zzzznotanicon"), Is.EqualTo("person"));
+        }
+
+        [Test]
+        public void A_whole_name_the_library_answers_is_kept_whole()
+        {
+            Assert.That(IconSearch.SeedFor(Library, "Person Add"), Is.EqualTo("person add"));
+        }
+
+        [Test]
+        public void A_table_the_library_says_nothing_about_seeds_nothing()
+        {
+            // Better an untouched search box than a query that shows an empty grid.
+            Assert.That(IconSearch.SeedFor(Library, "Zzzznotanicon"), Is.Empty);
+            Assert.That(IconSearch.SeedFor(Library, ""), Is.Empty);
+            Assert.That(IconSearch.SeedFor(Library, null), Is.Empty);
+        }
+
+        [Test]
+        public void A_custom_tables_prefix_does_not_become_the_search()
+        {
+            // A table with no display name falls back to its schema name, prefix and all.
+            Assert.That(IconSearch.SeedFor(Library, "cr123_person"), Is.EqualTo("person"));
         }
 
         [Test]

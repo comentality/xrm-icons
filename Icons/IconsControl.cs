@@ -133,6 +133,12 @@ namespace Icons
         /// </summary>
         private string _typedFolder;
 
+        /// <summary>The last search a table put in the box, so a typed one is recognisable.</summary>
+        private string _seededSearch;
+
+        /// <summary>Which table that search was for, so the same table is not seeded twice.</summary>
+        private string _seededFor;
+
         /// <summary>What is worth knowing about the chosen icon, the solution, and the name.</summary>
         private string _iconConcern;
         private string _nameConcern;
@@ -615,6 +621,32 @@ namespace Icons
             SyncEnabled();
         }
 
+        /// <summary>
+        /// Puts the chosen table's own name in the search box, so picking Account shows the
+        /// buildings without anybody typing "account" first. The library already knows how to
+        /// read a Dataverse word; this is only the tool asking it the question the user was
+        /// about to type.
+        ///
+        /// It writes over its own last suggestion and nothing else. A search somebody typed is
+        /// theirs, and an empty box with an icon already picked out of the whole library is
+        /// somebody browsing - re-ranking the grid under them would take that icon away.
+        /// </summary>
+        private void SeedSearch(TableItem table)
+        {
+            if (table == null || _catalog == null) return;
+            if (_seededFor == table.LogicalName) return;
+
+            var current = _searchBox.Text ?? "";
+            var ours = current == _seededSearch || (current.Trim().Length == 0 && _selectedIcon == null);
+            if (!ours) return;
+
+            // A table whose name the library has no answer for empties the box rather than
+            // leaving the last table's search standing over a grid that is not about it.
+            _seededSearch = IconSearch.SeedFor(_library, table.DisplayName);
+            _seededFor = table.LogicalName;
+            _searchBox.Text = _seededSearch;
+        }
+
         private void ApplyFilter()
         {
             if (_catalog == null) return;
@@ -917,6 +949,8 @@ namespace Icons
             _locations = IconLocations.None;
             _typedFolder = null;
             _suggestedFor = null;
+            // The search a table of the old org seeded is not this org's table's search either.
+            _seededFor = null;
             _tableBox.Items.Clear();
             _solutionBox.Items.Clear();
             _trouble = null;

@@ -45,6 +45,7 @@ namespace Icons.SlowHarness
                 ApplyFails(),
                 SwitchMidApply(),
                 UnsetOnlyFilter(),
+                TableSeedsTheSearch(),
                 RasterHandover(),
                 PrefixMismatchWarned(),
                 CatchAllNotPreselected(),
@@ -627,6 +628,52 @@ namespace Icons.SlowHarness
                         + string.Join(", ", r.Probe.TableNames()));
                     r.Check(!r.Probe.Apply.Enabled,
                         "with nothing left selected to apply to, Apply has to be dead again");
+                });
+        }
+
+        /// <summary>
+        /// Picking a table asks the library the question the user was about to type. The search
+        /// this tool wrote is its own to replace when the table changes; a search somebody typed
+        /// is not, and neither is an untouched box with an icon already picked out of it.
+        /// </summary>
+        private static Scenario TableSeedsTheSearch()
+        {
+            return new Scenario
+            {
+                Name = "table-seeds-the-search",
+                Why = "picking a table should narrow the library to what that table is about",
+                Wire = s => s.Latency = Slow("tables", 300)
+            }
+                .At(200, "press Load", r => r.Probe.PressLoad())
+                .At(1400, "pick a table, having typed nothing", r =>
+                {
+                    r.Probe.PickTable("contoso_account");
+
+                    r.Check(r.Probe.Search.Text == "account",
+                        "the table's own word should be in the search box, and it holds \""
+                        + r.Probe.Search.Text + "\"");
+                    r.Check(r.Probe.Grid.VirtualListSize > 0,
+                        "with something in the grid, and there are " + r.Probe.Grid.VirtualListSize);
+                    r.Check(r.Probe.Status.IndexOf(" of ", StringComparison.Ordinal) >= 0,
+                        "and the status line should own up to a narrowed library, saying \""
+                        + r.Probe.Status + "\"");
+                })
+                .At(1600, "pick another one", r =>
+                {
+                    r.Probe.PickTable("contoso_case");
+
+                    r.Check(r.Probe.Search.Text == "case",
+                        "the seed follows the table it was made for, and the box holds \""
+                        + r.Probe.Search.Text + "\"");
+                })
+                .At(1800, "type a search of your own, then change table again", r =>
+                {
+                    r.Probe.Search.Text = "star";
+                    r.Probe.PickTable("contoso_account");
+
+                    r.Check(r.Probe.Search.Text == "star",
+                        "a search somebody typed is theirs to keep, and the box holds \""
+                        + r.Probe.Search.Text + "\"");
                 });
         }
 

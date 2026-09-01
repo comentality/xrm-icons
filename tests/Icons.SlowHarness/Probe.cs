@@ -65,6 +65,7 @@ namespace Icons.SlowHarness
         public CheckBox Raster { get { return Field<CheckBox>("_rasterBox"); } }
         public ComboBox Solutions { get { return Field<ComboBox>("_solutionBox"); } }
         public TextBox Name { get { return Field<TextBox>("_nameBox"); } }
+        public TextBox Search { get { return Field<TextBox>("_searchBox"); } }
         public ListView Grid { get { return Field<ListView>("_grid"); } }
 
         /// <summary>

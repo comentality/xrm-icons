@@ -88,6 +88,45 @@ namespace Icons.Catalog
                 .ToList();
         }
 
+        /// <summary>
+        /// The search a table's own name is worth typing, or "" when the library has no answer
+        /// to it. Picking the Account table should show the buildings without anybody typing
+        /// "account" first, and that is all this is for.
+        ///
+        /// Every term has to hit for a query to return anything, so the whole name is only worth
+        /// offering when the whole name matches: "Sales Order" would show nothing, because
+        /// Fluent draws no sales. The fallback is the last word, then the ones before it, because
+        /// an English name of two words is usually the second one - an order that is about sales,
+        /// a unit that is about business. A name that asks for nothing the library has gets ""
+        /// rather than a query with no results, which reads worse than an untouched box.
+        /// </summary>
+        public static string SeedFor(IReadOnlyList<IconEntry> icons, string tableName)
+        {
+            if (icons == null) throw new ArgumentNullException(nameof(icons));
+
+            var terms = Tokenize(tableName);
+            if (terms.Count == 0) return "";
+
+            if (Answers(icons, terms)) return string.Join(" ", terms);
+
+            for (var i = terms.Count - 1; i >= 0; i--)
+            {
+                var single = new[] { terms[i] };
+                if (Answers(icons, single)) return terms[i];
+            }
+
+            return "";
+        }
+
+        /// <summary>Whether anything in the library answers these terms at all.</summary>
+        private static bool Answers(IReadOnlyList<IconEntry> icons, IReadOnlyList<string> terms)
+        {
+            for (var i = 0; i < icons.Count; i++)
+                if (Score(icons[i], terms) > 0) return true;
+
+            return false;
+        }
+
         /// <summary>Splits a query into lowercase words. Punctuation and case are noise here.</summary>
         public static List<string> Tokenize(string query)
         {

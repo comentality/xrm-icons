@@ -385,6 +385,8 @@ namespace Icons
             SuggestName();
 
             var table = _tableBox.SelectedItem as TableItem;
+            SeedSearch(table);
+
             if (table != null && !table.Customizable)
                 _trouble = table.DisplayName + " is locked against customisation, so its icon cannot be changed.";
             else if (_trouble != null && _trouble.Contains("locked against customisation"))
