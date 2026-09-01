@@ -49,14 +49,17 @@ namespace Icons.SlowHarness
 
         /// <summary>
         /// The three gestures every apply scenario opens with: tables in, an icon chosen, a
-        /// table chosen. The load is fast because these scenarios are about the apply.
+        /// table chosen. The load is fast because these scenarios are about the apply - but the
+        /// table pick still waits over a second for it, because on a machine busy running the
+        /// rest of the suite even a fast worker can be slow to get out of bed, and a flaky
+        /// setup beat reads exactly like a finding.
         /// </summary>
         private static Scenario OpenOnATable(Scenario scenario)
         {
             return scenario
                 .At(200, "press Load", r => r.Probe.PressLoad())
                 .At(700, "pick an icon", r => r.Probe.PickFirstIcon())
-                .At(900, "pick a table", r => r.Probe.PickTable("contoso_account"));
+                .At(1600, "pick a table", r => r.Probe.PickTable("contoso_account"));
         }
 
         /// <summary>
@@ -284,15 +287,15 @@ namespace Icons.SlowHarness
                 Why = "Apply must be dead while it is applying, and Cancel alive",
                 Wire = s => s.Latency = Slow("webresource-find", 2500)
             })
-                .At(1100, "press Apply and confirm", r => r.Probe.PressApply())
-                .At(2200, "while the write is out", r =>
+                .At(1900, "press Apply and confirm", r => r.Probe.PressApply())
+                .At(3000, "while the write is out", r =>
                 {
                     r.Check(!r.Probe.Apply.Enabled, "Apply should be dead while it is applying");
                     r.Check(r.Probe.Cancel.Enabled, "and Cancel should be live, or the wait cannot be escaped");
                     r.Check(!r.Probe.Load.Enabled, "and Load should be dead: a reload mid-write believes half a truth");
                     r.Probe.PressApply();
                 })
-                .At(4800, "count what happened", r =>
+                .At(5600, "count what happened", r =>
                 {
                     r.Check(r.Service.Log("webresource-find").Count == 1,
                         "two presses, one write, and the name was looked up "
@@ -325,13 +328,13 @@ namespace Icons.SlowHarness
                     call.Label == "webresource-find" ? 400 :
                     call.Label == "webresource-create" ? 2500 : 20
             })
-                .At(1100, "press Apply and confirm", r => r.Probe.PressApply())
-                .At(2200, "give up", r =>
+                .At(1900, "press Apply and confirm", r => r.Probe.PressApply())
+                .At(3000, "give up", r =>
                 {
                     r.Check(r.Probe.Cancel.Enabled, "Cancel should be live while the write is out");
                     r.Probe.PressCancel();
                 })
-                .At(5200, "nothing more went out", r =>
+                .At(6000, "nothing more went out", r =>
                 {
                     r.Check(r.Service.Log("table-read").Count == 0 && r.Service.Log("publish").Count == 0,
                         "cancelling should stop the round trips that had not happened yet, and the org saw: "
@@ -365,8 +368,8 @@ namespace Icons.SlowHarness
                         : null;
                 }
             })
-                .At(1100, "press Apply and confirm", r => r.Probe.PressApply())
-                .At(3500, "read what is left", r =>
+                .At(1900, "press Apply and confirm", r => r.Probe.PressApply())
+                .At(4300, "read what is left", r =>
                 {
                     r.Check(!r.Probe.Applying, "a failed write must release the tool, and it still thinks it is applying");
                     r.Check(r.Probe.Apply.Enabled, "with Apply live again");
@@ -394,8 +397,8 @@ namespace Icons.SlowHarness
                 Why = "switching orgs mid-apply must stop the write and own up to it",
                 Wire = s => s.Latency = Slow("webresource-create", 2500)
             })
-                .At(1100, "press Apply and confirm", r => r.Probe.PressApply())
-                .At(2200, "switch to another org", r =>
+                .At(1900, "press Apply and confirm", r => r.Probe.PressApply())
+                .At(3000, "switch to another org", r =>
                 {
                     var old = r.Service;
                     r.SwitchTo(SlowService.Sampled("Fabrikam"));
@@ -404,7 +407,7 @@ namespace Icons.SlowHarness
                         + (r.Probe.Trouble ?? "nothing") + "\"");
                     r.Service = old;
                 })
-                .At(5200, "the old org is left alone", r =>
+                .At(6000, "the old org is left alone", r =>
                 {
                     r.Check(r.Service.Log("table-update").Count == 0 && r.Service.Log("publish").Count == 0,
                         "the calls not yet made must not be made, and the old org saw: "
