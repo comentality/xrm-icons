@@ -67,6 +67,7 @@ namespace Icons.SlowHarness
         }
 
         public ComboBox Tables { get { return Field<ComboBox>("_tableBox"); } }
+        public TextBox TableFilter { get { return Field<TextBox>("_tableFilterBox"); } }
         public CheckBox UnsetOnly { get { return Field<CheckBox>("_unsetOnlyBox"); } }
         public CheckBox Raster { get { return Field<CheckBox>("_rasterBox"); } }
         public ComboBox Solutions { get { return Field<ComboBox>("_solutionBox"); } }

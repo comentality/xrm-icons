@@ -46,6 +46,7 @@ namespace Icons.SlowHarness
                 SwitchMidApply(),
                 UnsetOnlyFilter(),
                 TableSeedsTheSearch(),
+                FilterOfOnePicksIt(),
                 RasterHandover(),
                 PrefixMismatchWarned(),
                 CatchAllNotPreselected(),
@@ -646,6 +647,42 @@ namespace Icons.SlowHarness
                     r.Check(r.Probe.Name.Text.IndexOf("contoso_case", StringComparison.Ordinal) >= 0,
                         "with a name suggested for that one rather than the last one, and the box holds \""
                         + r.Probe.Name.Text + "\"");
+                });
+        }
+
+        /// <summary>
+        /// A table filter typed down to one table. There is nothing left to choose between, and
+        /// making somebody open the list to click the only row in it is a click for nothing.
+        /// </summary>
+        private static Scenario FilterOfOnePicksIt()
+        {
+            return new Scenario
+            {
+                Name = "filter-of-one-picks-it",
+                Why = "a filter that leaves one table has already chosen it",
+                Wire = s => s.Latency = Slow("tables", 300)
+            }
+                .At(200, "press Load", r => r.Probe.PressLoad())
+                .At(1400, "type a filter that leaves several", r =>
+                {
+                    r.Probe.TableFilter.Text = "contoso";
+
+                    r.Check(r.Probe.Tables.Items.Count > 1,
+                        "several tables should still be listed, and there are " + r.Probe.Tables.Items.Count);
+                    r.Check(r.Probe.Tables.SelectedItem == null,
+                        "and with a choice still to make, nothing may be chosen for you: the box holds \""
+                        + r.Probe.Tables.SelectedItem + "\"");
+                })
+                .At(1600, "type it down to one", r =>
+                {
+                    r.Probe.TableFilter.Text = "case";
+
+                    r.Check(r.Probe.Tables.Items.Count == 1,
+                        "one table should be left, and there are " + r.Probe.Tables.Items.Count);
+                    var chosen = r.Probe.Tables.SelectedItem;
+                    r.Check(chosen != null && chosen.ToString().Contains("(contoso_case)"),
+                        "and it should be the chosen one, rather than a list of one to open: the box holds \""
+                        + (chosen == null ? "nothing" : chosen.ToString()) + "\"");
                 });
         }
 

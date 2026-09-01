@@ -610,6 +610,13 @@ namespace Icons
                     .FindIndex(t => t.LogicalName == previous.LogicalName);
                 if (index >= 0) _tableBox.SelectedIndex = index;
             }
+
+            // A filter typed down to a single table has already named it, and opening the list
+            // to click the only row in it is a click for nothing. Only when something was typed:
+            // a list of one because the unset-only list is nearly finished is not somebody
+            // pointing at a table.
+            if (_tableBox.SelectedIndex < 0 && filter.Length > 0 && _tableBox.Items.Count == 1)
+                _tableBox.SelectedIndex = 0;
         }
 
         /// <summary>
