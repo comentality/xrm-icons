@@ -348,6 +348,12 @@ namespace Icons.E2eHarness
             Directory.CreateDirectory(root);
 
             List<string> failures;
+
+            // Anything the run changed about the person signed in, rather than about its own
+            // fixtures. It is reported with the findings, because a run that quietly leaves
+            // somebody's environment set to what it wanted is worse than a run that fails.
+            string leftBehind = null;
+
             try
             {
                 failures = Driver.Play(client, steps, Path.Combine(root, "run"));
@@ -360,14 +366,29 @@ namespace Icons.E2eHarness
                 {
                     try
                     {
-                        new Org(client).SetPreferredSolution(preferredBefore);
-                        Console.WriteLine("        put the preferred solution back to " + preferredBefore);
+                        var after = new Org(client);
+                        after.SetPreferredSolution(preferredBefore);
+
+                        // Asked rather than assumed: the whole point of putting it back is that it
+                        // is actually back.
+                        var now = after.PreferredSolution();
+                        if (now == preferredBefore)
+                        {
+                            Console.WriteLine("        put the preferred solution back to " + preferredBefore);
+                        }
+                        else
+                        {
+                            leftBehind = "the preferred solution was left as " + now + ", not the "
+                                         + preferredBefore + " it was before this run";
+                        }
                     }
                     catch (Exception ex)
                     {
-                        Console.WriteLine("        could not put the preferred solution back to "
-                                          + preferredBefore + ": " + ex.Message);
+                        leftBehind = "could not put the preferred solution back to "
+                                     + preferredBefore + ": " + ex.Message;
                     }
+
+                    if (leftBehind != null) Console.WriteLine("        " + leftBehind);
                 }
 
                 if (keep)
@@ -390,6 +411,10 @@ namespace Icons.E2eHarness
                     }
                 }
             }
+
+            // Counted as a finding: it is one, and it is about the environment rather than the
+            // tool, which is exactly the kind that goes unnoticed otherwise.
+            if (leftBehind != null) failures.Add(leftBehind);
 
             var report = new List<string>();
             foreach (var failure in failures)
