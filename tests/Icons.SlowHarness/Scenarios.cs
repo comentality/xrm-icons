@@ -46,7 +46,80 @@ namespace Icons.SlowHarness
                 SwitchMidApply(),
                 UnsetOnlyFilter(),
                 RasterHandover(),
+                PrefixMismatchWarned(),
+                CatchAllNotPreselected(),
             };
+        }
+
+        /// <summary>
+        /// A name typed under one publisher's prefix, being written through a solution published
+        /// by another. Dataverse refuses to create a web resource that is not named for the
+        /// publisher of the solution it goes into - but it will happily update one that already
+        /// exists, wherever it lives, and only the org knows which of the two this is. So the
+        /// window says what it knows and leaves the button alone: a warning here, not a refusal.
+        /// </summary>
+        private static Scenario PrefixMismatchWarned()
+        {
+            return OpenOnATable(new Scenario
+            {
+                Name = "prefix-mismatch-warned",
+                Why = "a name under another publisher's prefix is worth saying, and not worth blocking",
+                Wire = s => s.Latency = Slow("tables", 300)
+            })
+                .At(2000, "type a name under another prefix", r =>
+                {
+                    r.Probe.Name.Text = "zzz_/icons/account.svg";
+
+                    r.Check((r.Probe.Warning ?? "").IndexOf("zzz_", StringComparison.Ordinal) >= 0,
+                        "the window should say which prefix the name carries, and the warning line says \""
+                        + (r.Probe.Warning ?? "nothing") + "\"");
+                    r.Check((r.Probe.Warning ?? "").IndexOf("con_", StringComparison.Ordinal) >= 0,
+                        "and which one the chosen solution publishes, and it says \""
+                        + (r.Probe.Warning ?? "nothing") + "\"");
+                    r.Check(r.Probe.Apply.Enabled,
+                        "but Apply must stay live: the name may belong to a web resource that already exists");
+                })
+                .At(2400, "put it back under the solution's prefix", r =>
+                {
+                    r.Probe.Name.Text = "con_/icons/account.svg";
+
+                    r.Check(r.Probe.Warning == null,
+                        "with the prefixes agreeing there is nothing left to warn about, and the line says \""
+                        + (r.Probe.Warning ?? "nothing") + "\"");
+                    r.Check(r.Probe.Apply.Enabled, "and Apply is still live");
+                });
+        }
+
+        /// <summary>
+        /// An org whose first solution alphabetically is the CDS default solution - which is the
+        /// same catch-all the Default solution is, under a unique name generated per environment.
+        /// Preselecting it would put icons where nothing anybody ships can see them, on the
+        /// strength of a sort order.
+        /// </summary>
+        private static Scenario CatchAllNotPreselected()
+        {
+            return new Scenario
+            {
+                Name = "catch-all-not-preselected",
+                Why = "the catch-all solutions are offered but never chosen for you",
+                Wire = s =>
+                {
+                    s.Solutions.Clear();
+                    s.AddSolution("Cr89693", "Common Data Services Default Solution", "cr23c");
+                    s.AddSolution("Default", "Default Solution", "new");
+                    s.AddSolution("Contoso", "Contoso Customisations", "con");
+                    s.Latency = Slow("solutions", 300);
+                }
+            }
+                .At(200, "press Load", r => r.Probe.PressLoad())
+                .At(1400, "see which solution was chosen", r =>
+                {
+                    r.Check(r.Probe.Solutions.Items.Count == 3,
+                        "all three should still be offered, and there are " + r.Probe.Solutions.Items.Count);
+                    r.Check(r.Probe.SelectedSolution == "Contoso",
+                        "the real solution should be the one chosen, and the box holds \""
+                        + (r.Probe.SelectedSolution ?? "nothing") + "\"");
+                });
         }
 
         /// <summary>

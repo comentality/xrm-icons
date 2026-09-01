@@ -114,6 +114,20 @@ namespace Icons
 
         /// <summary>The last name SuggestName wrote, so a hand-edited one is recognisable.</summary>
         private string _suggestedName = "";
+
+        /// <summary>Which table that name was for, so a hand-edit can be told from a table change.</summary>
+        private string _suggestedFor;
+
+        /// <summary>
+        /// The folder out of the last name typed by hand, and the folder every suggestion after
+        /// it uses. Somebody who files one icon somewhere is filing the next one there too;
+        /// emptying the box asks for the org's own convention back.
+        /// </summary>
+        private string _typedFolder;
+
+        /// <summary>What is worth knowing about the chosen icon, and about the name it would go under.</summary>
+        private string _iconConcern;
+        private string _nameConcern;
         private RadioButton _themeColour;
         private RadioButton _fixedColour;
         private Button _colourButton;
@@ -173,7 +187,59 @@ namespace Icons
                 _solutionBox.SelectedItem is SolutionItem &&
                 WebResourceName.Validate(_nameBox.Text) == null;
 
+            _nameConcern = NameConcern();
+            ShowConcerns();
+
             UpdateStatus();
+        }
+
+        /// <summary>
+        /// Why the name in the box may not be writable through the solution in the box, or null.
+        ///
+        /// Deliberately not a refusal. A web resource that already exists is updated where it
+        /// already lives, whatever prefix it carries - which is exactly what a table whose icon
+        /// somebody else filed under another publisher needs. Only a create has to be named for
+        /// the solution's publisher, and only the org knows which of the two this will be.
+        /// </summary>
+        private string NameConcern()
+        {
+            var solution = _solutionBox.SelectedItem as SolutionItem;
+            if (solution == null) return null;
+
+            var typed = _nameBox.Text.Trim();
+
+            // A name Dataverse would reject outright is a bigger problem, and it is already said
+            // out loud by Apply being dead and by the dialog that names the character.
+            if (WebResourceName.Validate(typed) != null) return null;
+
+            var publishes = (solution.Prefix ?? "").Trim().TrimEnd('_').ToLowerInvariant();
+            var carries = IconLocations.PrefixOf(typed);
+            if (publishes.Length == 0 || carries == null || carries == publishes) return null;
+
+            return "This name is under " + carries + "_, and " + solution.FriendlyName + " publishes " +
+                   publishes + "_. A web resource of this name that already exists is updated where " +
+                   "it is; one that does not exist yet will be refused, because a new web resource " +
+                   "has to be named for the publisher of the solution it goes into.";
+        }
+
+        /// <summary>
+        /// The one place the warning line is written. Two things can be worth saying at once - an
+        /// icon that carries its own colours, a name under another publisher's prefix - and a
+        /// fixed-height label would swallow the second.
+        /// </summary>
+        private void ShowConcerns()
+        {
+            var text = string.Join("  ", new[] { _iconConcern, _nameConcern }
+                .Where(concern => !string.IsNullOrEmpty(concern)));
+
+            _warningLabel.Text = text;
+            _warningLabel.Visible = text.Length > 0;
+            if (text.Length == 0) return;
+
+            var room = Math.Max(80, _warningLabel.Width - _warningLabel.Padding.Horizontal);
+            var needed = TextRenderer.MeasureText(
+                text, _warningLabel.Font, new Size(room, 0), TextFormatFlags.WordBreak);
+            _warningLabel.Height = Math.Max(46, needed.Height + _warningLabel.Padding.Vertical + 4);
         }
 
         private void UpdateStatus()
@@ -264,6 +330,9 @@ namespace Icons
                     {
                         _tables = new List<TableItem>();
                         _tableBox.Items.Clear();
+                        // What was learned about this org came off the list that just went; a
+                        // convention read from tables the window no longer shows is not one.
+                        _locations = IconLocations.None;
                         _trouble = "Could not load tables: " + args.Error.Message;
                         SyncEnabled();
                         MessageBox.Show(this, args.Error.Message, "Could not load tables",
@@ -365,12 +434,10 @@ namespace Icons
 
                     if (_solutionBox.Items.Count > 0)
                     {
-                        // Prefer an actual solution over the catch-all: writing into Default is
-                        // legal and almost never what somebody wants. It stays in the list, for
-                        // the orgs that have nothing else, but it is never the one picked for you.
-                        var index = _solutions.FindIndex(s =>
-                            !s.UniqueName.Equals("Default", StringComparison.OrdinalIgnoreCase) &&
-                            !s.UniqueName.Equals("Active", StringComparison.OrdinalIgnoreCase));
+                        // Prefer an actual solution over the catch-alls: writing into one of those
+                        // is legal and almost never what somebody wants. They stay in the list,
+                        // for the orgs that have nothing else, but neither is ever picked for you.
+                        var index = _solutions.FindIndex(s => !IsACatchAll(s));
                         _solutionBox.SelectedIndex = index >= 0 ? index : 0;
                     }
                     else
@@ -388,6 +455,21 @@ namespace Icons
                     SyncEnabled();
                 }
             });
+        }
+
+        /// <summary>
+        /// The solutions everything unmanaged falls into when nobody chooses: the default
+        /// solution, the active one, and the CDS default solution beside them. The last has a
+        /// unique name generated per environment - Cr89693 and the like - so its friendly name is
+        /// the only stable handle on it. An environment that has renamed it simply gets what
+        /// every other solution gets: offered, and offered first if it sorts first.
+        /// </summary>
+        private static bool IsACatchAll(SolutionItem solution)
+        {
+            return solution.UniqueName.Equals("Default", StringComparison.OrdinalIgnoreCase)
+                   || solution.UniqueName.Equals("Active", StringComparison.OrdinalIgnoreCase)
+                   || string.Equals(solution.FriendlyName, "Common Data Services Default Solution",
+                       StringComparison.OrdinalIgnoreCase);
         }
 
         private void ShowTables()
@@ -490,24 +572,18 @@ namespace Icons
                 ? "No icon chosen"
                 : icon.DisplayName + "  ·  " + icon.Style.ToString().ToLowerInvariant();
 
-            _warningLabel.Text = "";
-            _warningLabel.Visible = false;
+            _iconConcern = null;
 
             if (icon != null && _catalog != null)
             {
                 try
                 {
                     var warnings = SvgOutput.Inspect(_catalog.ReadSvg(icon));
-                    if (warnings.Count > 0)
-                    {
-                        _warningLabel.Text = string.Join(" ", warnings);
-                        _warningLabel.Visible = true;
-                    }
+                    if (warnings.Count > 0) _iconConcern = string.Join(" ", warnings);
                 }
                 catch (Exception ex)
                 {
-                    _warningLabel.Text = "This icon would not read: " + ex.Message;
-                    _warningLabel.Visible = true;
+                    _iconConcern = "This icon would not read: " + ex.Message;
                 }
             }
 
@@ -595,10 +671,15 @@ namespace Icons
                 : null;
             if (handover != null) handover = "\n\n" + handover;
 
+            // The last gate before the round trip is the place to say it again: from here on it
+            // is the platform's answer rather than this window's.
+            var concern = NameConcern();
+            if (concern != null) concern = "\n\n" + concern;
+
             var confirm = MessageBox.Show(this,
                 "Set " + icon.DisplayName + " as the icon for " + table.DisplayName + "?\n\n" +
                 "This writes the web resource " + name + ", adding it to " + solution.FriendlyName +
-                " if it is new, and publishes the table." + replacing + handover,
+                " if it is new, and publishes the table." + replacing + handover + concern,
                 "Set table icon", MessageBoxButtons.OKCancel, MessageBoxIcon.Question);
             if (confirm != DialogResult.OK) return;
 
@@ -732,8 +813,11 @@ namespace Icons
 
             _tables = new List<TableItem>();
             _solutions = new List<SolutionItem>();
-            // Where the last org kept its icons says nothing about where this one does.
+            // Where the last org kept its icons says nothing about where this one does, and
+            // neither does the folder somebody chose for a table that is not in this one.
             _locations = IconLocations.None;
+            _typedFolder = null;
+            _suggestedFor = null;
             _tableBox.Items.Clear();
             _solutionBox.Items.Clear();
             _trouble = null;
@@ -796,15 +880,48 @@ namespace Icons
             var solution = _solutionBox.SelectedItem as SolutionItem;
             if (table == null) return;
 
-            // A name the user has typed over is theirs. This gets called by every reload and by
-            // every table-filter keystroke that re-selects the same table, so it may only write
-            // into a box that is empty or still holds its own last suggestion.
-            if (_nameBox.Text.Length > 0 && _nameBox.Text != _suggestedName) return;
+            var typed = _nameBox.Text;
 
-            // Where the org keeps its icons beats where this tool would have put them: the table's
-            // own icon if it has a writable one, otherwise the folder the rest of them are in.
-            _suggestedName = _locations.NameFor(table.CurrentIcon, solution?.Prefix ?? "new", table.LogicalName);
+            // An empty box is the one thing a user can do to the name that says nothing about
+            // where they want it, so it is how the org's own convention is asked for again.
+            if (typed.Length == 0) _typedFolder = null;
+
+            if (typed.Length > 0 && typed != _suggestedName)
+            {
+                // The folder out of a hand-typed name travels: the next table somebody picks
+                // belongs beside this one, not back where the majority of the org votes.
+                var folder = IconLocations.FolderOf(typed);
+                if (folder != null) _typedFolder = folder;
+
+                // The name itself does not travel. It is this table's, and carrying it to the
+                // next one would quietly point two tables at a single web resource. So a
+                // hand-edited name is left alone for as long as its own table is the one chosen -
+                // which is every reload and every table-filter keystroke that re-selects it.
+                if (table.LogicalName == _suggestedFor) return;
+            }
+
+            _suggestedFor = table.LogicalName;
+            _suggestedName = Suggest(table, solution);
             _nameBox.Text = _suggestedName;
+        }
+
+        /// <summary>
+        /// Where this table's icon should go, in the order the answers are worth having: the
+        /// name it already uses, then the folder somebody here typed, then the folder the org
+        /// keeps its icons in. The prefix is always the chosen solution's, because that is the
+        /// publisher a new web resource has to be named for.
+        /// </summary>
+        private string Suggest(TableItem table, SolutionItem solution)
+        {
+            // An icon the table already has, that this connection can write, wins everything:
+            // applying then updates one web resource rather than leaving a second beside it.
+            if (_locations.Reusable(table.CurrentIcon)) return table.CurrentIcon.Trim();
+
+            var prefix = solution?.Prefix ?? "new";
+
+            return _typedFolder != null
+                ? WebResourceName.ForTable(prefix, table.LogicalName, _typedFolder)
+                : _locations.NameFor(null, prefix, table.LogicalName);
         }
 
         protected override void Dispose(bool disposing)

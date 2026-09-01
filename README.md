@@ -40,7 +40,9 @@ resources, update table definitions and publish customisations.
   instead of leaving a second one beside it. Otherwise the name is built in the folder the rest
   of your icons are in — only ever counting the ones under your own publishers' prefixes, so
   Microsoft's hundreds cannot outvote the handful somebody here chose. Whatever it works out, the
-  name is a text box: type any path you like over it and that is what gets written.
+  name is a text box: type any path you like over it and that is what gets written. A path you
+  type is then the one the next table gets too, with its own file name — emptying the box asks
+  for the environment's convention back.
 - **See it before you commit** — the chosen icon is previewed on light and on dark, at a size
   that shows what it is and at the size a site map really renders it.
 - **Colour that survives a theme change** — by default the icon is written with
@@ -83,6 +85,10 @@ after it:
   platform's own message does not say which one it disliked.
 - A name already used by a different kind of web resource, or by a managed one, stops the write
   rather than half-doing it.
+- A name under one publisher's prefix, going into a solution published by another, is called out
+  before the write — Dataverse will not create a web resource that is not named for its solution's
+  publisher. It is a warning rather than a refusal: a web resource that already exists is updated
+  where it already lives, and that is exactly what a table somebody else gave an icon to needs.
 - An icon that carries its own colours — a handful do, such as the pride flags — warns that
   recolouring will not take, rather than silently ignoring your colour.
 - Asking for the PNGs on a table whose classic icons somebody else set names those icons,

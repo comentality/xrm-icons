@@ -33,6 +33,7 @@ namespace Icons.E2eHarness
         public sealed class SolutionRef
         {
             public string UniqueName;
+            public string FriendlyName;
             public string Prefix;
         }
 
@@ -46,7 +47,7 @@ namespace Icons.E2eHarness
         {
             var query = new QueryExpression("solution")
             {
-                ColumnSet = new ColumnSet("uniquename"),
+                ColumnSet = new ColumnSet("uniquename", "friendlyname"),
                 Criteria =
                 {
                     Conditions =
@@ -65,14 +66,19 @@ namespace Icons.E2eHarness
                 .Select(e => new SolutionRef
                 {
                     UniqueName = e.GetAttributeValue<string>("uniquename"),
+                    FriendlyName = e.GetAttributeValue<string>("friendlyname") ?? "",
                     Prefix = e.GetAttributeValue<AliasedValue>("p.customizationprefix")?.Value as string
                 })
                 .Where(s => !string.IsNullOrWhiteSpace(s.UniqueName) && !string.IsNullOrWhiteSpace(s.Prefix))
                 .ToList();
 
+            // The same catch-alls the tool declines to pick for you, skipped the same way, so the
+            // run seeds through the solution the tool is about to choose.
             var chosen = solutions.FirstOrDefault(s =>
                              !s.UniqueName.Equals("Default", StringComparison.OrdinalIgnoreCase) &&
-                             !s.UniqueName.Equals("Active", StringComparison.OrdinalIgnoreCase))
+                             !s.UniqueName.Equals("Active", StringComparison.OrdinalIgnoreCase) &&
+                             !s.FriendlyName.Equals("Common Data Services Default Solution",
+                                 StringComparison.OrdinalIgnoreCase))
                          ?? solutions.FirstOrDefault();
 
             if (chosen == null)

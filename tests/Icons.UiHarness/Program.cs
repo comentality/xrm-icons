@@ -254,7 +254,55 @@ namespace Icons.UiHarness
             }
 
             Shoot(form, outputDir, "05-name-kept");
+
+            // The other half of a typed name: where it puts the file is a decision about this
+            // org, not about this table. Picking the next table has to leave that decision
+            // standing while the file name follows the table - carrying the whole name over
+            // would quietly point two tables at one web resource.
+            filterBox.Text = "";
+            Pump();
+
+            tableBox.SelectedIndex = IndexOfTable(tableBox, "contact");
+            nameBox.Text = "custom_/brand/tables/handmade.svg";
+            tableBox.SelectedIndex = IndexOfTable(tableBox, "account");
+
+            if (nameBox.Text != "new_/brand/tables/account.svg")
+            {
+                Console.WriteLine("FAIL: the folder from a typed name should carry to the next table, " +
+                                  "and the box holds '" + nameBox.Text + "'");
+                failures++;
+            }
+            else
+            {
+                Console.WriteLine("OK: a typed folder carries to the next table, the file name does not");
+            }
+
+            // And emptying the box is how the org's own convention is asked for back. It is the
+            // only thing a user can do to the name that says nothing about where they want it.
+            nameBox.Text = "";
+            tableBox.SelectedIndex = IndexOfTable(tableBox, "contact");
+
+            if (nameBox.Text != "new_/icons/contact.svg")
+            {
+                Console.WriteLine("FAIL: emptying the name should give the convention back, " +
+                                  "and the box holds '" + nameBox.Text + "'");
+                failures++;
+            }
+            else
+            {
+                Console.WriteLine("OK: emptying the name gives the suggested folder back");
+            }
+
             return failures;
+        }
+
+        private static int IndexOfTable(ComboBox tableBox, string logicalName)
+        {
+            var index = tableBox.Items.Cast<object>().ToList()
+                .FindIndex(i => i.ToString().Contains("(" + logicalName + ")"));
+            if (index < 0)
+                throw new InvalidOperationException("No table called " + logicalName + " in the list.");
+            return index;
         }
 
 

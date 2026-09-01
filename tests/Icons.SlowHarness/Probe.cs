@@ -50,6 +50,16 @@ namespace Icons.SlowHarness
             }
         }
 
+        /// <summary>The orange line above the form, or null while it is hidden.</summary>
+        public string Warning
+        {
+            get
+            {
+                var label = Field<Label>("_warningLabel");
+                return label.Visible ? label.Text : null;
+            }
+        }
+
         public ComboBox Tables { get { return Field<ComboBox>("_tableBox"); } }
         public CheckBox UnsetOnly { get { return Field<CheckBox>("_unsetOnlyBox"); } }
         public CheckBox Raster { get { return Field<CheckBox>("_rasterBox"); } }
