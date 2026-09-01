@@ -30,6 +30,11 @@ resources, update table definitions and publish customisations.
   tables after what they mean. Searching for `account` finds the buildings and briefcases,
   `contact` finds the people, `appointment` finds the calendars, `case` finds the headsets. An
   icon actually named for your word still wins; the mapping only fills in where nothing is.
+- **The table you pick asks for you** — choosing a table puts its own word in the search box, so
+  the grid is showing buildings by the time you look at it. A two-word table falls back to the
+  word the library knows — *Sales Order* searches for the order — and a table it can say nothing
+  about seeds nothing rather than an empty grid. It only ever writes over its own last
+  suggestion: a search you typed is yours.
 - **See which tables still need one** — the load reads each table's current icon along with
   everything else, so *Only tables with no icon yet* narrows the list to the ones nobody has got
   to, without another round trip. A table leaves that list the moment you give it an icon, so it
@@ -60,8 +65,8 @@ resources, update table definitions and publish customisations.
 
 1. Open the tool. The library is inside it, so you can browse and search before connecting.
 2. **Load tables** to read the environment's tables and its unmanaged solutions.
-3. Search for an icon and select it.
-4. Pick the table, and the unmanaged solution new web resources go into. The solution is required:
+3. Pick the table, and the unmanaged solution new web resources go into. Type enough of a table's
+   name to leave one and that one is chosen. The solution is required:
    without one they would land in the default solution, where nothing you ship can see them. The
    solution you set as your preferred one in the maker portal is chosen for you and is the row the
    list opens on. If you have not set one, nothing is chosen and the tool says so: alphabetical
@@ -70,8 +75,16 @@ resources, update table definitions and publish customisations.
    web resource name is suggested from where this environment already keeps its icons — the name
    the table already uses, or the folder its neighbours are in, or `new_/icons/account.svg` in an
    environment with no icons yet to learn from — and you can type any path over it.
+4. The table's own word is already in the search box, so the grid is showing what that table is
+   about before you type anything. Type your own search over it when it is not — yours is never
+   written over — and press Enter to move into the results, where the arrow keys walk them.
 5. Choose the theme colour or a fixed one.
-6. **Set as table icon**, confirm, done.
+6. **Set as table icon**, and confirm. The status line says what was set on what; hover it for
+   which web resources were created, which were updated, and what was published.
+
+With *Only tables with no icon yet* ticked, applying drops that table out of the list and lands on
+the next one waiting — a name suggested for it, a search already made for it — so a run down the
+list is pick an icon, apply, pick an icon, apply.
 
 Running it a second time on the same table updates the same web resource rather than leaving a
 trail of near-duplicates.
