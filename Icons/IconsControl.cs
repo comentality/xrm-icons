@@ -103,6 +103,7 @@ namespace Icons
         private RadioButton _fixedColour;
         private Button _colourButton;
         private CheckBox _rasterBox;
+        private LinkLabel _rasterHelp;
         private Panel _preview;
         private Label _iconLabel;
         private Label _warningLabel;
@@ -683,6 +684,38 @@ namespace Icons
         {
             var text = _catalog?.About ?? "The icon library is not loaded.";
             MessageBox.Show(this, text, "About the icons", MessageBoxButtons.OK, MessageBoxIcon.Information);
+        }
+
+        /// <summary>
+        /// When the three PNGs are worth writing, which is not often. Everything here is either
+        /// Microsoft's documented position or a property of this tool; nothing is guessed about
+        /// where a given icon renders today.
+        /// </summary>
+        private void ShowRasterHelp()
+        {
+            var text =
+                "Model-driven apps use the vector icon, and Microsoft's guidance is to set that " +
+                "one instead of these three. Off is the right default.\n" +
+                "\n" +
+                "It is not only tidiness. A PNG has its colour baked in, so it cannot follow the " +
+                "app theme the way the vector icon does - and a table whose two icons disagree " +
+                "about its colour looks worse than a table with one icon.\n" +
+                "\n" +
+                "The three are the properties that predate the Unified Interface:\n" +
+                "\n" +
+                "    16x16  IconSmallName - the classic \"icon in web application\".\n" +
+                "    32x32  IconMediumName - the classic \"icon for entity forms\".\n" +
+                "    66x48  IconLargeName - of which Microsoft's own SDK reference says:\n" +
+                "           \"This size icon is not currently used by the application.\"\n" +
+                "\n" +
+                "So tick this when something that reads the older properties is still in the " +
+                "picture: a classic or on-premises web client, or an integration, report or " +
+                "client of your own that reads IconSmallName rather than IconVectorName. If " +
+                "everything that shows this table is a model-driven app, the vector icon on its " +
+                "own is enough.";
+
+            MessageBox.Show(this, text, "The classic PNG icons",
+                MessageBoxButtons.OK, MessageBoxIcon.Information);
         }
 
         private void SuggestName()

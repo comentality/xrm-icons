@@ -151,6 +151,7 @@ namespace Icons.UiHarness
 
                     failures += CheckNameSurvivesRebuild(control, form, outputDir);
                     failures += CheckUnsetOnlyFilter(control, form, outputDir);
+                    failures += CheckRasterHelpOffered(control);
 
                     form.Close();
                     Pump();
@@ -354,6 +355,28 @@ namespace Icons.UiHarness
             return failures;
         }
 
+
+        /// <summary>
+        /// The PNG checkbox has to carry its own explanation, because "should I tick this?" is
+        /// not answerable from the caption. The link is only checked for being there: the
+        /// harness has no dialog sweeper, so clicking it would hang the run on a modal nobody
+        /// answers. What it says is a matter for the shot.
+        /// </summary>
+        private static int CheckRasterHelpOffered(IconsControl control)
+        {
+            var link = Descendants(control)
+                .OfType<LinkLabel>()
+                .FirstOrDefault(l => l.Text.IndexOf("PNG", StringComparison.Ordinal) >= 0);
+
+            if (link == null)
+            {
+                Console.WriteLine("FAIL: the classic PNG checkbox is offered with nothing that says when to use it");
+                return 1;
+            }
+
+            Console.WriteLine("OK: the PNG checkbox comes with a link to what the PNGs are for");
+            return 0;
+        }
         private static string Listed(ComboBox box)
         {
             return box.Items.Count == 0

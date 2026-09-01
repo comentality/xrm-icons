@@ -18,13 +18,17 @@ namespace Icons.Logic
         /// <summary>IconVectorName. The one modern apps use, and the one Microsoft recommends.</summary>
         Vector,
 
-        /// <summary>IconSmallName, a 16x16 PNG. Classic surfaces and some grids.</summary>
+        /// <summary>IconSmallName, a 16x16 PNG. The classic "icon in web application".</summary>
         Small,
 
-        /// <summary>IconMediumName, a 32x32 PNG.</summary>
+        /// <summary>IconMediumName, a 32x32 PNG. The classic "icon for entity forms".</summary>
         Medium,
 
-        /// <summary>IconLargeName, a 66x48 PNG.</summary>
+        /// <summary>
+        /// IconLargeName, a 66x48 PNG. Microsoft's SDK reference says of this one that "this
+        /// size icon is not currently used by the application" - it is written so that a table
+        /// asked for the classic set gets the whole classic set, not because anything reads it.
+        /// </summary>
         Large
     }
 

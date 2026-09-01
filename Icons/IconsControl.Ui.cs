@@ -249,6 +249,20 @@ namespace Icons
                 Anchor = AnchorStyles.Left
             };
 
+            // Off by default, and the answer to "should I tick this?" is a paragraph rather
+            // than a caption. It goes behind a link, in the same dialog the icon licence uses.
+            _rasterHelp = new LinkLabel
+            {
+                Text = "When do the PNGs matter?",
+                AutoSize = true,
+                // Top as well as Left: this is the last row, so it is the one the layout hands
+                // its leftover height to, and a left-only anchor would float it down the middle
+                // of that and read as belonging to nothing.
+                Anchor = AnchorStyles.Left | AnchorStyles.Top,
+                Padding = new Padding(0, 4, 0, 0)
+            };
+            _rasterHelp.LinkClicked += (s, e) => ShowRasterHelp();
+
             _troubleLabel = new Label
             {
                 Dock = DockStyle.Bottom,
@@ -263,7 +277,7 @@ namespace Icons
             {
                 Dock = DockStyle.Fill,
                 ColumnCount = 2,
-                RowCount = 9,
+                RowCount = 10,
                 Padding = new Padding(8, 6, 8, 6),
                 AutoScroll = true
             };
@@ -279,6 +293,7 @@ namespace Icons
             AddRow(form, 6, "", _fixedColour);
             AddRow(form, 7, "", _colourButton);
             AddRow(form, 8, "", _rasterBox);
+            AddRow(form, 9, "", _rasterHelp);
 
             var pane = new Panel { Dock = DockStyle.Fill };
             pane.Controls.Add(form);
