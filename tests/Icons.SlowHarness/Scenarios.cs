@@ -697,7 +697,14 @@ namespace Icons.SlowHarness
             {
                 Name = "table-seeds-the-search",
                 Why = "picking a table should narrow the library to what that table is about",
-                Wire = s => s.Latency = Slow("tables", 300)
+                Wire = s =>
+                {
+                    // A name no icon in the library says anything about. Made up rather than
+                    // borrowed from the sample org, so the scenario does not quietly stop
+                    // testing anything the day Fluent draws a frozen or a settled.
+                    s.Tables.Add(SlowService.Table("contoso_zzzz", "Contoso Zzzz"));
+                    s.Latency = Slow("tables", 300);
+                }
             }
                 .At(200, "press Load", r => r.Probe.PressLoad())
                 .At(1400, "pick a table, having typed nothing", r =>
@@ -737,6 +744,28 @@ namespace Icons.SlowHarness
                     r.Check(r.Probe.Search.Text == "star",
                         "a search somebody typed is theirs to keep, and the box holds \""
                         + r.Probe.Search.Text + "\"");
+                })
+                .At(2000, "browse the whole library from a table the library knows nothing about", r =>
+                {
+                    // A table that seeds nothing leaves an empty seed behind. An empty box is
+                    // then indistinguishable from one nobody has touched - so it is only ever
+                    // this tool's to write while no icon has been chosen out of it.
+                    r.Probe.Search.Text = "";
+                    r.Probe.PickTable("contoso_zzzz");
+
+                    r.Check(r.Probe.Search.Text.Length == 0,
+                        "a table the library cannot answer should seed nothing, and the box holds \""
+                        + r.Probe.Search.Text + "\"");
+
+                    r.Probe.PickFirstIcon();
+                    r.Probe.PickTable("contoso_account");
+
+                    r.Check(r.Probe.Search.Text.Length == 0,
+                        "and an icon picked out of the whole library must not be re-ranked away by "
+                        + "the next table: the box holds \"" + r.Probe.Search.Text + "\"");
+                    r.Check(r.Probe.Grid.SelectedIndices.Count == 1,
+                        "with that icon still chosen, and " + r.Probe.Grid.SelectedIndices.Count
+                        + " cells are selected");
                 });
         }
 

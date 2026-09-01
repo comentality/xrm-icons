@@ -674,8 +674,11 @@ namespace Icons
             if (table == null || _catalog == null) return;
             if (_seededFor == table.LogicalName) return;
 
-            var current = _searchBox.Text ?? "";
-            var ours = current == _seededSearch || (current.Trim().Length == 0 && _selectedIcon == null);
+            // An empty box is nobody's until it is certain nobody is using it, whoever emptied
+            // it: a table whose name seeds nothing leaves an empty seed behind, and matching
+            // that against an empty box would claim the library somebody is browsing by hand.
+            var current = (_searchBox.Text ?? "").Trim();
+            var ours = current.Length == 0 ? _selectedIcon == null : current == _seededSearch;
             if (!ours) return;
 
             // A table whose name the library has no answer for empties the box rather than
