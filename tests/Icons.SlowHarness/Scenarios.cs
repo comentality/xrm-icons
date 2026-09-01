@@ -91,17 +91,18 @@ namespace Icons.SlowHarness
         }
 
         /// <summary>
-        /// An org whose first solution alphabetically is the CDS default solution - which is the
-        /// same catch-all the Default solution is, under a unique name generated per environment.
-        /// Preselecting it would put icons where nothing anybody ships can see them, on the
-        /// strength of a sort order.
+        /// An org whose first two solutions alphabetically are the two catch-alls - the CDS
+        /// default solution and the Default solution, one of them under a unique name generated
+        /// per environment. Preselecting either would put icons where nothing anybody ships can
+        /// see them, on the strength of a sort order. They sink to the bottom of the list
+        /// instead, so the row the box opens on is the row it should be writing through.
         /// </summary>
         private static Scenario CatchAllNotPreselected()
         {
             return new Scenario
             {
-                Name = "catch-all-not-preselected",
-                Why = "the catch-all solutions are offered but never chosen for you",
+                Name = "catch-alls-last",
+                Why = "the solution worth writing through is the top row, and the catch-alls sit under it",
                 Wire = s =>
                 {
                     s.Solutions.Clear();
@@ -112,13 +113,20 @@ namespace Icons.SlowHarness
                 }
             }
                 .At(200, "press Load", r => r.Probe.PressLoad())
-                .At(1400, "see which solution was chosen", r =>
+                .At(1400, "see what the list opens on", r =>
                 {
                     r.Check(r.Probe.Solutions.Items.Count == 3,
                         "all three should still be offered, and there are " + r.Probe.Solutions.Items.Count);
                     r.Check(r.Probe.SelectedSolution == "Contoso",
                         "the real solution should be the one chosen, and the box holds \""
                         + (r.Probe.SelectedSolution ?? "nothing") + "\"");
+                    r.Check(r.Probe.SolutionNames().FirstOrDefault() != null
+                            && r.Probe.SolutionNames()[0].Contains("Contoso"),
+                        "and it should be the top row, not a selection made three rows down; the list reads: "
+                        + string.Join(", ", r.Probe.SolutionNames()));
+                    r.Check(r.Probe.Solutions.SelectedIndex == 0,
+                        "the chosen row should be the first, and it is row "
+                        + r.Probe.Solutions.SelectedIndex);
                 });
         }
 

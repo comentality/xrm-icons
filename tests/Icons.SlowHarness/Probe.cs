@@ -95,6 +95,11 @@ namespace Icons.SlowHarness
             return (string)field.GetValue(item);
         }
 
+        public string[] SolutionNames()
+        {
+            return Solutions.Items.Cast<object>().Select(i => i.ToString()).ToArray();
+        }
+
         public string[] TableNames()
         {
             return Tables.Items.Cast<object>().Select(i => i.ToString()).ToArray();

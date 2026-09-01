@@ -392,6 +392,13 @@ namespace Icons
                             Prefix = (e.GetAttributeValue<AliasedValue>("p.customizationprefix")?.Value as string) ?? "new"
                         })
                         .Where(s => !string.IsNullOrWhiteSpace(s.UniqueName))
+                        // The one that should be chosen goes to the top of the list rather than
+                        // being chosen quietly wherever it happens to sort. A dropped-down list
+                        // that opens on its third row reads as an arbitrary default; one that
+                        // opens on its first reads as the answer, with the catch-alls kept below
+                        // it for the org that really does write through one. Ordering is stable,
+                        // so within each group the query's own by-name order survives.
+                        .OrderBy(s => IsACatchAll(s) ? 1 : 0)
                         .ToList();
                 },
                 PostWorkCallBack = args =>
@@ -434,11 +441,11 @@ namespace Icons
 
                     if (_solutionBox.Items.Count > 0)
                     {
-                        // Prefer an actual solution over the catch-alls: writing into one of those
-                        // is legal and almost never what somebody wants. They stay in the list,
-                        // for the orgs that have nothing else, but neither is ever picked for you.
-                        var index = _solutions.FindIndex(s => !IsACatchAll(s));
-                        _solutionBox.SelectedIndex = index >= 0 ? index : 0;
+                        // The first row, which the sort above has already made the right one: a
+                        // real solution when the org has any, a catch-all only when it has
+                        // nothing else. Writing into a catch-all is legal and almost never what
+                        // somebody wants, so it is offered rather than chosen.
+                        _solutionBox.SelectedIndex = 0;
                     }
                     else
                     {
