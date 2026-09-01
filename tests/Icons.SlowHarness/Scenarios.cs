@@ -636,8 +636,16 @@ namespace Icons.SlowHarness
                     r.Check(r.Probe.TableNames().Any(n => n.Contains("(contoso_case)")),
                         "the tables still waiting for one must stay, and the list holds: "
                         + string.Join(", ", r.Probe.TableNames()));
-                    r.Check(!r.Probe.Apply.Enabled,
-                        "with nothing left selected to apply to, Apply has to be dead again");
+                    // The list got shorter, so the row that took the applied table's place is
+                    // the next one waiting for an icon. Landing on it is what makes a working
+                    // list something you can work down rather than re-pick your way through.
+                    var now = r.Probe.Tables.SelectedItem;
+                    r.Check(now != null && now.ToString().Contains("(contoso_case)"),
+                        "the next table without an icon should be waiting selected, and the box holds \""
+                        + (now == null ? "nothing" : now.ToString()) + "\"");
+                    r.Check(r.Probe.Name.Text.IndexOf("contoso_case", StringComparison.Ordinal) >= 0,
+                        "with a name suggested for that one rather than the last one, and the box holds \""
+                        + r.Probe.Name.Text + "\"");
                 });
         }
 

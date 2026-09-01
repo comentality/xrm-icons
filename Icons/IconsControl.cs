@@ -612,6 +612,28 @@ namespace Icons
             }
         }
 
+        /// <summary>
+        /// The table to carry on with, once the one just applied to has left the list.
+        ///
+        /// Only while the unset-only list is showing. That list is a working list and it has
+        /// just got shorter, so whatever took the applied table's place is the next one waiting
+        /// for an icon, and a run down it is pick, apply, pick, apply. With the box unticked
+        /// nothing dropped out and the selection still stands: that is somebody working in their
+        /// own order, and moving it under them would be a guess about what they meant next.
+        /// </summary>
+        private void AdvanceToNextTable(int wasAt)
+        {
+            if (!_unsetOnlyBox.Checked) return;
+
+            // The rebuild put the selection back, so nothing left the list and there is nothing
+            // to advance past.
+            if (_tableBox.SelectedIndex >= 0) return;
+            if (_tableBox.Items.Count == 0) return;
+
+            // The row that took its index, or the last one when it was the end of the list.
+            _tableBox.SelectedIndex = Math.Min(Math.Max(wasAt, 0), _tableBox.Items.Count - 1);
+        }
+
         // ===== the icon library =====
 
         private void LoadCatalog()
@@ -921,7 +943,9 @@ namespace Icons
                     // rebuilt: a table just given an icon has no business still being offered
                     // under "only tables with no icon yet". It drops out of the combo, which is
                     // the point - that one is done.
+                    var wasAt = _tableBox.SelectedIndex;
                     ShowTables();
+                    AdvanceToNextTable(wasAt);
 
                     // No dialog. The status line says it, the table has just left the unset-only
                     // list, and a modal saying "that worked" is a click charged for nothing -
