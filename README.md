@@ -118,8 +118,9 @@ after it:
 ## Where the icons come from
 
 [Fluent UI System Icons](https://github.com/microsoft/fluentui-system-icons), © Microsoft
-Corporation, under the MIT licence. The tool bundles one SVG per icon and weight, taken from the
-largest optical size Fluent draws it at, otherwise unmodified. **About the icons** in the toolbar
+Corporation, under the MIT licence. The tool bundles one SVG per icon and weight, taken at
+the optical size Fluent draws it most completely — 24px where there is one, falling back
+through the others — otherwise unmodified. **About the icons** in the toolbar
 shows the exact version and the licence. `tools\build-catalog.ps1` regenerates the bundle from a
 newer release of the npm package.
 

@@ -9,6 +9,15 @@ right side of that line, and it applies to anyone working on it, human or otherw
 
 - IconEngine's public description — the [author's write-up](https://rolfstifter.be/xrmtoolbox/iconengine/)
   and its [store page](https://www.xrmtoolbox.com/plugins/PLIO.IconEngine.XrmToolBox/)
+- the per-version **release notes the author wrote on NuGet**, at
+  [nuget.org/packages/PLIO.IconEngine.XrmToolBox](https://www.nuget.org/packages/PLIO.IconEngine.XrmToolBox).
+  The store page shows only the latest of these, so the version history there is richer than
+  anything else published. The listing page only: unpacking the package, or browsing its
+  contents, is the off-limits list below.
+- the authors' own **public launch post**, at
+  [linkedin.com/feed/update/urn:li:activity:7087689430026592257](https://www.linkedin.com/feed/update/urn:li:activity:7087689430026592257/),
+  including the demo video in it. A demo the authors published is a description of the tool, in
+  the same class as the store page.
 - Microsoft's public Dataverse documentation
 - our own design decisions
 

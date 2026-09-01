@@ -104,7 +104,8 @@ https://github.com/microsoft/fluentui-system-icons
 Licensed under the MIT License. Copyright (c) Microsoft Corporation.
 
 Repackaged for Comentality Icons by tools\build-catalog.ps1: one SVG per icon and
-style, at the largest available of $($sizePreference -join ', ') pixels, contents
+style, at $($sizePreference[0]) pixels where Fluent draws one, otherwise the first
+available of $($sizePreference[1..($sizePreference.Count - 1)] -join ', '), contents
 otherwise unmodified.
 "@
         $entry = $zip.CreateEntry("ABOUT.txt", [System.IO.Compression.CompressionLevel]::Optimal)
