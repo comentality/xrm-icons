@@ -40,6 +40,12 @@ namespace Icons.SlowHarness
 
         public string Status { get { return Field<ToolStripLabel>("_statusLabel").Text; } }
 
+        /// <summary>
+        /// Every step of the last write, kept on the status line's tooltip now that finishing one
+        /// no longer puts up a dialog. Empty when nothing has been written.
+        /// </summary>
+        public string StatusDetail { get { return Field<ToolStripLabel>("_statusLabel").ToolTipText ?? ""; } }
+
         /// <summary>The red line at the bottom, or null while it is hidden.</summary>
         public string Trouble
         {

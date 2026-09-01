@@ -457,11 +457,15 @@ namespace Icons.SlowHarness
                         "one publish, and there were " + r.Service.Log("publish").Count);
                     r.Check(r.Dialogs.Count(d => d == "Set table icon") == 1,
                         "one confirm, and there were: " + string.Join(" | ", r.Dialogs));
-                    r.Check(r.Dialogs.Count(d => d == "Done") == 1,
-                        "one report, and there were: " + string.Join(" | ", r.Dialogs));
+                    r.Check(r.Dialogs.Count == 1,
+                        "and the confirm should be the only modal in the whole run, and there were: "
+                        + string.Join(" | ", r.Dialogs));
                     r.Check(r.Probe.Apply.Enabled, "and Apply should be live again afterwards");
                     r.Check(r.Probe.Status.IndexOf("Set ", StringComparison.Ordinal) >= 0,
                         "with the outcome on the status line, which says \"" + r.Probe.Status + "\"");
+                    r.Check(r.Probe.StatusDetail.IndexOf("Published", StringComparison.Ordinal) >= 0,
+                        "and every step of it still readable rather than dismissed, and the tooltip says \""
+                        + r.Probe.StatusDetail.Replace("\n", " | ") + "\"");
                 });
         }
 
@@ -565,8 +569,14 @@ namespace Icons.SlowHarness
                     r.Check(r.Service.Log("table-update").Count == 0 && r.Service.Log("publish").Count == 0,
                         "the calls not yet made must not be made, and the old org saw: "
                         + string.Join(", ", r.Service.Log().Select(c => c.Label)));
-                    r.Check(!r.Dialogs.Contains("Done"),
-                        "nothing may report a write that was abandoned: " + string.Join(" | ", r.Dialogs));
+                    // The report is a status line rather than a dialog now, so this is asked of
+                    // the line: an abandoned write must leave nothing behind claiming it landed.
+                    r.Check(r.Probe.Status.IndexOf("Set ", StringComparison.Ordinal) < 0,
+                        "nothing may report a write that was abandoned, and the status line says \""
+                        + r.Probe.Status + "\"");
+                    r.Check(r.Probe.StatusDetail.Length == 0,
+                        "nor may its steps be left readable, and the tooltip says \""
+                        + r.Probe.StatusDetail.Replace("\n", " | ") + "\"");
                 });
         }
 

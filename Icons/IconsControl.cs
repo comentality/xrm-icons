@@ -83,6 +83,13 @@ namespace Icons
         /// <summary>What the last change actually did, for the status line.</summary>
         private string _outcome;
 
+        /// <summary>
+        /// Every step of it, for the status line's tooltip. A write that worked is not news
+        /// worth a dialog and a click to dismiss - but which web resource was created and which
+        /// was updated is worth being able to read afterwards, so it is kept rather than shown.
+        /// </summary>
+        private string _outcomeSteps;
+
         private IconCatalog _catalog;
         private IReadOnlyList<IconEntry> _library = new IconEntry[0];
         private IReadOnlyList<IconEntry> _shown = new IconEntry[0];
@@ -294,6 +301,7 @@ namespace Icons
             }
 
             _statusLabel.Text = text;
+            _statusLabel.ToolTipText = _outcomeSteps ?? "";
 
             _troubleLabel.Text = _trouble ?? "";
             _troubleLabel.Visible = _trouble != null;
@@ -315,6 +323,7 @@ namespace Icons
             _loadingTables = true;
             _trouble = null;
             _outcome = null;
+            _outcomeSteps = null;
             SyncEnabled();
 
             WorkAsync(new WorkAsyncInfo
@@ -846,6 +855,7 @@ namespace Icons
             _applying = true;
             _trouble = null;
             _outcome = null;
+            _outcomeSteps = null;
             SyncEnabled();
 
             WorkAsync(new WorkAsyncInfo
@@ -913,12 +923,14 @@ namespace Icons
                     // the point - that one is done.
                     ShowTables();
 
+                    // No dialog. The status line says it, the table has just left the unset-only
+                    // list, and a modal saying "that worked" is a click charged for nothing -
+                    // which on a run of a dozen tables is a dozen of them. What it used to say
+                    // is on the status line's tooltip, for when the question is which web
+                    // resource was created and which was updated.
                     _outcome = "Set " + icon.DisplayName + " on " + table.DisplayName;
+                    _outcomeSteps = string.Join("\n", result.Steps);
                     SyncEnabled();
-
-                    MessageBox.Show(this,
-                        string.Join("\n", result.Steps),
-                        "Done", MessageBoxButtons.OK, MessageBoxIcon.Information);
                 }
             });
         }
@@ -955,6 +967,7 @@ namespace Icons
             _solutionBox.Items.Clear();
             _trouble = null;
             _outcome = null;
+            _outcomeSteps = null;
 
             if (applying)
             {
