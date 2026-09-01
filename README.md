@@ -34,6 +34,13 @@ resources, update table definitions and publish customisations.
   everything else, so *Only tables with no icon yet* narrows the list to the ones nobody has got
   to, without another round trip. A table leaves that list the moment you give it an icon, so it
   stays a working list rather than something to re-read.
+- **Guesses where your icons live** — the same load reads where every icon this environment
+  already has is stored, so the name it suggests follows your convention rather than this tool's.
+  A table that already has an icon of yours is offered that exact name, so applying updates it
+  instead of leaving a second one beside it. Otherwise the name is built in the folder the rest
+  of your icons are in — only ever counting the ones under your own publishers' prefixes, so
+  Microsoft's hundreds cannot outvote the handful somebody here chose. Whatever it works out, the
+  name is a text box: type any path you like over it and that is what gets written.
 - **See it before you commit** — the chosen icon is previewed on light and on dark, at a size
   that shows what it is and at the size a site map really renders it.
 - **Colour that survives a theme change** — by default the icon is written with
@@ -52,9 +59,11 @@ resources, update table definitions and publish customisations.
 1. Open the tool. The library is inside it, so you can browse and search before connecting.
 2. **Load tables** to read the environment's tables and its unmanaged solutions.
 3. Search for an icon and select it.
-4. Pick the table, and the solution new web resources should go into. The web resource name is
-   suggested from the solution's publisher prefix and the table name — `new_/icons/account.svg` —
-   and you can change it.
+4. Pick the table, and the unmanaged solution new web resources go into. The solution is required:
+   without one they would land in the default solution, where nothing you ship can see them. The
+   web resource name is suggested from where this environment already keeps its icons — the name
+   the table already uses, or the folder its neighbours are in, or `new_/icons/account.svg` in an
+   environment with no icons yet to learn from — and you can type any path over it.
 5. Choose the theme colour or a fixed one.
 6. **Set as table icon**, confirm, done.
 
@@ -68,6 +77,8 @@ after it:
 
 - A table locked against customisation is called out the moment you select it, and cannot be
   applied to.
+- An apply with no unmanaged solution chosen is not offered at all, and a solutions load that
+  fails says so and stops there rather than quietly writing to the default solution.
 - A web resource name Dataverse would reject is caught with the offending character named — the
   platform's own message does not say which one it disliked.
 - A name already used by a different kind of web resource, or by a managed one, stops the write

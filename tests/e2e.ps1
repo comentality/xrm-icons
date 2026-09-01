@@ -1,6 +1,7 @@
 # Drives the tool through the whole workflow against a real Dataverse, and asks the org what
-# actually got written. It creates a table of its own (new_e2eicontest), puts icons on it -
-# apply, re-apply, the classic PNGs - verifies every write through the SDK, and deletes
+# actually got written. It creates a table of its own (new_e2eicontest), gives it an icon in a
+# folder of its own so the tool has a convention to read, puts icons on it - apply, re-apply,
+# the classic PNGs, a path typed by hand - verifies every write through the SDK, and deletes
 # everything on the way out.
 #
 #   .\tests\e2e.ps1            # run it
