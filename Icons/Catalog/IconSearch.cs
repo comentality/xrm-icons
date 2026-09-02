@@ -152,17 +152,21 @@ namespace Icons.Catalog
                 if (score > 0) scored.Add(new KeyValuePair<int, IconEntry>(score, icons[i]));
             }
 
-            // Ties broken by the shorter name, then by family, then alphabetically, so the
+            // Ties broken by family, then by the shorter name, then alphabetically, so the
             // ordering is stable and person outranks person_available at equal relevance.
             //
-            // Family comes before the name because four families draw a folder and all four
-            // score the same: without it "folder" leads with whichever family happens to sort
-            // first, and Fluent — the set every other one is here to differ from — ends up
-            // several rows down. The family filter is how somebody asks for the others.
+            // Family outranks the name length rather than the other way round, and that is a
+            // decision rather than a detail. Four families draw a folder and all four score the
+            // same, so something has to choose; and past the exact hits the score is a tie
+            // between whole rows of icons, where the shorter name would otherwise decide. Lucide
+            // names things tersely - folder-x, folder-up - and Fluent does not, so on length
+            // alone Fluent loses its own grid to whichever family writes shortest. Fluent leads
+            // each band of equal relevance, the others follow it in turn, and the family filter
+            // is how somebody asks for one of them instead.
             return scored
                 .OrderByDescending(p => p.Key)
-                .ThenBy(p => p.Value.Name.Length)
                 .ThenBy(p => p.Value.Family)
+                .ThenBy(p => p.Value.Name.Length)
                 .ThenBy(p => p.Value.Name, StringComparer.Ordinal)
                 .ThenBy(p => p.Value.Style)
                 .Select(p => p.Value)
