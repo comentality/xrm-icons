@@ -15,48 +15,123 @@ namespace Icons.Catalog
     public static class IconSearch
     {
         /// <summary>
-        /// Words a Dynamics customiser types, and the words Fluent draws them under. Deliberately
-        /// one-way and deliberately short: it exists to stop the obvious searches returning
-        /// nothing, not to be a thesaurus. Add to it when a search that should work does not.
+        /// Words a Dynamics customiser types, and the words Fluent draws them under. One-way on
+        /// purpose: it exists to stop the obvious searches returning nothing, not to be a
+        /// thesaurus, and a synonym hit never outranks an icon actually called that.
+        ///
+        /// It is longer than it looks like it should be because it was measured rather than
+        /// guessed. Running 162 standard Dataverse tables through <see cref="SeedFor"/> left a
+        /// third of them with no suggestion at all - Employee, Supplier, Budget, Milestone -
+        /// while the bundle held a perfectly good icon for every one of them. The gap was never
+        /// the library. Add to it when a search that should work does not, and check the word
+        /// you are adding matches something first: an alias the bundle does not draw is dead
+        /// weight that reads like coverage.
         /// </summary>
         private static readonly Dictionary<string, string[]> Synonyms =
             new Dictionary<string, string[]>(StringComparer.OrdinalIgnoreCase)
         {
-            { "account",     new[] { "building", "briefcase", "organization" } },
-            { "contact",     new[] { "person", "card" } },
-            { "customer",    new[] { "person", "people", "building" } },
-            { "user",        new[] { "person" } },
-            { "team",        new[] { "people" } },
-            { "lead",        new[] { "target", "trending", "ribbon" } },
-            { "opportunity", new[] { "money", "trophy", "chart", "trending" } },
-            { "case",        new[] { "headset", "ticket", "briefcase" } },
-            { "incident",    new[] { "warning", "headset", "ticket" } },
-            { "quote",       new[] { "document", "receipt" } },
-            { "order",       new[] { "cart", "receipt", "clipboard" } },
-            { "invoice",     new[] { "receipt", "money", "document" } },
-            { "product",     new[] { "box", "cube", "tag" } },
-            { "price",       new[] { "tag", "money" } },
-            { "appointment", new[] { "calendar", "clock" } },
-            { "activity",    new[] { "history", "list" } },
-            { "task",        new[] { "checkbox", "checkmark", "list" } },
-            { "email",       new[] { "mail" } },
-            { "call",        new[] { "phone" } },
-            { "campaign",    new[] { "megaphone" } },
-            { "competitor",  new[] { "people", "swap", "trophy" } },
-            { "territory",   new[] { "globe", "map", "location" } },
-            { "site",        new[] { "building", "location" } },
-            { "resource",    new[] { "wrench", "toolbox" } },
-            { "note",        new[] { "document" } },
-            { "attachment",  new[] { "attach", "paperclip" } },
-            { "report",      new[] { "chart", "document" } },
-            { "dashboard",   new[] { "board", "chart" } },
-            { "workflow",    new[] { "flow", "branch" } },
-            { "solution",    new[] { "puzzle", "box" } },
-            { "security",    new[] { "shield", "lock" } },
-            { "setting",     new[] { "settings", "options", "wrench" } },
-            { "table",       new[] { "grid" } },
-            { "entity",      new[] { "table", "grid", "database" } },
-            { "field",       new[] { "textbox", "form" } },
+            // What the first pass covered: the sales and service tables, and the customisation surface.
+            { "account",        new[] { "building", "briefcase", "organization" } },
+            { "contact",        new[] { "person", "card" } },
+            { "customer",       new[] { "person", "people", "building" } },
+            { "user",           new[] { "person" } },
+            { "team",           new[] { "people" } },
+            { "lead",           new[] { "target", "trending", "ribbon" } },
+            { "opportunity",    new[] { "money", "trophy", "chart", "trending" } },
+            { "case",           new[] { "headset", "ticket", "briefcase" } },
+            { "incident",       new[] { "warning", "headset", "ticket" } },
+            { "quote",          new[] { "document", "receipt" } },
+            { "order",          new[] { "cart", "receipt", "clipboard" } },
+            { "invoice",        new[] { "receipt", "money", "document" } },
+            { "product",        new[] { "box", "cube", "tag" } },
+            { "price",          new[] { "tag", "money" } },
+            { "appointment",    new[] { "calendar", "clock" } },
+            { "activity",       new[] { "history", "list" } },
+            { "task",           new[] { "checkbox", "checkmark", "list" } },
+            { "email",          new[] { "mail" } },
+            { "call",           new[] { "phone" } },
+            { "campaign",       new[] { "megaphone" } },
+            { "competitor",     new[] { "people", "swap", "trophy" } },
+            { "territory",      new[] { "globe", "map", "location" } },
+            { "site",           new[] { "building", "location" } },
+            { "resource",       new[] { "wrench", "toolbox" } },
+            { "note",           new[] { "document" } },
+            { "attachment",     new[] { "attach", "paperclip" } },
+            { "report",         new[] { "chart", "document" } },
+            { "dashboard",      new[] { "board", "chart" } },
+            { "workflow",       new[] { "flow", "branch" } },
+            { "solution",       new[] { "puzzle", "box" } },
+            { "security",       new[] { "shield", "lock" } },
+            { "setting",        new[] { "settings", "options", "wrench" } },
+            { "table",          new[] { "grid" } },
+            { "entity",         new[] { "table", "grid", "database" } },
+            { "field",          new[] { "textbox", "form" } },
+
+            // The rest came from measuring 162 standard tables against the library. A third of them seeded
+            // nothing, not because Fluent lacks an icon but because it does not name one after the word
+            // Dataverse uses. Anything added here must name a word the bundle actually draws.
+
+            // Who and where.
+            { "employee",       new[] { "person", "badge" } },
+            { "student",        new[] { "hat", "person" } },
+            { "supplier",       new[] { "building", "box" } },
+            { "vendor",         new[] { "building", "box" } },
+            { "department",     new[] { "building", "people" } },
+            { "facility",       new[] { "building" } },
+            { "warehouse",      new[] { "building", "box" } },
+            { "property",       new[] { "building", "home" } },
+            { "publisher",      new[] { "building", "book" } },
+
+            // Money.
+            { "discount",       new[] { "tag", "percent" } },
+            { "expense",        new[] { "money", "receipt" } },
+            { "budget",         new[] { "money", "calculator" } },
+            { "commission",     new[] { "money", "percent" } },
+            { "loan",           new[] { "money", "building" } },
+            { "forecast",       new[] { "chart", "trending" } },
+            { "subscription",   new[] { "card", "calendar" } },
+            { "membership",     new[] { "card", "badge" } },
+            { "payment",        new[] { "money", "card" } },
+
+            // Paperwork.
+            { "agreement",      new[] { "handshake", "document" } },
+            { "policy",         new[] { "shield", "document" } },
+            { "claim",          new[] { "shield", "document" } },
+            { "application",    new[] { "document", "form" } },
+            { "license",        new[] { "certificate", "key" } },
+            { "permit",         new[] { "certificate", "document" } },
+            { "entitlement",    new[] { "ticket", "shield" } },
+            { "literature",     new[] { "book", "document" } },
+            { "article",        new[] { "document", "book" } },
+            { "knowledge",      new[] { "book", "lightbulb" } },
+            { "course",         new[] { "book", "hat" } },
+            { "annotation",     new[] { "note", "pin" } },
+            { "subject",        new[] { "folder", "bookmark" } },
+
+            // Work being tracked.
+            { "goal",           new[] { "target", "trophy", "flag" } },
+            { "milestone",      new[] { "flag" } },
+            { "metric",         new[] { "gauge", "chart" } },
+            { "booking",        new[] { "calendar", "clock" } },
+            { "enrollment",     new[] { "person", "checkmark" } },
+            { "shipment",       new[] { "box", "vehicle" } },
+            { "delivery",       new[] { "box", "vehicle" } },
+            { "inventory",      new[] { "box", "clipboard" } },
+            { "inspection",     new[] { "search", "checkmark" } },
+            { "finding",        new[] { "search", "warning" } },
+            { "issue",          new[] { "warning", "bug" } },
+            { "characteristic", new[] { "tag", "star" } },
+
+            // Platform and customisation words.
+            { "plugin",         new[] { "puzzle", "plug" } },
+            { "connection",     new[] { "link", "plug" } },
+            { "relationship",   new[] { "link", "branch" } },
+            { "choice",         new[] { "list", "checkmark" } },
+            { "audit",          new[] { "clipboard", "search" } },
+            { "trace",          new[] { "bug", "list" } },
+            { "log",            new[] { "list", "document" } },
+            { "session",        new[] { "clock", "flow" } },
+            { "rollup",         new[] { "sum", "chart" } },
         };
 
         /// <summary>
