@@ -761,6 +761,11 @@ namespace Icons
             else
             {
                 SelectIcon(null);
+
+                // Nothing carried over, so this is a different list - and the scroll position
+                // from the last one is row forty of it. The best matches are at the top and
+                // that is where a new search should be looking.
+                if (_shown.Count > 0) _grid.EnsureVisible(0);
             }
 
             _grid.Invalidate();

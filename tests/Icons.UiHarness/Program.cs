@@ -149,10 +149,10 @@ namespace Icons.UiHarness
                         Console.WriteLine("OK: apply stays dead until there is a table to apply to");
                     }
 
-                    failures += CheckFamiliesAreShownAndFiltered(control, form, outputDir);
                     failures += CheckNameSurvivesRebuild(control, form, outputDir);
                     failures += CheckUnsetOnlyFilter(control, form, outputDir);
                     failures += CheckRasterHelpOffered(control);
+                    failures += CheckFamiliesAreShownAndFiltered(control, form, outputDir);
 
                     form.Close();
                     Pump();
@@ -197,7 +197,7 @@ namespace Icons.UiHarness
             var everyFamily = grid.VirtualListSize;
             toggle.Checked = true;
             Pump();
-            Shoot(form, outputDir, "05-families-shown");
+            Shoot(form, outputDir, "07-families-shown");
 
             if (grid.VirtualListSize != everyFamily)
             {
@@ -228,7 +228,7 @@ namespace Icons.UiHarness
             }
 
             Console.WriteLine("Folders per family - " + string.Join(", ", narrowed) + " (all families: " + everyFamily + ")");
-            Shoot(form, outputDir, "06-one-family");
+            Shoot(form, outputDir, "08-one-family");
 
             familyBox.SelectedIndex = 0;
             toggle.Checked = false;
