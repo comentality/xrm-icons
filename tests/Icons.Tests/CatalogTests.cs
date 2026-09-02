@@ -51,7 +51,7 @@ namespace Icons.Tests
         [Test]
         public void Names_are_readable_and_searchable()
         {
-            var person = _catalog.Icons.First(i => i.Name == "person" && i.Style == IconStyle.Regular);
+            var person = _catalog.Icons.First(i => i.Family == IconFamily.Fluent && i.Name == "person" && i.Style == IconStyle.Regular);
 
             Assert.That(person.DisplayName, Is.EqualTo("Person"));
             Assert.That(person.EntryPath, Is.EqualTo("fluent/regular/person.svg"));

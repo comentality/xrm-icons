@@ -702,16 +702,22 @@ namespace Icons
             if (!ours) return;
 
             // A table whose name the library has no answer for empties the box rather than
-            // leaving the last table's search standing over a grid that is not about it.
-            _seededSearch = IconSearch.SeedFor(_library, table.DisplayName);
+            // leaving the last table's search standing over a grid that is not about it. Asked
+            // of what the filters are showing, not of the whole bundle: the point of the seed
+            // is a grid with something in it, and Lucide alone answers fewer words than four
+            // families do.
+            _seededSearch = IconSearch.SeedFor(Narrowed(), table.DisplayName);
             _seededFor = table.LogicalName;
             _searchBox.Text = _seededSearch;
         }
 
-        private void ApplyFilter()
+        /// <summary>
+        /// The part of the library the two filters leave, before anything is searched. Both the
+        /// grid and the seed ask for this, so a seed can never suggest a search that the filters
+        /// have already ruled out.
+        /// </summary>
+        private IReadOnlyList<IconEntry> Narrowed()
         {
-            if (_catalog == null) return;
-
             var wanted = _library;
 
             if (_familyBox.SelectedItem is IconFamily)
@@ -723,6 +729,15 @@ namespace Icons
             var style = _styleBox.SelectedIndex;
             if (style == 1) wanted = wanted.Where(i => i.Style == IconStyle.Regular).ToList();
             else if (style == 2) wanted = wanted.Where(i => i.Style == IconStyle.Filled).ToList();
+
+            return wanted;
+        }
+
+        private void ApplyFilter()
+        {
+            if (_catalog == null) return;
+
+            var wanted = Narrowed();
 
             // The grid's selection is an index into the list that is about to be replaced, and
             // clearing it raises SelectedIndexChanged, which would throw the chosen icon away.

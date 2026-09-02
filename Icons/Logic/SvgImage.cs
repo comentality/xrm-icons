@@ -148,7 +148,7 @@ namespace Icons.Logic
                 }
 
                 case "rect":
-                    return Rectangle(element);
+                    return Rect(element);
 
                 case "line":
                 {
@@ -176,7 +176,7 @@ namespace Icons.Logic
                    "A" + radii + Number(cx - rx) + "," + Number(cy) + "Z";
         }
 
-        private static string Rectangle(XElement element)
+        private static string Rect(XElement element)
         {
             var w = Length(element, "width") ?? 0;
             var h = Length(element, "height") ?? 0;
