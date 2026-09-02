@@ -4,6 +4,19 @@
       before starting: this will not widen coverage. Every standard table that used to seed
       nothing was a missing word, not a missing icon, and no other pack names an icon
       "entitlement" either. Do this for a different look, if at all.
+      Codicons (microsoft/vscode-codicons, 639 icons) were measured against this and are a no:
+      they are the same look, not a different one - both sets are Microsoft drawing the same
+      language, and side by side at 16, 32 and 64 only `person` reads differently. 104 names are
+      shared outright and another 217 are covered by a Fluent name; of the 318 left, 164 are IDE
+      furniture and every general one probed - trash, gear, package, pie-chart, thumbsup, law,
+      checklist, layers - Fluent already draws under another name. The whole delta is magnet,
+      telescope and percentage. Worse, the four Dataverse words codicons name that Fluent does
+      not - account, quote, report, milestone - mean the developer sense: quote is quotation
+      marks, report is a speech bubble reporting a bug, account is a user avatar. Those would
+      score 100 and lead the grid over the synonym answers at 15, which is the confident
+      nonsense below, on the words the tool exists for. They are also CC-BY-4.0, which would put
+      an attribution obligation on what gets written into a customer's org and cost us the line
+      in docs/clean-room.md saying there is none.
 - [ ] Coverage parity with IconEngine: no search for a table concept comes back empty. Not its
       icons — those are Flaticon's, fetched through a keyed API, and not being that is the point
       (docs/clean-room.md).
