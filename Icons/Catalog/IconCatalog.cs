@@ -18,7 +18,7 @@ namespace Icons.Catalog
     /// </summary>
     public sealed class IconCatalog : IDisposable
     {
-        private const string ResourceName = "Icons.Catalog.fluent-icons.zip";
+        private const string ResourceName = "Icons.Catalog.icons.zip";
 
         private readonly ZipArchive _archive;
         private readonly Dictionary<string, ZipArchiveEntry> _entries;
@@ -32,7 +32,7 @@ namespace Icons.Catalog
             About = about;
         }
 
-        /// <summary>Every icon, sorted by name then style. Regular precedes Filled.</summary>
+        /// <summary>Every icon, sorted by family, then name, then weight.</summary>
         public IReadOnlyList<IconEntry> Icons { get; }
 
         /// <summary>Where the icons came from and under what licence. Shown in the About box.</summary>
@@ -46,7 +46,7 @@ namespace Icons.Catalog
             {
                 throw new InvalidOperationException(
                     "The icon library is missing from this build. Expected an embedded resource named " +
-                    ResourceName + "; run tools\build-catalog.ps1 and rebuild.");
+                    ResourceName + "; run tools\\build-catalog.ps1 and rebuild.");
             }
 
             // Into memory first. ZipArchive over a manifest resource stream works, but that
@@ -64,33 +64,76 @@ namespace Icons.Catalog
             var icons = new List<IconEntry>(archive.Entries.Count);
             foreach (var entry in archive.Entries)
             {
-                if (!entry.FullName.EndsWith(".svg", StringComparison.OrdinalIgnoreCase)) continue;
-
-                var slash = entry.FullName.IndexOf('/');
-                if (slash <= 0) continue;
-
-                var folder = entry.FullName.Substring(0, slash);
-                var name = entry.FullName.Substring(slash + 1, entry.FullName.Length - slash - 1 - 4);
-
-                IconStyle style;
-                if (folder.Equals("regular", StringComparison.OrdinalIgnoreCase)) style = IconStyle.Regular;
-                else if (folder.Equals("filled", StringComparison.OrdinalIgnoreCase)) style = IconStyle.Filled;
-                else continue;
-
-                icons.Add(new IconEntry(name, style));
+                var icon = Read(entry.FullName);
+                if (icon != null) icons.Add(icon);
             }
 
             icons.Sort((a, b) =>
             {
+                var byFamily = a.Family.CompareTo(b.Family);
+                if (byFamily != 0) return byFamily;
+
                 var byName = string.CompareOrdinal(a.Name, b.Name);
-                return byName != 0 ? byName : a.Style.CompareTo(b.Style);
+                return byName != 0 ? byName : string.CompareOrdinal(a.Weight, b.Weight);
             });
 
-            var about = ReadTextEntry(archive, "ABOUT.txt") ?? "Microsoft Fluent UI System Icons, MIT licensed.";
+            var about = ReadTextEntry(archive, "ABOUT.txt") ?? "Fluent, Phosphor, Lucide and Tabler icons.";
             return new IconCatalog(archive, icons, about);
         }
 
-        /// <summary>The icon's SVG, exactly as Fluent ships it.</summary>
+        /// <summary>
+        /// The icon an archive path describes, or null when the path is not one — the ABOUT
+        /// file, or a folder this build of the tool knows nothing about. Unknown is skipped
+        /// rather than refused, so an archive built by a later script still opens.
+        /// </summary>
+        private static IconEntry Read(string path)
+        {
+            if (!path.EndsWith(".svg", StringComparison.OrdinalIgnoreCase)) return null;
+
+            var parts = path.Split('/');
+            if (parts.Length != 3) return null;
+
+            IconFamily family;
+            if (!TryFamily(parts[0], out family)) return null;
+
+            var weight = parts[1];
+            if (weight.Length == 0) return null;
+
+            var name = parts[2].Substring(0, parts[2].Length - 4);
+            if (name.Length == 0) return null;
+
+            return new IconEntry(family, name, weight, StyleOf(weight));
+        }
+
+        private static bool TryFamily(string folder, out IconFamily family)
+        {
+            foreach (IconFamily candidate in Enum.GetValues(typeof(IconFamily)))
+            {
+                if (string.Equals(IconEntry.FolderFor(candidate), folder, StringComparison.OrdinalIgnoreCase))
+                {
+                    family = candidate;
+                    return true;
+                }
+            }
+
+            family = IconFamily.Fluent;
+            return false;
+        }
+
+        /// <summary>
+        /// Which class of weight a family's word for it belongs to. Only the solid weights need
+        /// naming: Fluent's filled, Phosphor's fill, Tabler's filled. Everything else — regular,
+        /// bold, outline — is an outline, and a weight added later is treated as one until
+        /// somebody says otherwise, which is the safer way round for a filter.
+        /// </summary>
+        private static IconStyle StyleOf(string weight)
+        {
+            return weight.StartsWith("fill", StringComparison.OrdinalIgnoreCase)
+                ? IconStyle.Filled
+                : IconStyle.Regular;
+        }
+
+        /// <summary>The icon's SVG, exactly as the bundle holds it.</summary>
         public string ReadSvg(IconEntry icon)
         {
             if (icon == null) throw new ArgumentNullException(nameof(icon));

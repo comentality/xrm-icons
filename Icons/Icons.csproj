@@ -12,7 +12,7 @@
     <UseWindowsForms>true</UseWindowsForms>
     <Company>Comentality</Company>
     <Authors>Comentality</Authors>
-    <Description>Search a bundled library of Fluent icons and set one as a Dataverse table icon, web resource and publish included.</Description>
+    <Description>Search a bundled library of Fluent, Phosphor, Lucide and Tabler icons and set one as a Dataverse table icon, web resource and publish included.</Description>
     <GeneratePackageOnBuild>false</GeneratePackageOnBuild>
     <NuspecFile>Icons.nuspec</NuspecFile>
   </PropertyGroup>
@@ -31,6 +31,6 @@
 
   <ItemGroup>
     <!-- The icon library travels inside the assembly. tools\build-catalog.ps1 rebuilds it. -->
-    <EmbeddedResource Include="Catalog\fluent-icons.zip" />
+    <EmbeddedResource Include="Catalog\icons.zip" />
   </ItemGroup>
 </Project>

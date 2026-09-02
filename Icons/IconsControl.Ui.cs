@@ -16,6 +16,12 @@ namespace Icons
         private const int ThumbnailSize = 40;
         private const int CellSize = 76;
 
+        /// <summary>What the family line under a name costs in cell height when it is showing.</summary>
+        private const int FamilyLineHeight = 15;
+
+        /// <summary>The family filter's first entry, which is not a family.</summary>
+        private const string AllFamilies = "All families";
+
         private void BuildUi()
         {
             SuspendLayout();
@@ -130,14 +136,33 @@ namespace Icons
             _searchBox.TextChanged += (s, e) => ApplyFilter();
             _searchBox.KeyDown += Search_KeyDown;
 
+            _familyBox = new ComboBox
+            {
+                Dock = DockStyle.Fill,
+                DropDownStyle = ComboBoxStyle.DropDownList
+            };
+            _familyBox.Items.Add(AllFamilies);
+            foreach (IconFamily family in Enum.GetValues(typeof(IconFamily))) _familyBox.Items.Add(family);
+            _familyBox.SelectedIndex = 0;
+            _familyBox.SelectedIndexChanged += (s, e) => ApplyFilter();
+
             _styleBox = new ComboBox
             {
                 Dock = DockStyle.Fill,
                 DropDownStyle = ComboBoxStyle.DropDownList
             };
-            _styleBox.Items.AddRange(new object[] { "Both weights", "Regular", "Filled" });
+            _styleBox.Items.AddRange(new object[] { "Both weights", "Outline", "Solid" });
             _styleBox.SelectedIndex = 0;
             _styleBox.SelectedIndexChanged += (s, e) => ApplyFilter();
+
+            _familyToggle = new CheckBox
+            {
+                Text = "Show family",
+                AutoSize = true,
+                Anchor = AnchorStyles.Left,
+                Padding = new Padding(0, 2, 0, 0)
+            };
+            _familyToggle.CheckedChanged += (s, e) => ShowFamilyChanged();
 
             _grid = new ListView
             {
@@ -151,29 +176,42 @@ namespace Icons
                 BackColor = SystemColors.Window,
                 // No images ever go in this list. It is here because the cell size in an icon
                 // view comes from the image list, and owner drawing does not change that.
-                LargeImageList = new ImageList { ImageSize = new Size(CellSize - 12, CellSize - 24) }
+                LargeImageList = CellSizer(false)
             };
             _grid.RetrieveVirtualItem += Grid_RetrieveVirtualItem;
             _grid.DrawItem += Grid_DrawItem;
             _grid.SelectedIndexChanged += Grid_SelectedIndexChanged;
             _grid.ItemActivate += (s, e) => { if (_applyButton.Enabled) Apply(); };
 
+            // Two rows: the search on its own, and the three things that narrow what it searches
+            // under it. On one row the search box is the only control that can give up width,
+            // and with four families to choose between there is not enough of it to give.
             var header = new TableLayoutPanel
             {
                 Dock = DockStyle.Top,
-                ColumnCount = 4,
-                RowCount = 1,
-                Height = 30,
+                ColumnCount = 6,
+                RowCount = 2,
+                Height = 58,
                 Padding = new Padding(6, 3, 6, 3)
             };
             header.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
             header.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
             header.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
-            header.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 130));
+            header.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 110));
+            header.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
+            header.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 110));
+            header.RowStyles.Add(new RowStyle(SizeType.Absolute, 27));
+            header.RowStyles.Add(new RowStyle(SizeType.Absolute, 27));
+
             header.Controls.Add(new Label { Text = "Search", AutoSize = true, Anchor = AnchorStyles.Left, Padding = new Padding(0, 4, 6, 0) }, 0, 0);
             header.Controls.Add(_searchBox, 1, 0);
-            header.Controls.Add(new Label { Text = "Weight", AutoSize = true, Anchor = AnchorStyles.Left, Padding = new Padding(10, 4, 6, 0) }, 2, 0);
-            header.Controls.Add(_styleBox, 3, 0);
+            header.SetColumnSpan(_searchBox, 5);
+
+            header.Controls.Add(_familyToggle, 1, 1);
+            header.Controls.Add(new Label { Text = "Family", AutoSize = true, Anchor = AnchorStyles.Left, Padding = new Padding(10, 4, 6, 0) }, 2, 1);
+            header.Controls.Add(_familyBox, 3, 1);
+            header.Controls.Add(new Label { Text = "Weight", AutoSize = true, Anchor = AnchorStyles.Left, Padding = new Padding(10, 4, 6, 0) }, 4, 1);
+            header.Controls.Add(_styleBox, 5, 1);
 
             var pane = new Panel { Dock = DockStyle.Fill };
             pane.Controls.Add(_grid);
@@ -336,6 +374,36 @@ namespace Icons
             e.Item = new ListViewItem(_shown[e.ItemIndex].DisplayName);
         }
 
+        /// <summary>
+        /// A ListView in icon view takes its cell size from the image list, and no icon of this
+        /// tool's ever goes in one - so the list is here purely to say how big a cell is, and
+        /// showing the family means handing the control a taller one. Owner drawing does not
+        /// get a say in it.
+        /// </summary>
+        private static ImageList CellSizer(bool withFamily)
+        {
+            return new ImageList
+            {
+                ImageSize = new Size(CellSize - 12, CellSize - 24 + (withFamily ? FamilyLineHeight : 0))
+            };
+        }
+
+        /// <summary>
+        /// Makes room for the family line, or takes it back. The chosen icon is not disturbed:
+        /// this changes how the grid is drawn and nothing about what is in it.
+        /// </summary>
+        private void ShowFamilyChanged()
+        {
+            var replacing = _grid.LargeImageList;
+            _grid.LargeImageList = CellSizer(_familyToggle.Checked);
+            if (replacing != null) replacing.Dispose();
+
+            // The control keeps the old cell metrics until something makes it lay out again.
+            _grid.Invalidate();
+
+            if (_grid.SelectedIndices.Count > 0) _grid.EnsureVisible(_grid.SelectedIndices[0]);
+        }
+
         private void Grid_DrawItem(object sender, DrawListViewItemEventArgs e)
         {
             if (e.ItemIndex < 0 || e.ItemIndex >= _shown.Count || _catalog == null) return;
@@ -357,11 +425,14 @@ namespace Icons
             var x = e.Bounds.X + (e.Bounds.Width - ThumbnailSize) / 2;
             e.Graphics.DrawImage(thumbnail, x, e.Bounds.Y + 6, ThumbnailSize, ThumbnailSize);
 
+            var showFamily = _familyToggle.Checked;
+            var captionHeight = e.Bounds.Height - ThumbnailSize - 10 - (showFamily ? FamilyLineHeight : 0);
+
             var caption = new Rectangle(
                 e.Bounds.X + 2,
                 e.Bounds.Y + ThumbnailSize + 8,
                 e.Bounds.Width - 4,
-                e.Bounds.Height - ThumbnailSize - 10);
+                captionHeight);
 
             TextRenderer.DrawText(
                 e.Graphics,
@@ -371,6 +442,23 @@ namespace Icons
                 selected ? SystemColors.HighlightText : SystemColors.ControlText,
                 TextFormatFlags.HorizontalCenter | TextFormatFlags.WordBreak |
                 TextFormatFlags.EndEllipsis | TextFormatFlags.NoPrefix);
+
+            if (!showFamily) return;
+
+            // Under the name, and quieter than it: which set drew this one is context for the
+            // name rather than part of it. Four families draw a folder and they are all called
+            // Folder, so with the toggle on the grid stops being a list of things that look
+            // alike for no stated reason.
+            var origin = new Rectangle(caption.X, caption.Bottom, caption.Width, FamilyLineHeight);
+
+            TextRenderer.DrawText(
+                e.Graphics,
+                icon.Origin,
+                Font,
+                origin,
+                selected ? SystemColors.HighlightText : SystemColors.GrayText,
+                TextFormatFlags.HorizontalCenter | TextFormatFlags.EndEllipsis |
+                TextFormatFlags.NoPrefix | TextFormatFlags.SingleLine);
         }
 
         /// <summary>

@@ -152,11 +152,17 @@ namespace Icons.Catalog
                 if (score > 0) scored.Add(new KeyValuePair<int, IconEntry>(score, icons[i]));
             }
 
-            // Ties broken by the shorter name, then alphabetically, so the ordering is stable
-            // and person outranks person_available at equal relevance.
+            // Ties broken by the shorter name, then by family, then alphabetically, so the
+            // ordering is stable and person outranks person_available at equal relevance.
+            //
+            // Family comes before the name because four families draw a folder and all four
+            // score the same: without it "folder" leads with whichever family happens to sort
+            // first, and Fluent — the set every other one is here to differ from — ends up
+            // several rows down. The family filter is how somebody asks for the others.
             return scored
                 .OrderByDescending(p => p.Key)
                 .ThenBy(p => p.Value.Name.Length)
+                .ThenBy(p => p.Value.Family)
                 .ThenBy(p => p.Value.Name, StringComparer.Ordinal)
                 .ThenBy(p => p.Value.Style)
                 .Select(p => p.Value)
@@ -254,8 +260,9 @@ namespace Icons.Catalog
                 else if (word.IndexOf(term, StringComparison.OrdinalIgnoreCase) >= 0) best = Math.Max(best, 30);
             }
 
-            // A term that spans the underscores, so "arrowtrending" and "arrow trending" agree.
-            if (best == 0 && icon.Name.Replace("_", "").IndexOf(term, StringComparison.OrdinalIgnoreCase) >= 0)
+            // A term that spans the separators, so "arrowtrending" and "arrow trending" agree,
+            // and "shoppingcart" finds shopping-cart.
+            if (best == 0 && icon.Name.Replace("_", "").Replace("-", "").IndexOf(term, StringComparison.OrdinalIgnoreCase) >= 0)
                 best = 20;
 
             // Only when the icon says nothing about the word itself. A synonym hit is a hint, not

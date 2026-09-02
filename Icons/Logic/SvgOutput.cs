@@ -73,7 +73,17 @@ namespace Icons.Logic
                     element.Name = SvgNs + element.Name.LocalName;
             }
 
-            root.SetAttributeValue("fill", mode == IconColourMode.Fixed ? ToHex(colour) : "currentColor");
+            var ink = mode == IconColourMode.Fixed ? ToHex(colour) : "currentColor";
+
+            // Which attribute carries the colour depends on how the icon is drawn. Fluent and
+            // Phosphor state a shape and fill it; Lucide and Tabler state a line and stroke it,
+            // with fill="none" on the root so the shape between the lines stays empty. Setting
+            // fill on one of those fills it in, which turns a drawing of a folder into a black
+            // pentagon. The root says which kind it is, because that is where both sets put it.
+            if (root.Attribute("stroke") != null)
+                root.SetAttributeValue("stroke", ink);
+            else
+                root.SetAttributeValue("fill", ink);
 
             if (sizePixels.HasValue)
             {
@@ -127,19 +137,15 @@ namespace Icons.Logic
             if (root.Attribute("viewBox") == null)
                 problems.Add("There is no viewBox, so the icon cannot scale. Microsoft asks for width, height and viewBox.");
 
+            // Both attributes, because a stroked icon carries its colour on the stroke and a
+            // fixed colour there overrides the theme exactly as one on a fill does.
             var paintsOwn = root.Descendants()
-                .Any(e =>
-                {
-                    var fill = (string)e.Attribute("fill");
-                    return !string.IsNullOrWhiteSpace(fill)
-                           && !fill.Equals("none", StringComparison.OrdinalIgnoreCase)
-                           && !fill.Equals("currentColor", StringComparison.OrdinalIgnoreCase);
-                });
+                .Any(e => StatesAColour((string)e.Attribute("fill")) || StatesAColour((string)e.Attribute("stroke")));
 
             if (paintsOwn)
             {
                 problems.Add(
-                    "Some shapes set their own fill, which overrides the colour chosen here. " +
+                    "Some shapes set their own colour, which overrides the colour chosen here. " +
                     "The icon will keep those colours in every theme.");
             }
 
@@ -150,6 +156,14 @@ namespace Icons.Logic
             }
 
             return problems;
+        }
+
+        /// <summary>Whether a paint attribute names a colour of its own, rather than none or the theme's.</summary>
+        private static bool StatesAColour(string raw)
+        {
+            return !string.IsNullOrWhiteSpace(raw)
+                   && !raw.Equals("none", StringComparison.OrdinalIgnoreCase)
+                   && !raw.Equals("currentColor", StringComparison.OrdinalIgnoreCase);
         }
 
         /// <summary>Bytes as Dataverse wants a web resource: base64 of the UTF-8 text.</summary>

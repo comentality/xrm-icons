@@ -54,7 +54,7 @@ namespace Icons.Tests
             var person = _catalog.Icons.First(i => i.Name == "person" && i.Style == IconStyle.Regular);
 
             Assert.That(person.DisplayName, Is.EqualTo("Person"));
-            Assert.That(person.EntryPath, Is.EqualTo("regular/person.svg"));
+            Assert.That(person.EntryPath, Is.EqualTo("fluent/regular/person.svg"));
             Assert.That(person.Words, Is.EqualTo(new[] { "person" }));
         }
 
@@ -65,7 +65,7 @@ namespace Icons.Tests
 
             Assert.That(icon.DisplayName, Is.EqualTo("Building bank toolbox"));
             Assert.That(icon.Words, Is.EqualTo(new[] { "building", "bank", "toolbox" }));
-            Assert.That(icon.EntryPath, Is.EqualTo("filled/building_bank_toolbox.svg"));
+            Assert.That(icon.EntryPath, Is.EqualTo("fluent/filled/building_bank_toolbox.svg"));
         }
 
         [Test]
@@ -156,7 +156,7 @@ namespace Icons.Tests
 
             var warnings = SvgOutput.Inspect(_catalog.ReadSvg(flag));
 
-            Assert.That(warnings.Any(w => w.Contains("own fill")), Is.True,
+            Assert.That(warnings.Any(w => w.Contains("own colour")), Is.True,
                 "an icon with baked colours should warn that recolouring will not take");
         }
 

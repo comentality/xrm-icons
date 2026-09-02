@@ -122,7 +122,7 @@ namespace Icons.Tests
         {
             var coloured = Plain.Replace("<path ", "<path fill=\"#FF0000\" ");
 
-            Assert.That(SvgOutput.Inspect(coloured).Any(w => w.Contains("own fill")), Is.True);
+            Assert.That(SvgOutput.Inspect(coloured).Any(w => w.Contains("own colour")), Is.True);
         }
 
         [Test]
@@ -130,7 +130,7 @@ namespace Icons.Tests
         {
             var deferring = Plain.Replace("<path ", "<path fill=\"currentColor\" ");
 
-            Assert.That(SvgOutput.Inspect(deferring).Any(w => w.Contains("own fill")), Is.False);
+            Assert.That(SvgOutput.Inspect(deferring).Any(w => w.Contains("own colour")), Is.False);
         }
 
         [Test]

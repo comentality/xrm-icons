@@ -119,7 +119,9 @@ namespace Icons
         private ToolStripLabel _statusLabel;
 
         private TextBox _searchBox;
+        private ComboBox _familyBox;
         private ComboBox _styleBox;
+        private CheckBox _familyToggle;
         private ListView _grid;
         private ComboBox _tableBox;
         private TextBox _tableFilterBox;
@@ -712,6 +714,12 @@ namespace Icons
 
             var wanted = _library;
 
+            if (_familyBox.SelectedItem is IconFamily)
+            {
+                var family = (IconFamily)_familyBox.SelectedItem;
+                wanted = wanted.Where(i => i.Family == family).ToList();
+            }
+
             var style = _styleBox.SelectedIndex;
             if (style == 1) wanted = wanted.Where(i => i.Style == IconStyle.Regular).ToList();
             else if (style == 2) wanted = wanted.Where(i => i.Style == IconStyle.Filled).ToList();
@@ -760,7 +768,7 @@ namespace Icons
 
             _iconLabel.Text = icon == null
                 ? "No icon chosen"
-                : icon.DisplayName + "  ·  " + icon.Style.ToString().ToLowerInvariant();
+                : icon.DisplayName + "  ·  " + icon.Origin;
 
             _iconConcern = null;
 

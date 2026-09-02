@@ -9,11 +9,10 @@ namespace Icons.Logic
     /// Turns SVG path data into a GDI+ figure.
     ///
     /// This exists so the tool has no rendering dependency. The bundled library is a narrow
-    /// dialect - every icon is one svg element containing only path elements, with no strokes,
-    /// transforms, gradients or stylesheets - so the whole of what has to be understood is the
-    /// d attribute, and that is a few hundred lines. An SVG library would be several assemblies
-    /// dropped next to the plugin, each one a chance to collide with what XrmToolBox already
-    /// loaded.
+    /// dialect - no transforms, gradients or stylesheets - so the whole of what has to be
+    /// understood is the d attribute, and that is a few hundred lines. An SVG library would be
+    /// several assemblies dropped next to the plugin, each one a chance to collide with what
+    /// XrmToolBox already loaded.
     ///
     /// The grammar is the full path grammar all the same (M L H V C S Q T A Z, absolute and
     /// relative), because Fluent uses all of it.
@@ -23,8 +22,16 @@ namespace Icons.Logic
         /// <summary>
         /// Builds the figure described by an SVG d attribute.
         /// </summary>
+        /// <param name="d">The path data.</param>
+        /// <param name="closeOpenFigures">
+        /// Whether a subpath the data never closed should be closed anyway. True for a shape
+        /// about to be filled, where it makes no difference - GDI+ closes a figure to fill it
+        /// either way - and false for one about to be stroked, where it makes all of it: an
+        /// outline icon is mostly open curves, and closing them draws a chord straight across
+        /// every one. A cart handle would come back a triangle.
+        /// </param>
         /// <exception cref="FormatException">The path data is not valid SVG.</exception>
-        public static GraphicsPath Parse(string d)
+        public static GraphicsPath Parse(string d, bool closeOpenFigures = true)
         {
             if (d == null) throw new ArgumentNullException(nameof(d));
 
@@ -34,7 +41,7 @@ namespace Icons.Logic
             var path = new GraphicsPath(FillMode.Winding);
             try
             {
-                Build(d, path);
+                Build(d, path, closeOpenFigures);
                 return path;
             }
             catch
@@ -44,7 +51,7 @@ namespace Icons.Logic
             }
         }
 
-        private static void Build(string d, GraphicsPath path)
+        private static void Build(string d, GraphicsPath path, bool closeOpenFigures)
         {
             var reader = new Reader(d);
 
@@ -85,7 +92,7 @@ namespace Icons.Logic
                             var p = reader.ReadPoint(relative, current);
                             if (first)
                             {
-                                if (open) path.CloseFigure();
+                                if (open && closeOpenFigures) path.CloseFigure();
                                 path.StartFigure();
                                 open = false;
                                 start = p;
@@ -214,7 +221,7 @@ namespace Icons.Logic
                 lastCommand = upper == 'L' && char.ToUpperInvariant(command) == 'M' ? 'M' : upper;
             }
 
-            if (open) path.CloseFigure();
+            if (open && closeOpenFigures) path.CloseFigure();
         }
 
         private static PointF Reflect(PointF control, PointF about)
