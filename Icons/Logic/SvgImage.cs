@@ -465,9 +465,10 @@ namespace Icons.Logic
                     width,
                     ReadCap((string)element.Attribute("stroke-linecap"), Cap),
                     ReadJoin((string)element.Attribute("stroke-linejoin"), Join),
+                    // Not inherited, unlike the rest: SVG opacity is a property of the group or
+                    // the shape it is written on, and passing it down would apply it twice.
                     ParseOpacity((string)element.Attribute("opacity"))
-                        ?? ParseOpacity((string)element.Attribute("fill-opacity"))
-                        ?? Opacity);
+                        ?? ParseOpacity((string)element.Attribute("fill-opacity")));
             }
 
             private static LineCap ReadCap(string raw, LineCap inherited)

@@ -149,6 +149,7 @@ namespace Icons.UiHarness
                         Console.WriteLine("OK: apply stays dead until there is a table to apply to");
                     }
 
+                    failures += CheckFamiliesAreShownAndFiltered(control, form, outputDir);
                     failures += CheckNameSurvivesRebuild(control, form, outputDir);
                     failures += CheckUnsetOnlyFilter(control, form, outputDir);
                     failures += CheckRasterHelpOffered(control);
@@ -166,6 +167,74 @@ namespace Icons.UiHarness
             Console.WriteLine(failures == 0 ? "All harness checks passed." : failures + " harness check(s) failed.");
             Console.WriteLine("Screenshots in " + Path.GetFullPath(outputDir));
             return failures == 0 ? 0 : 1;
+        }
+
+        /// <summary>
+        /// Four families draw a folder and all four are called Folder, so the grid has to be
+        /// able to say which is which, and the search has to be able to be asked for one family
+        /// only. Both are checked here because both change the shape of the cells the grid
+        /// draws, which is the part that goes wrong silently.
+        /// </summary>
+        private static int CheckFamiliesAreShownAndFiltered(IconsControl control, Form form, string outputDir)
+        {
+            var failures = 0;
+
+            var search = Find<TextBox>(control, "search");
+            var grid = Descendants(control).OfType<ListView>().FirstOrDefault();
+            var toggle = Descendants(control).OfType<CheckBox>().FirstOrDefault(c => c.Text == "Show family");
+            var familyBox = Descendants(control).OfType<ComboBox>()
+                .FirstOrDefault(c => c.Items.Count > 0 && c.Items[0] as string == "All families");
+
+            if (search == null || grid == null || toggle == null || familyBox == null)
+            {
+                Console.WriteLine("FAIL: the family toggle or the family filter is not in the window");
+                return 1;
+            }
+
+            search.Text = "folder";
+            Pump();
+
+            var everyFamily = grid.VirtualListSize;
+            toggle.Checked = true;
+            Pump();
+            Shoot(form, outputDir, "05-families-shown");
+
+            if (grid.VirtualListSize != everyFamily)
+            {
+                Console.WriteLine("FAIL: showing the family changed what is in the grid, and it should only " +
+                                  "change how it is drawn");
+                failures++;
+            }
+
+            // Every family should have a folder, so narrowing to one has to leave something
+            // and take something away.
+            var narrowed = new List<string>();
+            for (var i = 1; i < familyBox.Items.Count; i++)
+            {
+                familyBox.SelectedIndex = i;
+                Pump();
+                narrowed.Add(familyBox.Items[i] + ": " + grid.VirtualListSize);
+
+                if (grid.VirtualListSize == 0)
+                {
+                    Console.WriteLine("FAIL: " + familyBox.Items[i] + " has no folder, so that family is not in the bundle");
+                    failures++;
+                }
+                if (grid.VirtualListSize >= everyFamily)
+                {
+                    Console.WriteLine("FAIL: filtering to " + familyBox.Items[i] + " did not narrow anything");
+                    failures++;
+                }
+            }
+
+            Console.WriteLine("Folders per family - " + string.Join(", ", narrowed) + " (all families: " + everyFamily + ")");
+            Shoot(form, outputDir, "06-one-family");
+
+            familyBox.SelectedIndex = 0;
+            toggle.Checked = false;
+            Pump();
+
+            return failures;
         }
 
         /// <summary>

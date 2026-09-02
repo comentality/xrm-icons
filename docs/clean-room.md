@@ -40,9 +40,14 @@ it. Reading it out of curiosity, having already shipped, does too — you cannot
 Worth recording, because "we made different choices" is the substance of the claim:
 
 - **The icon source.** IconEngine draws on Flaticon, which needs an API key and carries
-  attribution terms. This tool bundles Microsoft's Fluent UI System Icons, MIT licensed, inside
-  the assembly — no key, no network, no attribution obligation on what you store.
+  attribution terms. This tool bundles four sets inside the assembly — Microsoft's Fluent UI
+  System Icons and Phosphor and Tabler under MIT, Lucide under ISC — so there is no key, no
+  network, and no attribution obligation on what you store in a customer's org. The licences
+  ask for their notice to travel with the software, which is what `ABOUT.txt` in the bundle is.
+  A set that asked for more than that is a set this tool does not bundle: Microsoft's own
+  codicons are CC-BY-4.0, and were measured and left out for that among other reasons (TODO.md).
 - **Colour.** The default is `fill="currentColor"` so the app themes the icon, following
   Microsoft's own guidance for table icons, rather than baking a colour in.
 - **Rendering.** No SVG library: the path grammar is parsed and rasterised in
-  `Icons/Logic/SvgPath.cs`, so the tool ships as one DLL.
+  `Icons/Logic/SvgPath.cs`, and filled and stroked in `Icons/Logic/SvgImage.cs`, so the tool
+  ships as one DLL.

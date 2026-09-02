@@ -1,8 +1,8 @@
 # ![](https://raw.githubusercontent.com/comentality/xrm-icons/main/Icons/icon.png) Icons
 
 An [XrmToolBox](https://www.xrmtoolbox.com/) tool for putting a decent icon on a Dataverse
-table. Search a library of Microsoft's Fluent icons, pick one, and the tool writes the SVG web
-resource, points the table at it, and publishes — without leaving XrmToolBox.
+table. Search a library of Fluent, Phosphor, Lucide and Tabler icons, pick one, and the tool
+writes the SVG web resource, points the table at it, and publishes — without leaving XrmToolBox.
 
 ![The library, searched for "account", with an icon chosen](https://raw.githubusercontent.com/comentality/xrm-icons/main/docs/images/overview.png)
 
@@ -23,11 +23,14 @@ resources, update table definitions and publish customisations.
 
 ## What it does
 
-- **Search 5,867 icons** — Microsoft's [Fluent UI System Icons](https://github.com/microsoft/fluentui-system-icons)
-  in both the regular and filled weights, bundled inside the tool. No API key, no account, and no
-  outbound host beyond Dataverse itself, so it works from behind a customer's proxy.
-- **Search in Dynamics words** — Fluent names icons after what they depict, and Dataverse names
-  tables after what they mean. Searching for `account` finds the buildings and briefcases,
+- **Search four icon families at once** — Microsoft's [Fluent UI System Icons](https://github.com/microsoft/fluentui-system-icons),
+  [Phosphor](https://phosphoricons.com/), [Lucide](https://lucide.dev/) and
+  [Tabler](https://tabler.io/icons), bundled inside the tool. No API key, no account, and no
+  outbound host beyond Dataverse itself, so it works from behind a customer's proxy. Filter to
+  one family when you want a house style, and turn on *Show family* to see which set drew each
+  icon — four of them draw a folder and all four are called Folder.
+- **Search in Dynamics words** — an icon set names its icons after what they depict, and
+  Dataverse names tables after what they mean. Searching for `account` finds the buildings and briefcases,
   `contact` finds the people, `appointment` finds the calendars, `case` finds the headsets. An
   icon actually named for your word still wins; the mapping only fills in where nothing is.
 - **The table you pick asks for you** — choosing a table puts its own word in the search box, so
@@ -119,15 +122,27 @@ after it:
 
 ## Where the icons come from
 
-[Fluent UI System Icons](https://github.com/microsoft/fluentui-system-icons), © Microsoft
-Corporation, under the MIT licence. The tool bundles one SVG per icon and weight, taken at
-the optical size Fluent draws it most completely — 24px where there is one, falling back
-through the others — otherwise unmodified. **About the icons** in the toolbar
-shows the exact version and the licence. `tools\build-catalog.ps1` regenerates the bundle from a
-newer release of the npm package.
+Four sets, bundled whole:
 
-The icons are MIT, so what you store in your environment carries no attribution obligation — but
-the licence travels with the bundle so you can check that for yourself.
+| Family | Weights bundled | Licence |
+|---|---|---|
+| [Fluent UI System Icons](https://github.com/microsoft/fluentui-system-icons), © Microsoft Corporation | regular, filled | MIT |
+| [Phosphor](https://github.com/phosphor-icons/core), © Phosphor Icons | regular, bold, fill | MIT |
+| [Lucide](https://github.com/lucide-icons/lucide), © Lucide Contributors | one | ISC |
+| [Tabler](https://github.com/tabler/tabler-icons), © Paweł Kuna | outline, filled | MIT |
+
+Fluent is taken at the optical size it is drawn most completely — 24px where there is one,
+falling back through the others. Phosphor's thin, light and duotone weights are left out: beside
+Fluent they read as a different tool rather than a different set. Otherwise the SVGs are as
+their authors ship them, bar two things done at bundle time — a `class` attribute dropped,
+because Microsoft advises against CSS classes in a table icon, and Tabler's invisible
+full-canvas backdrop rectangle removed.
+
+**About the icons** in the toolbar shows the exact package versions and the licences.
+`tools\build-catalog.ps1` regenerates the bundle from newer releases.
+
+All four licences are permissive, so what you store in your environment carries no attribution
+obligation — the notices travel with the bundle so you can check that for yourself.
 
 ## Building it
 
@@ -138,15 +153,16 @@ dotnet test tests\Icons.Tests\Icons.Tests.csproj
 .\tests\ui.ps1              # open the real control in a bare window and photograph it
 .\tests\slow.ps1            # drive it against a Dataverse that answers in seconds, and misbehaves
 .\tests\e2e.ps1             # drive it against a real Dataverse, on a table of its own, and clean up
-.\tools\build-catalog.ps1   # rebuild the icon bundle from @fluentui/svg-icons
+.\tools\build-catalog.ps1   # rebuild the icon bundle from all four upstream packages
 .\tools\make-tool-icon.ps1  # redraw the tool's own icon, using the tool's own renderer
 ```
 
 The tool ships as a single DLL with no dependencies beyond XrmToolBox itself. That is why it
-parses and rasterises SVG rather than referencing a library: restricted to the weights it
-bundles, every icon is one `<svg>` containing only `<path>` elements — no strokes, transforms,
-gradients or stylesheets — so the whole of what has to be understood is the path grammar. The
-test suite draws all 5,867 of them and checks each leaves ink on the canvas.
+parses and rasterises SVG rather than referencing a library: restricted to the families it
+bundles, an icon is one `<svg>` of paths and simple shapes, filled or stroked, with no
+transforms, gradients or stylesheets — so the whole of what has to be understood is the path
+grammar and a pen. The test suite draws every icon in the bundle and checks each leaves ink on
+the canvas, both as it ships and after the rewrite it is stored with.
 
 ## Provenance
 
