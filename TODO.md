@@ -17,6 +17,16 @@
       nonsense below, on the words the tool exists for. They are also CC-BY-4.0, which would put
       an attribution obligation on what gets written into a customer's org and cost us the line
       in docs/clean-room.md saying there is none.
+      Of the sets that would be a different look, only Phosphor (MIT, 1,512 icons in each of
+      six weights) can be bundled as it is: flat filled paths, fill="currentColor", nothing
+      the renderer does not already draw, and its bold weight sits at Fluent's stroke while
+      keeping squarer corners. Lucide is stroked, all 2,050 of them, and 42% use circle, line
+      or rect, so it needs a real SVG renderer rather than SvgPath. Tabler's outline weight is
+      all paths but all stroked; its filled weight (1,054) would work bar one thing - every
+      Tabler icon opens with <path d="M0 0h24v24H0z" fill="none"/>, and SvgImage maps a
+      fill of none to the caller's colour, so today it draws a solid black square over the
+      icon. Honouring none as paint-nothing is a few lines, and worth doing regardless of
+      whether a second set ever lands.
 - [ ] Coverage parity with IconEngine: no search for a table concept comes back empty. Not its
       icons — those are Flaticon's, fetched through a keyed API, and not being that is the point
       (docs/clean-room.md).
