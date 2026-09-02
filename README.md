@@ -64,7 +64,9 @@ resources, update table definitions and publish customisations.
 ## Workflow
 
 1. Open the tool. The library is inside it, so you can browse and search before connecting.
-2. **Load tables** to read the environment's tables and its unmanaged solutions.
+2. Connecting reads the environment's tables and its unmanaged solutions by itself — half a
+   second against a real environment, which is not worth a click. **Load tables** is there for
+   reading them again after somebody has changed something.
 3. Pick the table, and the unmanaged solution new web resources go into. Type enough of a table's
    name to leave one and that one is chosen. The solution is required:
    without one they would land in the default solution, where nothing you ship can see them. The

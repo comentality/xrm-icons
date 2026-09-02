@@ -992,8 +992,12 @@ namespace Icons
         public override void UpdateConnection(IOrganizationService newService, ConnectionDetail detail,
                                               string actionName, object parameter)
         {
-            base.UpdateConnection(newService, detail, actionName, parameter);
-
+            // Everything this window was holding for the old org goes before the base class is
+            // called, not after. A connection made because somebody pressed a button arrives
+            // carrying that button's method name, and running it is the last thing the base
+            // class does - so a reset that came afterwards would throw away the very load the
+            // connection was made for, and leave an empty window and a live button behind.
+            //
             // A write still out belongs to the org this control is leaving. The call on the
             // wire cannot be recalled, but the ones behind it can - and must be, or the tool
             // keeps changing an environment the window no longer shows.
@@ -1026,9 +1030,25 @@ namespace Icons
                 // Only the apply is marked cancelable, so only the apply may be cancelled here.
                 // Its callback will land with a stale generation and say nothing, so this line
                 // is the only report the user gets of what the old org may be left holding.
+                // Cancelled before the base class runs, or a load it starts is what gets cancelled.
                 CancelWorker();
                 _trouble = "The connection changed while an icon was being applied. The previous " +
                            "environment may or may not have been changed - reconnect to it to see.";
+            }
+
+            base.UpdateConnection(newService, detail, actionName, parameter);
+
+            // Nobody opens this tool to look at an empty window. Reading the tables is half a
+            // second against a real environment - measured, in docs/metadata-cache.md - so it is
+            // not worth a click, and the window is useful the moment it is connected.
+            //
+            // Not when there is an action name: the base class has just run that method, and it
+            // is the load this connection was made for. Not while a write to the last org was
+            // being abandoned either: a fresh load would wipe the only report of what that org
+            // may be left holding, before anybody had a chance to read it.
+            if (newService != null && string.IsNullOrEmpty(actionName) && !applying)
+            {
+                LoadTables();
             }
 
             SyncEnabled();

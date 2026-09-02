@@ -55,7 +55,17 @@ namespace Icons.SlowHarness
         {
             // The empty action name, not null: with anything else the base class goes looking
             // for a method of that name to run against the new connection.
-            Control.UpdateConnection(service, new ConnectionDetail(), "", null);
+            SwitchTo(service, "");
+        }
+
+        /// <summary>
+        /// The same, for a connection made because somebody pressed a button while there was no
+        /// connection to press it against. XrmToolBox carries the method's name on the update and
+        /// the base class runs it - so this is how that arrival is driven here.
+        /// </summary>
+        public void SwitchTo(SlowService service, string actionName)
+        {
+            Control.UpdateConnection(service, new ConnectionDetail(), actionName, null);
             Service = service;
         }
     }

@@ -47,6 +47,8 @@ namespace Icons.SlowHarness
                 UnsetOnlyFilter(),
                 TableSeedsTheSearch(),
                 FilterOfOnePicksIt(),
+                ConnectingLoadsItself(),
+                QueuedLoadSurvivesTheConnection(),
                 RasterHandover(),
                 PrefixMismatchWarned(),
                 CatchAllNotPreselected(),
@@ -662,6 +664,73 @@ namespace Icons.SlowHarness
                         + r.Probe.Tables.SelectedItem + "\"");
                     r.Check(!r.Probe.Apply.Enabled,
                         "so with nothing left to apply to, Apply has to be dead again");
+                });
+        }
+
+        /// <summary>
+        /// A connection arriving. Nobody opens this tool to look at an empty window, and reading
+        /// the tables is half a second, so the arrival is the cue rather than a click - and it is
+        /// one load, not one per way in.
+        /// </summary>
+        private static Scenario ConnectingLoadsItself()
+        {
+            return new Scenario
+            {
+                Name = "connecting-loads-itself",
+                Why = "a connection should put the tables on screen without being asked twice",
+                Wire = s => s.Latency = Slow("tables", 600)
+            }
+                .At(200, "the connection arrives", r =>
+                {
+                    r.SwitchTo(r.Service);
+
+                    r.Check(r.Probe.LoadingTables,
+                        "the arrival should have started the load itself, and the tool thinks nothing is out");
+                    r.Check(!r.Probe.Load.Enabled,
+                        "with Load dead while it is out, like any other load");
+                })
+                .At(1800, "and the window is useful without a click", r =>
+                {
+                    r.Check(r.Probe.TableNames().Any(n => n.Contains("(contoso_account)")),
+                        "the tables should be there for the taking, and the list holds: "
+                        + string.Join(", ", r.Probe.TableNames()));
+                    r.Check(r.Probe.Solutions.Items.Count > 0,
+                        "and the solutions with them, and there are " + r.Probe.Solutions.Items.Count);
+                    r.Check(r.Service.Log("tables").Count == 1,
+                        "asked once, and the org was asked " + r.Service.Log("tables").Count + " times");
+                    r.Check(r.Probe.Load.Enabled, "with Load live again for a reload");
+                });
+        }
+
+        /// <summary>
+        /// Load pressed with no connection yet. XrmToolBox asks for one, and hands it back with
+        /// the name of the method that wanted it - which the base class runs as its last act. The
+        /// window's own reset for a new org has to happen before all that, or it throws away the
+        /// load the connection was made for and leaves an empty window and a live button.
+        /// </summary>
+        private static Scenario QueuedLoadSurvivesTheConnection()
+        {
+            return new Scenario
+            {
+                Name = "queued-load-survives-connecting",
+                Why = "the load a connection was made for must not be discarded by arriving",
+                Wire = s => s.Latency = Slow("tables", 600)
+            }
+                .At(200, "the connection arrives carrying the load that asked for it", r =>
+                {
+                    r.SwitchTo(r.Service, "LoadTables");
+
+                    r.Check(r.Probe.LoadingTables,
+                        "the load the connection was made for should still be out, and the tool thinks nothing is");
+                })
+                .At(1800, "and it is the answer the window shows", r =>
+                {
+                    r.Check(r.Probe.TableNames().Any(n => n.Contains("(contoso_account)")),
+                        "its answer should be on screen, and the list holds: "
+                        + string.Join(", ", r.Probe.TableNames()));
+                    r.Check(r.Service.Log("tables").Count == 1,
+                        "once, not once for the button and once for the arrival: the org was asked "
+                        + r.Service.Log("tables").Count + " times");
                 });
         }
 
