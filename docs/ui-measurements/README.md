@@ -11,9 +11,8 @@ finds them. Whatever it lists is the list — no more, no fewer.
 
 ## Before you start
 
-- Pick a table you have already given an icon to with this tool. Standard tables draw
-  Microsoft's own icons from an internal set, not from web resources, so they will not answer
-  the probe. Note the web resource name from the tool's Web resource box, e.g. `new_/icons/account.svg`.
+- Pick a table you have already given an icon to with this tool. A standard table may not
+  answer the probe at all, so use one of yours. Note the web resource name from the tool's Web resource box, e.g. `new_/icons/account.svg`.
 - Browser zoom at **100%** (Ctrl+0). The probe prints `devicePixelRatio` so we can tell later
   whether it was.
 - Light theme first. If the org has dark mode, do a second pass in it — the preview draws both.
@@ -34,8 +33,17 @@ finds them. Whatever it lists is the list — no more, no fewer.
 5. Take one **uncropped** screenshot of the page at 100% and drop it in beside the JSON.
    The numbers say how big; the screenshot says what it sits in.
 
-If the probe finds nothing on a page, that is a real answer too — write it in `notes.md`. It
-means the icon is not shown there, and the mockup should not pretend it is.
+### If the name finds nothing
+
+Where the app colours the icon by theme it has to inline the SVG into the page, and an inlined
+SVG has no URL to match on. Its outline is still unmistakable, so search for that instead:
+open `/WebResources/<your web resource name>` in a tab, view source, copy twenty or so
+characters from inside a `d="..."`, and run `iconProbe('M12 2.5a...')` with them.
+
+Only once the path needle also comes back empty is "not shown on this page" the answer. Write
+that in `notes.md` — it is worth as much as a measurement, because it says which contexts the
+mockup must not draw. But do not record it off the name alone; that turns the guard against
+invented contexts into a machine for inventing missing ones.
 
 ## Pages worth walking
 

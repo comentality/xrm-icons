@@ -10,8 +10,9 @@ window.iconProbe = function (needle) {
   var rows = [];
   var seen = {};
 
-  // An icon can arrive as an <img>, an <svg><use>, an <object>, a CSS background, or a mask.
-  // All five are in use somewhere in Unified Interface, so all five are looked at.
+  // An icon can arrive as an <img>, an <svg><use>, an <object>, a CSS background or a mask -
+  // and, where the app colours it by theme, as an <svg> inlined into the page with no URL at
+  // all. The inline case is handled separately in scan(); these are the ones with a URL.
   function urlsOf(el) {
     var out = [];
     if (el.tagName === 'IMG' && el.src) out.push(el.src);
@@ -77,9 +78,21 @@ window.iconProbe = function (needle) {
       for (var u = 0; u < urls.length; u++) {
         if (String(urls[u]).toLowerCase().indexOf(needle) !== -1) { hit = true; break; }
       }
+
+      // An SVG the app inlined so it can colour it has no URL to match. Its path data is
+      // still distinctive, so a needle taken from d="..." finds it. Measure the <svg>, not
+      // the <path>: the path box is the ink, and we want the slot.
+      var box = el;
+      if (!hit && (el.tagName.toLowerCase() === "svg" || el.tagName.toLowerCase() === "path")) {
+        var markup = (el.outerHTML || "").toLowerCase();
+        if (markup.indexOf(needle) !== -1) {
+          hit = true;
+          if (el.tagName.toLowerCase() === "path") box = el.closest("svg") || el;
+        }
+      }
       if (!hit) continue;
 
-      var r = el.getBoundingClientRect();
+      var r = box.getBoundingClientRect();
       if (!r.width || !r.height) continue;
 
       // Two elements at the same spot and size are one icon reported twice (an img inside a
@@ -90,19 +103,19 @@ window.iconProbe = function (needle) {
 
       var row = null;
       try {
-        row = el.closest('[role="row"],[role="treeitem"],[role="menuitem"],[role="option"],[role="tab"],li,tr');
+        row = box.closest('[role="row"],[role="treeitem"],[role="menuitem"],[role="option"],[role="tab"],li,tr');
       } catch (e) {}
-      row = row || el.parentElement;
+      row = row || box.parentElement;
       var rr = row ? row.getBoundingClientRect() : null;
 
-      var t = nearestText(el);
+      var t = nearestText(box);
       var ts = t ? getComputedStyle(t) : null;
       var tr = t ? t.getBoundingClientRect() : null;
 
       rows.push({
         where: where,
         context: label(el),
-        tag: el.tagName.toLowerCase(),
+        tag: box.tagName.toLowerCase(),
         iconW: round(r.width),
         iconH: round(r.height),
         rowH: rr ? round(rr.height) : null,
@@ -113,7 +126,7 @@ window.iconProbe = function (needle) {
         fontPx: ts ? ts.fontSize : null,
         weight: ts ? ts.fontWeight : null,
         textColor: ts ? ts.color : null,
-        bg: opaqueBg(el)
+        bg: opaqueBg(box)
       });
     }
   }
