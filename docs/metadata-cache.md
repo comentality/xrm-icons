@@ -43,11 +43,11 @@ published a minute earlier showed up in both, as did an icon written a minute ea
 
 ## So
 
-`Load tables` asks the org. It is half a second, it is the same half a second whether or not
-anybody has touched the environment today, and it does not depend on XrmToolBox having loaded
-something first. The one thing worth reconsidering is that half a second is cheap enough that
-the tool could spend it on connect rather than making somebody press a button — but that is an
-argument about the direct call, not about the cache.
+The tool asks the org. It is half a second, it is the same half a second whether or not anybody
+has touched the environment today, and it does not depend on XrmToolBox having loaded something
+first. Half a second also turned out to be cheap enough to spend without being asked, so a
+connection now loads the environment by itself and **Load tables** is a refresh — but that is a
+conclusion about the direct call, not about the cache.
 
 Two smaller findings from the same run, worth knowing if you go near this:
 
