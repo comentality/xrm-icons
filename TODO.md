@@ -44,6 +44,20 @@
       terms that ask for more: share-alike, which the recoloured copy would inherit; a licence
       that forbids redistribution, which is Noun Project's API and Flaticon; or a copyleft set
       inside an MIT DLL. The test for a candidate set is whether a notice is all it wants.
+      What passes that test today, counted from Iconify's registry on 5 September 2026 and
+      filtered to monochrome, current, drawn-for-UI sets: 22 sets, 31,449 icons, against the
+      18,637 bundled now. Counts include style variants, as the bundle's own figure does.
+      Solar (7,608 in six styles, about 1,270 drawings); Streamline's free families, about
+      11,300 across core, Ultimate, Sharp, Flex, Plump, Freehand, Cyber and Block; Font Awesome
+      7 Free, 2,272 in solid and regular; Pepicons, 3,825 in Pop, Print and Pencil; IconaMoon,
+      1,781; Lets Icons, 1,528; codicons, 651; and NRK Core, CoreUI Free, Basil, coolicons and
+      Guidance, about 2,500 together. Left out, all CC BY too: colour and emoji sets, about
+      22,000, because the app themes a table icon; logo sets, about 10,000, because a
+      trademark is not answered by a copyright notice; older Font Awesome and archived sets,
+      about 3,500; and thematic ones - game, maps, audio, pixel art - about 6,600. Iconify's
+      licence field is a claim, so each set is checked against its own repo before bundling,
+      and each is measured the way codicons was before it goes in: a wider pool is not the
+      goal, a table nothing matches is.
 - [ ] Coverage parity with IconEngine: no search for a table concept comes back empty. Not its
       icons — those are Flaticon's, fetched through a keyed API, and not being that is the point
       (docs/clean-room.md).
