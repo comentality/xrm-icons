@@ -74,17 +74,16 @@
       whatever it actually drew. Quote gets Lucide and Tabler's quotation marks; Log gets
       Phosphor's wooden log. The other fourteen words this turned up are right, so the rule
       cannot be to distrust the newer families.
-- [ ] Preview the icon in context, in a window of its own. Narrowed to the navigation: the
+- [x] Preview the icon in context, in a window of its own. Narrowed to the navigation: the
       grid and form header were mocked and dropped, because the navigation is where the icon
-      is actually looked at. The mock is `tests/Icons.MockHarness`, and it can already draw a
-      real app’s navigation — `Icons.E2eHarness --sitemap` writes one out, rows and order and
-      group headings and every icon it can fetch as a web resource.
+      is actually looked at. `See it in context` opens it; with a connection it reads an
+      app’s own site map, and without one it shows a stand-in and says so.
 
-      Two things known before starting. Every chrome measurement in `Chrome.cs` is marked
-      GUESS and stays a lie until `docs/ui-measurements/probe.js` has been run against a real
-      app; that is the only thing between this and being true to size. And the mock falls back
-      to the library by substring when the org has no icon for a table — fine for a mock, but
-      the real one should ask `IconSearch`, for the reason the seeding entry above gives.
+- [ ] Measure the navigation, and replace the guesses. Every number the preview draws with is
+      marked GUESS in `Icons/Ui/NavChrome.cs` — nav width, row height, icon box, the greys —
+      and until `docs/ui-measurements/probe.js` has been run against a running app the preview
+      is the right shape at the wrong size. This is the only thing between it and being true
+      to size.
 - [ ] Ctrl+Z / Ctrl+Y — undo and redo.
 - [x] Smooth the UX overall — fewer clicks to get an icon assigned. The table seeds the search,
       Enter reaches the results, a filter of one table is that table, a finished write reports on
