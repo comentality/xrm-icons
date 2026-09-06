@@ -4,6 +4,7 @@ using System.Drawing;
 using System.Drawing.Drawing2D;
 using System.Globalization;
 using System.Linq;
+using System.Text;
 using System.Xml.Linq;
 
 namespace Icons.Logic
@@ -70,10 +71,14 @@ namespace Icons.Logic
             var shapes = new List<Shape>();
             var unsupported = new List<string>();
 
+            // What an element does not say in an attribute it may say in a class, and what it
+            // says in neither it inherits.
+            var sheet = Stylesheet.Read(root);
+
             // What an element does not say, it inherits. Every stroke set bundled here states
             // the stroke once on the root and nowhere else, so without this they draw nothing.
-            var initial = Style.Initial.Inherit(root);
-            Walk(root, initial, shapes, unsupported);
+            var initial = Style.Initial.Inherit(root, sheet);
+            Walk(root, initial, shapes, unsupported, sheet);
 
             if (shapes.Count == 0 && unsupported.Count == 0)
                 throw new FormatException("The file contains no drawable shapes.");
@@ -81,19 +86,23 @@ namespace Icons.Logic
             return new SvgImage(viewBox, shapes, unsupported);
         }
 
-        private static void Walk(XElement parent, Style inherited, List<Shape> shapes, List<string> unsupported)
+        private static void Walk(XElement parent, Style inherited, List<Shape> shapes,
+            List<string> unsupported, Stylesheet sheet)
         {
             foreach (var element in parent.Elements())
             {
                 var name = element.Name.LocalName;
 
-                if (name == "title" || name == "desc" || name == "metadata") continue;
+                // Nothing here paints. defs holds things to be referred to later, and its
+                // children are not walked into; style has already been read.
+                if (name == "title" || name == "desc" || name == "metadata"
+                    || name == "style" || name == "defs") continue;
 
                 if (name == "g")
                 {
                     // A group paints nothing itself; it is here to pass its style down.
                     Note(unsupported, element, "transform");
-                    Walk(element, inherited.Inherit(element), shapes, unsupported);
+                    Walk(element, inherited.Inherit(element, sheet), shapes, unsupported, sheet);
                     continue;
                 }
 
@@ -106,7 +115,7 @@ namespace Icons.Logic
 
                 Note(unsupported, element, "transform");
 
-                var style = inherited.Inherit(element);
+                var style = inherited.Inherit(element, sheet);
                 if (style.Fill.Nothing && style.Stroke.Nothing) continue;
 
                 shapes.Add(new Shape(data, style));
@@ -430,6 +439,154 @@ namespace Icons.Logic
             }
         }
 
+        /// <summary>
+        /// What an SVG says about its shapes somewhere other than on the shape: the rules in a
+        /// <c>&lt;style&gt;</c> block, and the declarations in an element's own style attribute.
+        ///
+        /// Only simple class selectors are read - <c>.cls-1</c>, and lists of them - because
+        /// that is the whole of what the icons in the wild use. Anything with a descendant
+        /// combinator, an id or a pseudo-class is skipped rather than half-applied: a rule
+        /// obeyed in the wrong place is worse than a rule ignored.
+        /// </summary>
+        private sealed class Stylesheet
+        {
+            private static readonly char[] Whitespace = { ' ', '\t', '\r', '\n' };
+            private static readonly char[] NotASimpleClass = { ' ', '>', '+', '~', '.', '#', ':', '[' };
+
+            private readonly Dictionary<string, Dictionary<string, string>> _byClass;
+
+            private Stylesheet(Dictionary<string, Dictionary<string, string>> byClass)
+            {
+                _byClass = byClass;
+            }
+
+            public static Stylesheet Read(XElement root)
+            {
+                var byClass = new Dictionary<string, Dictionary<string, string>>(StringComparer.Ordinal);
+
+                foreach (var block in root.Descendants().Where(e => e.Name.LocalName == "style"))
+                {
+                    foreach (var rule in Rules(Uncomment(block.Value)))
+                    {
+                        foreach (var selector in rule.Key.Split(','))
+                        {
+                            var name = selector.Trim();
+                            if (name.Length < 2 || name[0] != '.') continue;
+
+                            name = name.Substring(1);
+                            if (name.IndexOfAny(NotASimpleClass) >= 0) continue;
+
+                            Dictionary<string, string> already;
+                            if (!byClass.TryGetValue(name, out already))
+                                byClass[name] = already = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+
+                            foreach (var declaration in rule.Value) already[declaration.Key] = declaration.Value;
+                        }
+                    }
+                }
+
+                return new Stylesheet(byClass);
+            }
+
+            /// <summary>
+            /// Everything declared about this element away from its attributes: its classes in
+            /// the order it names them, then its own style attribute over the top. Null when it
+            /// says nothing, so the common case allocates nothing.
+            /// </summary>
+            public Dictionary<string, string> For(XElement element)
+            {
+                Dictionary<string, string> merged = null;
+
+                var classes = (string)element.Attribute("class");
+                if (!string.IsNullOrWhiteSpace(classes) && _byClass.Count > 0)
+                {
+                    foreach (var name in classes.Split(Whitespace, StringSplitOptions.RemoveEmptyEntries))
+                    {
+                        Dictionary<string, string> rule;
+                        if (!_byClass.TryGetValue(name, out rule)) continue;
+
+                        if (merged == null) merged = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+                        foreach (var declaration in rule) merged[declaration.Key] = declaration.Value;
+                    }
+                }
+
+                var inline = (string)element.Attribute("style");
+                if (!string.IsNullOrWhiteSpace(inline))
+                {
+                    foreach (var declaration in Declarations(Uncomment(inline)))
+                    {
+                        if (merged == null) merged = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+                        merged[declaration.Key] = declaration.Value;
+                    }
+                }
+
+                return merged;
+            }
+
+            private static string Uncomment(string text)
+            {
+                if (string.IsNullOrEmpty(text) || text.IndexOf("/*", StringComparison.Ordinal) < 0) return text ?? "";
+
+                var builder = new StringBuilder(text.Length);
+                for (var i = 0; i < text.Length; i++)
+                {
+                    if (i + 1 < text.Length && text[i] == '/' && text[i + 1] == '*')
+                    {
+                        var end = text.IndexOf("*/", i + 2, StringComparison.Ordinal);
+                        if (end < 0) break;
+
+                        i = end + 1;
+                        continue;
+                    }
+
+                    builder.Append(text[i]);
+                }
+
+                return builder.ToString();
+            }
+
+            /// <summary>Each rule as its selector list and what it declares.</summary>
+            private static IEnumerable<KeyValuePair<string, Dictionary<string, string>>> Rules(string css)
+            {
+                var at = 0;
+                while (at < css.Length)
+                {
+                    var open = css.IndexOf('{', at);
+                    if (open < 0) yield break;
+
+                    var close = css.IndexOf('}', open + 1);
+                    if (close < 0) yield break;
+
+                    var selector = css.Substring(at, open - at).Trim();
+                    var body = css.Substring(open + 1, close - open - 1);
+                    at = close + 1;
+
+                    // An at-rule - @media, @font-face - has a block of its own inside, and this
+                    // reader does not open it.
+                    if (selector.StartsWith("@", StringComparison.Ordinal)) continue;
+
+                    yield return new KeyValuePair<string, Dictionary<string, string>>(selector, Declarations(body));
+                }
+            }
+
+            private static Dictionary<string, string> Declarations(string body)
+            {
+                var declarations = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+
+                foreach (var part in body.Split(';'))
+                {
+                    var colon = part.IndexOf(':');
+                    if (colon <= 0) continue;
+
+                    var property = part.Substring(0, colon).Trim();
+                    var value = part.Substring(colon + 1).Trim();
+                    if (property.Length > 0 && value.Length > 0) declarations[property] = value;
+                }
+
+                return declarations;
+            }
+        }
+
         /// <summary>Everything about how a shape is painted that an element inherits.</summary>
         private struct Style
         {
@@ -455,20 +612,42 @@ namespace Icons.Logic
                 new Style(Paint.Caller, Paint.None, 1f, LineCap.Flat, LineJoin.Miter, null);
 
             /// <summary>This style, with whatever the element says about it applied over the top.</summary>
-            public Style Inherit(XElement element)
+            public Style Inherit(XElement element, Stylesheet sheet)
             {
-                var width = ReadLength(element, "stroke-width") ?? StrokeWidth;
+                var declared = sheet.For(element);
+
+                // The cascade, in the order it actually resolves. A presentation attribute is
+                // the weakest thing an element can say; a rule in a stylesheet beats it, and
+                // the element's own style attribute beats both. This is not pedantry: the
+                // icons Microsoft ships as web resources cover themselves with a full-size
+                // rect and cancel it with fill:none in a class, so an implementation that
+                // reads only the attribute paints a solid square over the drawing.
+                Func<string, string> value = property =>
+                {
+                    var said = (string)element.Attribute(property);
+
+                    string stated;
+                    if (declared != null && declared.TryGetValue(property, out stated)) said = stated;
+
+                    return said;
+                };
+
+                float parsed;
+                var widthText = value("stroke-width");
+                var width = !string.IsNullOrWhiteSpace(widthText)
+                            && TryFloat(widthText.Trim().TrimEnd('p', 'x', 'P', 'X'), out parsed) && parsed > 0
+                    ? parsed
+                    : ReadLength(element, "stroke-width") ?? StrokeWidth;
 
                 return new Style(
-                    Paint.Read((string)element.Attribute("fill"), Fill),
-                    Paint.Read((string)element.Attribute("stroke"), Stroke),
+                    Paint.Read(value("fill"), Fill),
+                    Paint.Read(value("stroke"), Stroke),
                     width,
-                    ReadCap((string)element.Attribute("stroke-linecap"), Cap),
-                    ReadJoin((string)element.Attribute("stroke-linejoin"), Join),
+                    ReadCap(value("stroke-linecap"), Cap),
+                    ReadJoin(value("stroke-linejoin"), Join),
                     // Not inherited, unlike the rest: SVG opacity is a property of the group or
                     // the shape it is written on, and passing it down would apply it twice.
-                    ParseOpacity((string)element.Attribute("opacity"))
-                        ?? ParseOpacity((string)element.Attribute("fill-opacity")));
+                    ParseOpacity(value("opacity")) ?? ParseOpacity(value("fill-opacity")));
             }
 
             private static LineCap ReadCap(string raw, LineCap inherited)

@@ -16,7 +16,10 @@ namespace Icons.MockHarness
     /// drawn from constants, so the only thing this needs is a font. It exists to be looked at
     /// and argued with before any of it goes near the tool.
     ///
-    ///     Icons.MockHarness.exe [output dir] [icon name] [scale]
+    ///     Icons.MockHarness.exe [output dir] [icon name] [scale] [navigation dump]
+    ///
+    /// The navigation is invented unless a dump is given. A dump is what Icons.E2eHarness
+    /// --sitemap writes: a real app's navigation, in its order, with its own icons beside it.
     /// </summary>
     internal static class Program
     {
@@ -43,6 +46,21 @@ namespace Icons.MockHarness
                 }
 
                 var cast = new Cast { Chosen = chosen, ChosenLabel = "Accounts" };
+
+                var dump = args.Length > 3 ? args[3] : null;
+                if (dump != null)
+                {
+                    if (!LoadNavigation(cast, dump))
+                    {
+                        Console.WriteLine("FAIL: no nav.tsv under " + dump);
+                        return 1;
+                    }
+
+                    Save(Sheets.AppScreen(cast, Theme.Light, scale, false), outputDir, "nav-real-light");
+                    Save(Sheets.AppScreen(cast, Theme.Dark, scale, false), outputDir, "nav-real-dark");
+                    Console.WriteLine("Wrote sheets to " + Path.GetFullPath(outputDir));
+                    return 0;
+                }
 
                 // A stand-in navigation. Connected, these are the environment's own tables in
                 // the order an app's site map puts them; nothing here reads that yet, so the
@@ -71,6 +89,63 @@ namespace Icons.MockHarness
 
             Console.WriteLine("Wrote sheets to " + Path.GetFullPath(outputDir));
             return 0;
+        }
+
+        /// <summary>
+        /// A real app's navigation, as Icons.E2eHarness --sitemap wrote it out.
+        ///
+        /// The chosen icon takes the place of one of the tables rather than being added beside
+        /// them: the question the preview answers is how this icon sits among that app's own,
+        /// and an extra row nobody has is not that question.
+        /// </summary>
+        private static bool LoadNavigation(Cast cast, string folder)
+        {
+            var file = Path.Combine(folder, "nav.tsv");
+            if (!File.Exists(file)) return false;
+
+            var entries = new List<NavEntry>();
+            foreach (var line in File.ReadAllLines(file).Skip(1))
+            {
+                var parts = line.Split('	');
+                if (parts.Length < 3) continue;
+
+                var kind = parts[0].Trim();
+                var label = parts[1].Trim();
+                if (label.Length == 0) continue;
+
+                if (kind == "group")
+                {
+                    entries.Add(new NavEntry(label, null, true));
+                    continue;
+                }
+
+                SvgImage icon = null;
+                if (parts[2].Trim().Length > 0)
+                {
+                    var path = Path.Combine(folder, parts[2].Trim());
+                    if (File.Exists(path))
+                    {
+                        try { icon = SvgImage.Parse(File.ReadAllText(path)); }
+                        catch (Exception e) { Console.WriteLine("  ! " + parts[2] + ": " + e.Message); }
+                    }
+                }
+
+                entries.Add(new NavEntry(label, icon));
+            }
+
+            if (entries.Count == 0) return false;
+
+            // Stand in the middle of the list, where there are neighbours above and below.
+            var tables = entries.Where(e => !e.IsGroup).ToList();
+            var target = tables.Count > 0 ? tables[tables.Count / 2] : entries[0];
+            target.Icon = cast.Chosen;
+            cast.ChosenLabel = target.Label;
+            cast.Entries = entries;
+            cast.ChosenAt = entries.IndexOf(target);
+
+            Console.WriteLine("  navigation from " + folder + ": " + entries.Count + " row(s), "
+                + entries.Count(e => !e.IsGroup && e.Icon != null) + " drawn");
+            return true;
         }
 
         /// <summary>

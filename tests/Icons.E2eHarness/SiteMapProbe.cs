@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Text;
@@ -12,17 +13,29 @@ using Microsoft.Xrm.Tooling.Connector;
 namespace Icons.E2eHarness
 {
     /// <summary>
-    /// Asks the org what an app's navigation is actually made of, and how many of the tables in
-    /// it could have their icon drawn.
+    /// Asks the org what an app's navigation is made of, and writes it out so the mock can draw
+    /// the real thing instead of an invented one.
     ///
-    /// Reads only. It exists because a preview of a site map is worth building only if the site
-    /// map can be read and the neighbours can be drawn, and both of those are facts about a real
-    /// environment rather than things to reason out. The second one is the one that decides the
-    /// design: a table whose icon is not an SVG web resource cannot be drawn from the org at
-    /// all, and a navigation full of empty boxes is worse than an invented one.
+    /// Reads only. Three things it established that were not guessable:
+    ///
+    /// A modern app's site map does not come back from a plain query on <c>sitemap</c> - that
+    /// returns the legacy Settings map and nothing else. It has to be reached through the app's
+    /// own component list and retrieved by id.
+    ///
+    /// A SubArea can name its own icon, and in the Settings app every one of them does. So a
+    /// navigation entry's icon is not always the table's icon, and reading only IconVectorName
+    /// would draw the wrong thing.
+    ///
+    /// And the tables a real app puts in its navigation mostly do have a drawable icon. The
+    /// first pass said none of them did, but it was counting the legacy Settings map, which is
+    /// not a navigation anybody sees. Counted against a real app it is nearly all of them: the
+    /// exceptions are the core standard tables like contact.
     /// </summary>
     internal static class SiteMapProbe
     {
+        /// <summary>appmodulecomponent.componenttype for a site map.</summary>
+        private const int SiteMapComponent = 62;
+
         public static int Run(CrmServiceClient client, string root)
         {
             var report = new StringBuilder();
@@ -32,125 +45,244 @@ namespace Icons.E2eHarness
                 report.AppendLine(line);
             }
 
-            Say("== apps in this environment ==");
-            var apps = client.RetrieveMultiple(new QueryExpression("appmodule")
-            {
-                ColumnSet = new ColumnSet("appmoduleid", "name", "uniquename"),
-                TopCount = 50
-            });
-
-            foreach (var app in apps.Entities)
-            {
-                Say("  " + app.GetAttributeValue<string>("name")
-                    + "  (" + app.GetAttributeValue<string>("uniquename") + ")");
-            }
-
-            Say("");
-            Say("== site maps ==");
-            var maps = client.RetrieveMultiple(new QueryExpression("sitemap")
-            {
-                ColumnSet = new ColumnSet("sitemapid", "sitemapname", "sitemapnameunique", "sitemapxml"),
-                TopCount = 50
-            });
-
-            Say("  " + maps.Entities.Count + " site map record(s)");
-
-            // Only the shape matters here, so each map is reported as its areas, groups and the
-            // tables under them rather than as raw XML.
-            foreach (var map in maps.Entities)
-            {
-                var name = map.GetAttributeValue<string>("sitemapnameunique")
-                           ?? map.GetAttributeValue<string>("sitemapname")
-                           ?? map.Id.ToString();
-
-                var xml = map.GetAttributeValue<string>("sitemapxml");
-                if (string.IsNullOrWhiteSpace(xml))
-                {
-                    Say("  " + name + ": no sitemapxml");
-                    continue;
-                }
-
-                Say("");
-                Say("  --- " + name + " (" + xml.Length + " chars) ---");
-                try
-                {
-                    var doc = XDocument.Parse(xml);
-                    foreach (var area in doc.Descendants("Area"))
-                    {
-                        Say("  Area " + Attr(area, "Id") + "  title=" + Title(area));
-                        foreach (var group in area.Elements("Group"))
-                        {
-                            Say("    Group " + Attr(group, "Id") + "  title=" + Title(group));
-                            foreach (var sub in group.Elements("SubArea"))
-                            {
-                                Say("      SubArea " + Attr(sub, "Id")
-                                    + "  Entity=" + Attr(sub, "Entity")
-                                    + "  Url=" + Attr(sub, "Url")
-                                    + "  Icon=" + Attr(sub, "Icon")
-                                    + "  title=" + Title(sub));
-                            }
-                        }
-                    }
-                }
-                catch (Exception e)
-                {
-                    Say("  ! could not parse: " + e.Message);
-                }
-            }
-
-            Say("");
-            Say("== can the neighbours be drawn? ==");
+            // Metadata first: the labels and icons of the tables a site map will name.
             var response = (RetrieveAllEntitiesResponse)client.Execute(new RetrieveAllEntitiesRequest
             {
                 EntityFilters = EntityFilters.Entity,
                 RetrieveAsIfPublished = true
             });
 
-            var all = response.EntityMetadata
-                .Where(e => e.DisplayName?.UserLocalizedLabel?.Label != null)
-                .ToList();
-
-            var withVector = all.Where(e => !string.IsNullOrEmpty(e.IconVectorName)).ToList();
-            Say("  tables with a display name: " + all.Count);
-            Say("  of those, with IconVectorName: " + withVector.Count);
-            Say("    custom:   " + withVector.Count(e => e.IsCustomEntity == true));
-            Say("    standard: " + withVector.Count(e => e.IsCustomEntity != true));
-            Say("  standard tables WITHOUT one: " + all.Count(e => e.IsCustomEntity != true && string.IsNullOrEmpty(e.IconVectorName)));
-
-            // The site map's own tables are the ones that would actually be drawn, so they are
-            // the count that decides it.
-            var inMaps = maps.Entities
-                .Select(m => m.GetAttributeValue<string>("sitemapxml"))
-                .Where(x => !string.IsNullOrWhiteSpace(x))
-                .SelectMany(x =>
-                {
-                    try { return XDocument.Parse(x).Descendants("SubArea").Select(s => Attr(s, "Entity")); }
-                    catch { return Enumerable.Empty<string>(); }
-                })
-                .Where(e => !string.IsNullOrEmpty(e))
-                .Distinct(StringComparer.OrdinalIgnoreCase)
-                .ToList();
-
-            Say("");
-            Say("  tables named by a site map: " + inMaps.Count);
-            var drawable = 0;
-            foreach (var logical in inMaps.OrderBy(x => x, StringComparer.OrdinalIgnoreCase))
+            var byLogical = new Dictionary<string, EntityMetadata>(StringComparer.OrdinalIgnoreCase);
+            foreach (var e in response.EntityMetadata)
             {
-                var meta = all.FirstOrDefault(e =>
-                    string.Equals(e.LogicalName, logical, StringComparison.OrdinalIgnoreCase));
-                var vector = meta?.IconVectorName;
-                if (!string.IsNullOrEmpty(vector)) drawable++;
-                Say("    " + logical.PadRight(28) + (string.IsNullOrEmpty(vector) ? "(no vector icon)" : vector));
+                if (e.LogicalName != null) byLogical[e.LogicalName] = e;
             }
 
+            var named = response.EntityMetadata.Where(e => e.DisplayName?.UserLocalizedLabel?.Label != null).ToList();
+            Say("== the environment's icons ==");
+            Say("  tables with a display name: " + named.Count);
+            Say("  with IconVectorName: " + named.Count(e => !string.IsNullOrEmpty(e.IconVectorName))
+                + "  (custom " + named.Count(e => e.IsCustomEntity == true && !string.IsNullOrEmpty(e.IconVectorName))
+                + ", standard " + named.Count(e => e.IsCustomEntity != true && !string.IsNullOrEmpty(e.IconVectorName)) + ")");
+
+            // ----- the apps, by the unique id their components refer to them by -----
+
+            var apps = client.RetrieveMultiple(new QueryExpression("appmodule")
+            {
+                ColumnSet = new ColumnSet("appmoduleid", "appmoduleidunique", "name", "uniquename"),
+                TopCount = 100
+            });
+
+            var nameOf = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+            foreach (var app in apps.Entities)
+            {
+                var unique = Raw(app, "appmoduleidunique");
+                if (unique.Length > 0) nameOf[unique] = app.GetAttributeValue<string>("name") ?? "(unnamed)";
+            }
+
+            var links = client.RetrieveMultiple(new QueryExpression("appmodulecomponent")
+            {
+                ColumnSet = new ColumnSet("appmoduleidunique", "objectid"),
+                Criteria = new FilterExpression
+                {
+                    Conditions = { new ConditionExpression("componenttype", ConditionOperator.Equal, SiteMapComponent) }
+                },
+                TopCount = 200
+            });
+
             Say("");
-            Say("  of the site map's tables, drawable from the org: " + drawable + " of " + inMaps.Count);
+            Say("== apps and their navigations ==");
+
+            var navRoot = Path.Combine(root, "nav");
+            Directory.CreateDirectory(navRoot);
+
+            foreach (var link in links.Entities)
+            {
+                var appUnique = Raw(link, "appmoduleidunique");
+                var appName = nameOf.ContainsKey(appUnique) ? nameOf[appUnique] : "app-" + appUnique;
+
+                Guid mapId;
+                if (!Guid.TryParse(Raw(link, "objectid"), out mapId)) continue;
+
+                string xml;
+                try
+                {
+                    xml = client.Retrieve("sitemap", mapId, new ColumnSet("sitemapxml"))
+                        .GetAttributeValue<string>("sitemapxml");
+                }
+                catch (Exception e)
+                {
+                    Say("  " + appName + ": could not retrieve its site map - " + e.Message);
+                    continue;
+                }
+
+                if (string.IsNullOrWhiteSpace(xml))
+                {
+                    Say("  " + appName + ": no sitemapxml");
+                    continue;
+                }
+
+                var rows = Read(xml, byLogical);
+                var tables = rows.Count(r => r.Kind == "table");
+                var drawable = rows.Count(r => r.Kind == "table" && r.Icon.Length > 0);
+                Say("  " + appName + ": " + rows.Count + " row(s), " + tables + " table(s), "
+                    + drawable + " with an icon this tool could fetch");
+
+                Dump(client, navRoot, appName, rows, Say);
+            }
 
             Directory.CreateDirectory(root);
             var path = Path.Combine(root, "sitemap-probe.txt");
             File.WriteAllText(path, report.ToString());
             Console.WriteLine("        wrote " + path);
             return 0;
+        }
+
+        /// <summary>One navigation row as the mock needs it.</summary>
+        private sealed class Row
+        {
+            public string Kind = "table";   // area, group or table
+            public string Label = "";
+            public string Icon = "";        // the web resource that draws it, if any
+        }
+
+        /// <summary>
+        /// The site map as a flat list of headings and tables, in the order it puts them.
+        ///
+        /// A SubArea's own Icon wins over the table's, because that is the one the app shows.
+        /// A SubArea with no Entity is a page rather than a table and keeps whatever label it
+        /// has; a SubArea with no title of its own borrows the table's display name, which is
+        /// what the app does too.
+        /// </summary>
+        private static List<Row> Read(string xml, Dictionary<string, EntityMetadata> byLogical)
+        {
+            var rows = new List<Row>();
+
+            XDocument doc;
+            try { doc = XDocument.Parse(xml); }
+            catch { return rows; }
+
+            foreach (var area in doc.Descendants("Area"))
+            {
+                foreach (var group in area.Elements("Group"))
+                {
+                    var heading = Title(group);
+                    if (heading.Length > 0) rows.Add(new Row { Kind = "group", Label = heading });
+
+                    foreach (var sub in group.Elements("SubArea"))
+                    {
+                        var entity = Attr(sub, "Entity");
+                        var label = Title(sub);
+                        var icon = Attr(sub, "Icon");
+
+                        EntityMetadata meta = null;
+                        if (entity.Length > 0) byLogical.TryGetValue(entity, out meta);
+
+                        if (label.Length == 0)
+                            label = meta?.DisplayName?.UserLocalizedLabel?.Label ?? entity;
+
+                        if (icon.Length == 0) icon = meta?.IconVectorName ?? "";
+
+                        // Only an SVG web resource can be fetched and drawn. A /_imgs/ path is
+                        // a bitmap the platform serves and not something to pretend about.
+                        if (!icon.EndsWith(".svg", StringComparison.OrdinalIgnoreCase)) icon = "";
+                        icon = icon.TrimStart('/');
+                        if (icon.StartsWith("WebResources/", StringComparison.OrdinalIgnoreCase))
+                            icon = icon.Substring("WebResources/".Length);
+
+                        rows.Add(new Row
+                        {
+                            Kind = entity.Length > 0 ? "table" : "page",
+                            Label = label,
+                            Icon = icon
+                        });
+                    }
+                }
+            }
+
+            return rows;
+        }
+
+        /// <summary>
+        /// Writes the navigation and every icon in it, so the mock can draw the real thing with
+        /// no connection of its own.
+        /// </summary>
+        private static void Dump(CrmServiceClient client, string navRoot, string appName,
+            List<Row> rows, Action<string> say)
+        {
+            var folder = Path.Combine(navRoot, Safe(appName));
+            Directory.CreateDirectory(folder);
+
+            var wanted = rows.Select(r => r.Icon).Where(i => i.Length > 0)
+                .Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+
+            var got = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+            foreach (var name in wanted)
+            {
+                var found = client.RetrieveMultiple(new QueryExpression("webresource")
+                {
+                    ColumnSet = new ColumnSet("name", "content"),
+                    Criteria = new FilterExpression
+                    {
+                        Conditions = { new ConditionExpression("name", ConditionOperator.Equal, name) }
+                    },
+                    TopCount = 1
+                });
+
+                var record = found.Entities.FirstOrDefault();
+                var content = record?.GetAttributeValue<string>("content");
+                if (string.IsNullOrEmpty(content)) continue;
+
+                try
+                {
+                    var file = Safe(name) + ".svg";
+                    File.WriteAllBytes(Path.Combine(folder, file), Convert.FromBase64String(content));
+                    got[name] = file;
+                }
+                catch (FormatException)
+                {
+                    // Not base64: nothing to draw, and nothing to say about it beyond that.
+                }
+            }
+
+            using (var writer = new StreamWriter(Path.Combine(folder, "nav.tsv"), false, Encoding.UTF8))
+            {
+                writer.WriteLine("kind\tlabel\tfile");
+                foreach (var row in rows)
+                {
+                    string file;
+                    got.TryGetValue(row.Icon ?? "", out file);
+                    writer.WriteLine(row.Kind + "\t" + row.Label + "\t" + (file ?? ""));
+                }
+            }
+
+            say("    -> " + folder + " (" + got.Count + " of " + wanted.Count + " icons fetched)");
+        }
+
+        private static string Safe(string name)
+        {
+            var builder = new StringBuilder();
+            foreach (var c in name) builder.Append(char.IsLetterOrDigit(c) ? c : '-');
+            return builder.ToString();
+        }
+
+        /// <summary>
+        /// One attribute as text, whatever the platform typed it as. These columns are not all
+        /// what they look like - appmoduleidunique is not returned as a Guid - and the probe is
+        /// here to find that out rather than to assert it.
+        /// </summary>
+        private static string Raw(Entity entity, string name)
+        {
+            object value;
+            if (!entity.Attributes.TryGetValue(name, out value) || value == null) return "";
+
+            var reference = value as EntityReference;
+            if (reference != null) return reference.Id.ToString();
+
+            var option = value as OptionSetValue;
+            if (option != null) return option.Value.ToString();
+
+            return Convert.ToString(value);
         }
 
         private static string Attr(XElement element, string name)
@@ -163,7 +295,11 @@ namespace Icons.E2eHarness
         {
             var titles = element.Element("Titles");
             var title = titles?.Elements("Title").FirstOrDefault();
-            return (string)title?.Attribute("Title") ?? Attr(element, "ResourceId");
+            var text = (string)title?.Attribute("Title") ?? "";
+
+            // A ResourceId is the platform's own string table, which this cannot resolve. Better
+            // an empty label the caller fills from the table than a Homepage_SyncError on screen.
+            return text;
         }
     }
 }
