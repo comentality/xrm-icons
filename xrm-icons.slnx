@@ -2,6 +2,7 @@
   <Folder Name="/tests/">
     <Project Path="tests/Icons.Tests/Icons.Tests.csproj" />
     <Project Path="tests/Icons.UiHarness/Icons.UiHarness.csproj" />
+    <Project Path="tests/Icons.MockHarness/Icons.MockHarness.csproj" />
   </Folder>
   <Project Path="Icons/Icons.csproj" />
 </Solution>

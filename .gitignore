@@ -20,3 +20,5 @@ tests/.e2e/
 # data. Kept locally by default. Un-ignore if the org they came from is a demo one.
 docs/ui-measurements/*.png
 docs/ui-measurements/*.json
+# The mock harness sheets, regenerated on every run like the other harnesses.
+tests/.mock/
