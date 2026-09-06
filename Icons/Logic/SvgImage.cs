@@ -561,8 +561,9 @@ namespace Icons.Logic
                     var body = css.Substring(open + 1, close - open - 1);
                     at = close + 1;
 
-                    // An at-rule - @media, @font-face - has a block of its own inside, and this
-                    // reader does not open it.
+                    // An at-rule - @media, @font-face - has a block of its own inside. This
+                    // reader does not open nested blocks: it skips the at-rule, and the inner
+                    // braces then read as rules with empty selectors, which match nothing.
                     if (selector.StartsWith("@", StringComparison.Ordinal)) continue;
 
                     yield return new KeyValuePair<string, Dictionary<string, string>>(selector, Declarations(body));

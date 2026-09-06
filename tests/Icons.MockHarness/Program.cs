@@ -134,6 +134,10 @@ namespace Icons.MockHarness
                 // since none of those keep theirs as a web resource - is drawn from the library
                 // by its own name. The app draws those from Fluent too, so this is closer to the
                 // truth than an empty box, though it is still a stand-in and not the org's.
+                //
+                // Mock only. This takes the first library name that contains a word of the
+                // label, which is the substring match the tool's own TODO calls out for
+                // producing confident nonsense. The real preview should ask IconSearch.
                 if (icon == null)
                 {
                     foreach (var word in label.ToLowerInvariant()

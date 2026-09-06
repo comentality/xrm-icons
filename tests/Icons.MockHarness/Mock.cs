@@ -27,11 +27,9 @@ namespace Icons.MockHarness
     /// <summary>
     /// The navigation the mock draws: the icon being chosen, and the entries around it.
     ///
-    /// <see cref="Entries"/> is a stand-in cast of fixed names and library icons. Connected,
-    /// these would be the environment's own tables - the load already reads every table's
-    /// display name and IconVectorName - so the neighbours can become real without a new
-    /// round trip. The order they appear in cannot: that lives in an app's site map, which
-    /// nothing here reads yet.
+    /// <see cref="Entries"/> is either a stand-in cast of fixed names and library icons, or a
+    /// real app's navigation as Icons.E2eHarness --sitemap wrote it out: its rows, its order,
+    /// its group headings, and the icons it could fetch as web resources.
     /// </summary>
     internal sealed class Cast
     {
