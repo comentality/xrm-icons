@@ -149,6 +149,7 @@ namespace Icons.UiHarness
                         Console.WriteLine("OK: apply stays dead until there is a table to apply to");
                     }
 
+                    failures += CheckContextPreviewOpens(control, outputDir);
                     failures += CheckNameSurvivesRebuild(control, form, outputDir);
                     failures += CheckUnsetOnlyFilter(control, form, outputDir);
                     failures += CheckRasterHelpOffered(control);
@@ -246,6 +247,75 @@ namespace Icons.UiHarness
         /// There is no connection here, so the tables are seeded straight into the private
         /// list. Reflection, because the product needs no seam for this and should not grow one.
         /// </summary>
+        /// <summary>
+        /// Opens the in-context preview and photographs it.
+        ///
+        /// It is a window of its own, so nothing else in this harness would ever draw it, and a
+        /// form that throws on its first paint throws in front of a user. There is no connection
+        /// here, so what it must show is the stand-in navigation - and it must say that it is
+        /// one, because a preview of an invented navigation and a preview of the environment's
+        /// own are worth very different amounts.
+        /// </summary>
+        private static int CheckContextPreviewOpens(Control control, string outputDir)
+        {
+            var failures = 0;
+
+            var button = Descendants(control)
+                .OfType<ToolStrip>()
+                .SelectMany(t => t.Items.OfType<ToolStripButton>())
+                .FirstOrDefault(b => b.Text.StartsWith("See it in context"));
+
+            if (button == null)
+            {
+                Console.WriteLine("FAIL: no in-context preview button found");
+                return 1;
+            }
+
+            if (!button.Enabled)
+            {
+                Console.WriteLine("FAIL: the preview button is dead with an icon chosen");
+                return 1;
+            }
+
+            button.PerformClick();
+            Pump();
+
+            var window = Application.OpenForms.OfType<Form>()
+                .FirstOrDefault(f => f.Text == "The icon in context");
+
+            if (window == null)
+            {
+                Console.WriteLine("FAIL: clicking the preview button opened no window");
+                return 1;
+            }
+
+            Pump();
+            Shoot(window, outputDir, "06-in-context");
+
+            var note = Descendants(window)
+                .OfType<ToolStrip>()
+                .SelectMany(t => t.Items.OfType<ToolStripLabel>())
+                .Where(l => l.Name == "note")
+                .Select(l => l.Text)
+                .FirstOrDefault();
+
+            if (note == null || note.IndexOf("stand-in", StringComparison.OrdinalIgnoreCase) < 0)
+            {
+                Console.WriteLine("FAIL: the preview does not say its navigation is invented; it says " +
+                                  (note ?? "nothing"));
+                failures++;
+            }
+            else
+            {
+                Console.WriteLine("OK: with no connection the preview shows a stand-in and says so");
+            }
+
+            window.Close();
+            Pump();
+
+            return failures;
+        }
+
         private static int CheckNameSurvivesRebuild(IconsControl control, Form form, string outputDir)
         {
             const BindingFlags Private = BindingFlags.Instance | BindingFlags.NonPublic;

@@ -1,6 +1,6 @@
 using System.Drawing;
 
-namespace Icons.MockHarness
+namespace Icons.Ui
 {
     /// <summary>
     /// Every number the mock draws with, in one place, each saying where it came from.
@@ -14,7 +14,7 @@ namespace Icons.MockHarness
     /// Sizes are CSS pixels as a browser at 100% zoom would use them. The renderer multiplies
     /// by DeviceDpi / 96 so the drawing is the same physical size on the screen as the app.
     /// </summary>
-    internal static class Chrome
+    public static class NavChrome
     {
         // ----- site map, expanded -----
         public const int NavWidth = 224;      // GUESS
@@ -34,9 +34,9 @@ namespace Icons.MockHarness
     }
 
     /// <summary>Light and dark, as two sets of the same colours.</summary>
-    internal sealed class Theme
+    public sealed class NavTheme
     {
-        public static readonly Theme Light = new Theme
+        public static readonly NavTheme Light = new NavTheme
         {
             Name = "Light",
             Page = Color.FromArgb(0xFF, 0xFF, 0xFF),        // GUESS
@@ -49,7 +49,7 @@ namespace Icons.MockHarness
             IconColour = Color.FromArgb(0x24, 0x24, 0x24)   // what currentColor resolves to
         };
 
-        public static readonly Theme Dark = new Theme
+        public static readonly NavTheme Dark = new NavTheme
         {
             Name = "Dark",
             Page = Color.FromArgb(0x1B, 0x1A, 0x19),        // GUESS

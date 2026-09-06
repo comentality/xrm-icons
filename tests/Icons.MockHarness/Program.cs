@@ -1,25 +1,27 @@
 using System;
 using System.Collections.Generic;
 using System.Drawing;
+using System.Drawing.Drawing2D;
 using System.Drawing.Imaging;
+using System.Drawing.Text;
 using System.IO;
 using System.Linq;
+using System.Windows.Forms;
 using Icons.Catalog;
 using Icons.Logic;
+using Icons.Ui;
 
 namespace Icons.MockHarness
 {
     /// <summary>
-    /// Draws the navigation mock to PNG and stops.
+    /// Photographs the navigation preview and stops.
     ///
-    /// No window and no connection: the icon library is inside the assembly and the chrome is
-    /// drawn from constants, so the only thing this needs is a font. It exists to be looked at
-    /// and argued with before any of it goes near the tool.
+    /// It draws with the tool's own <see cref="NavPainter"/> rather than a copy of it, so a
+    /// sheet that looks right is evidence about the tool and not about the harness. No window
+    /// and no connection: the library is inside the assembly, and a real navigation is read
+    /// from what Icons.E2eHarness --sitemap wrote out.
     ///
     ///     Icons.MockHarness.exe [output dir] [icon name] [scale] [navigation dump]
-    ///
-    /// The navigation is invented unless a dump is given. A dump is what Icons.E2eHarness
-    /// --sitemap writes: a real app's navigation, in its order, with its own icons beside it.
     /// </summary>
     internal static class Program
     {
@@ -33,58 +35,43 @@ namespace Icons.MockHarness
 
             var wanted = args.Length > 1 ? args[1] : "building_multiple";
 
-            int scale;
-            if (args.Length < 3 || !int.TryParse(args[2], out scale) || scale < 1) scale = 2;
+            float scale;
+            if (args.Length < 3 || !float.TryParse(args[2], out scale) || scale <= 0) scale = 2f;
 
             using (var catalog = IconCatalog.Load())
             {
-                var chosen = Read(catalog, wanted);
+                var chosen = FromLibrary(catalog, wanted);
                 if (chosen == null)
                 {
                     Console.WriteLine("FAIL: no icon in the library matched " + wanted);
                     return 1;
                 }
 
-                var cast = new Cast { Chosen = chosen, ChosenLabel = "Accounts" };
-
                 var dump = args.Length > 3 ? args[3] : null;
+
+                List<NavRow> rows;
+                int selected;
+                string name;
+
                 if (dump != null)
                 {
-                    if (!LoadNavigation(cast, dump, catalog))
+                    if (!Read(dump, chosen, catalog, out rows, out selected))
                     {
                         Console.WriteLine("FAIL: no nav.tsv under " + dump);
                         return 1;
                     }
 
-                    Save(Sheets.AppScreen(cast, Theme.Light, scale, false), outputDir, "nav-real-light");
-                    Save(Sheets.AppScreen(cast, Theme.Dark, scale, false), outputDir, "nav-real-dark");
-                    Console.WriteLine("Wrote sheets to " + Path.GetFullPath(outputDir));
-                    return 0;
+                    name = "nav-real";
+                }
+                else
+                {
+                    rows = StandIn(catalog, chosen);
+                    selected = 4;
+                    name = "nav";
                 }
 
-                // A stand-in navigation. Connected, these are the environment's own tables in
-                // the order an app's site map puts them; nothing here reads that yet, so the
-                // shape is invented and only the chosen icon is real.
-                cast.Entries = new List<NavEntry>
-                {
-                    new NavEntry("Home", Read(catalog, "home"), false),
-                    new NavEntry("Recent", Read(catalog, "history"), false),
-                    new NavEntry("Pinned", Read(catalog, "pin"), false),
-                    new NavEntry("Customers", null, true),
-                    new NavEntry(cast.ChosenLabel, chosen, false),
-                    new NavEntry("Contacts", Read(catalog, "person"), false),
-                    new NavEntry("Sales", null, true),
-                    new NavEntry("Leads", Read(catalog, "target"), false),
-                    new NavEntry("Opportunities", Read(catalog, "trophy"), false),
-                    new NavEntry("Orders", Read(catalog, "receipt"), false),
-                    new NavEntry("Cases", Read(catalog, "headset"), false)
-                };
-                cast.ChosenAt = 4;
-
-                Save(Sheets.AppScreen(cast, Theme.Light, scale, false), outputDir, "nav-light");
-                Save(Sheets.AppScreen(cast, Theme.Dark, scale, false), outputDir, "nav-dark");
-                Save(Sheets.AppScreen(cast, Theme.Light, scale, true), outputDir, "nav-light-collapsed");
-                Save(Sheets.AppScreen(cast, Theme.Dark, scale, true), outputDir, "nav-dark-collapsed");
+                Save(Draw(rows, selected, NavTheme.Light, scale), outputDir, name + "-light");
+                Save(Draw(rows, selected, NavTheme.Dark, scale), outputDir, name + "-dark");
             }
 
             Console.WriteLine("Wrote sheets to " + Path.GetFullPath(outputDir));
@@ -92,30 +79,116 @@ namespace Icons.MockHarness
         }
 
         /// <summary>
-        /// A real app's navigation, as Icons.E2eHarness --sitemap wrote it out.
-        ///
-        /// The chosen icon takes the place of one of the tables rather than being added beside
-        /// them: the question the preview answers is how this icon sits among that app's own,
-        /// and an extra row nobody has is not that question.
+        /// The navigation in a window, drawn the way the preview draws it. The scenery to the
+        /// right is blank on purpose: the icon appears where the icon appears, and a mock that
+        /// invents a second place for it is the thing this was built to avoid.
         /// </summary>
-        private static bool LoadNavigation(Cast cast, string folder, IconCatalog catalog)
+        private static Bitmap Draw(IList<NavRow> rows, int selected, NavTheme theme, float scale)
         {
+            var painter = new NavPainter(theme, scale);
+            var navWidth = painter.Width;
+            var navHeight = painter.Height(rows);
+
+            var width = navWidth + At(460, scale);
+            var height = Math.Max(navHeight, At(380, scale));
+
+            var sheet = new Bitmap(width, height);
+            using (var g = Graphics.FromImage(sheet))
+            {
+                g.TextRenderingHint = TextRenderingHint.AntiAlias;
+                using (var brush = new SolidBrush(theme.Page)) g.FillRectangle(brush, 0, 0, width, height);
+
+                painter.Draw(g, 0, 0, rows, selected, Color.FromArgb(0x24, 0x24, 0x24));
+
+                if (navHeight < height)
+                {
+                    using (var brush = new SolidBrush(theme.NavBack))
+                        g.FillRectangle(brush, 0, navHeight, navWidth, height - navHeight);
+                }
+
+                using (var pen = new Pen(theme.Line)) g.DrawLine(pen, navWidth, 0, navWidth, height);
+
+                g.SmoothingMode = SmoothingMode.AntiAlias;
+                using (var brush = new SolidBrush(theme.Line))
+                {
+                    var x = navWidth + At(24, scale);
+                    var y = At(28, scale);
+                    Pill(g, brush, x, y, At(150, scale), At(14, scale));
+
+                    y += At(40, scale);
+                    for (var i = 0; i < 40 && y < height - At(12, scale); i++)
+                    {
+                        Pill(g, brush, x, y, At(i % 3 == 0 ? 180 : 130, scale), At(8, scale));
+                        Pill(g, brush, x + At(220, scale), y, At(84, scale), At(8, scale));
+                        y += At(30, scale);
+                    }
+                }
+            }
+
+            return sheet;
+        }
+
+        private static int At(int cssPixels, float scale)
+        {
+            return (int)Math.Round(cssPixels * scale);
+        }
+
+        private static void Pill(Graphics g, Brush brush, int x, int y, int w, int h)
+        {
+            if (w <= h) { g.FillRectangle(brush, x, y, w, h); return; }
+
+            using (var path = new GraphicsPath())
+            {
+                path.AddArc(x, y, h, h, 90, 180);
+                path.AddArc(x + w - h, y, h, h, 270, 180);
+                path.CloseFigure();
+                g.FillPath(brush, path);
+            }
+        }
+
+        /// <summary>The invented navigation, the same one the tool shows before it has a connection.</summary>
+        private static List<NavRow> StandIn(IconCatalog catalog, SvgImage chosen)
+        {
+            return new List<NavRow>
+            {
+                new NavRow("Home", FromLibrary(catalog, "home")),
+                new NavRow("Recent", FromLibrary(catalog, "history")),
+                new NavRow("Pinned", FromLibrary(catalog, "pin")),
+                new NavRow("Customers", null, true),
+                new NavRow("Accounts", chosen),
+                new NavRow("Contacts", FromLibrary(catalog, "person")),
+                new NavRow("Sales", null, true),
+                new NavRow("Leads", FromLibrary(catalog, "target")),
+                new NavRow("Opportunities", FromLibrary(catalog, "trophy")),
+                new NavRow("Orders", FromLibrary(catalog, "receipt"))
+            };
+        }
+
+        /// <summary>
+        /// A real app's navigation, as Icons.E2eHarness --sitemap wrote it out. The chosen icon
+        /// takes the place of one of the tables rather than being added beside them: the question
+        /// is how it sits among that app's own, and an extra row nobody has is not that question.
+        /// </summary>
+        private static bool Read(string folder, SvgImage chosen, IconCatalog catalog,
+            out List<NavRow> rows, out int selected)
+        {
+            rows = new List<NavRow>();
+            selected = -1;
+
             var file = Path.Combine(folder, "nav.tsv");
             if (!File.Exists(file)) return false;
 
-            var entries = new List<NavEntry>();
             foreach (var line in File.ReadAllLines(file).Skip(1))
             {
-                var parts = line.Split('	');
+                var parts = line.Split('\t');
                 if (parts.Length < 3) continue;
 
-                var kind = parts[0].Trim();
                 var label = parts[1].Trim();
                 if (label.Length == 0) continue;
 
-                if (kind == "group")
+                if (parts[0].Trim() == "group")
                 {
-                    entries.Add(new NavEntry(label, null, true));
+                    rows.Add(new NavRow(label, null, true));
                     continue;
                 }
 
@@ -130,39 +203,21 @@ namespace Icons.MockHarness
                     }
                 }
 
-                // A table whose icon the environment cannot supply - a standard one, mostly,
-                // since none of those keep theirs as a web resource - is drawn from the library
-                // by its own name. The app draws those from Fluent too, so this is closer to the
-                // truth than an empty box, though it is still a stand-in and not the org's.
-                //
-                // Mock only. This takes the first library name that contains a word of the
-                // label, which is the substring match the tool's own TODO calls out for
-                // producing confident nonsense. The real preview should ask IconSearch.
-                if (icon == null)
-                {
-                    foreach (var word in label.ToLowerInvariant()
-                                 .Split(new[] { ' ', '-', '_' }, StringSplitOptions.RemoveEmptyEntries))
-                    {
-                        icon = Read(catalog, word);
-                        if (icon != null) break;
-                    }
-                }
-
-                entries.Add(new NavEntry(label, icon));
+                rows.Add(new NavRow(label, icon));
             }
 
-            if (entries.Count == 0) return false;
+            if (rows.Count == 0) return false;
 
-            // Stand in the middle of the list, where there are neighbours above and below.
-            var tables = entries.Where(e => !e.IsGroup).ToList();
-            var target = tables.Count > 0 ? tables[tables.Count / 2] : entries[0];
-            target.Icon = cast.Chosen;
-            cast.ChosenLabel = target.Label;
-            cast.Entries = entries;
-            cast.ChosenAt = entries.IndexOf(target);
+            // Stand in the middle, where there are neighbours above and below.
+            var tables = rows.Select((r, i) => new { r, i }).Where(x => !x.r.IsGroup).ToList();
+            if (tables.Count > 0)
+            {
+                selected = tables[tables.Count / 2].i;
+                rows[selected].Icon = chosen;
+            }
 
-            Console.WriteLine("  navigation from " + folder + ": " + entries.Count + " row(s), "
-                + entries.Count(e => !e.IsGroup && e.Icon != null) + " drawn");
+            Console.WriteLine("  navigation from " + folder + ": " + rows.Count + " row(s), "
+                + rows.Count(r => !r.IsGroup && r.Icon != null) + " drawn");
             return true;
         }
 
@@ -170,7 +225,7 @@ namespace Icons.MockHarness
         /// The library's icon for a word. Prefers an exact name, then the shortest name that
         /// starts with it, so "person" finds person rather than person_wrench.
         /// </summary>
-        private static SvgImage Read(IconCatalog catalog, string word)
+        private static SvgImage FromLibrary(IconCatalog catalog, string word)
         {
             var candidates = catalog.Icons
                 .Where(i => i.Family == IconFamily.Fluent && i.Style == IconStyle.Regular)
@@ -178,8 +233,6 @@ namespace Icons.MockHarness
 
             var entry = candidates.FirstOrDefault(i => i.Name == word)
                         ?? candidates.Where(i => i.Name.StartsWith(word + "_", StringComparison.Ordinal))
-                            .OrderBy(i => i.Name.Length).FirstOrDefault()
-                        ?? candidates.Where(i => i.Name.IndexOf(word, StringComparison.Ordinal) >= 0)
                             .OrderBy(i => i.Name.Length).FirstOrDefault();
 
             if (entry == null)
@@ -188,7 +241,6 @@ namespace Icons.MockHarness
                 return null;
             }
 
-            Console.WriteLine("  " + word + " -> " + entry.Name);
             try { return SvgImage.Parse(catalog.ReadSvg(entry)); }
             catch (Exception e) { Console.WriteLine("  ! " + entry.Name + ": " + e.Message); return null; }
         }

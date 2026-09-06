@@ -94,6 +94,13 @@ namespace Icons
             };
             _applyButton.Click += (s, e) => Apply();
 
+            _contextButton = new ToolStripButton("See it in context")
+            {
+                DisplayStyle = ToolStripItemDisplayStyle.Text,
+                ToolTipText = "Show the icon in an app's navigation, at the size the app draws it"
+            };
+            _contextButton.Click += (s, e) => ShowContext();
+
             _cancelButton = new ToolStripButton("Cancel")
             {
                 DisplayStyle = ToolStripItemDisplayStyle.Text,
@@ -122,6 +129,8 @@ namespace Icons
                 new ToolStripSeparator(),
                 _applyButton,
                 _cancelButton,
+                new ToolStripSeparator(),
+                _contextButton,
                 new ToolStripSeparator(),
                 _statusLabel,
                 _aboutButton

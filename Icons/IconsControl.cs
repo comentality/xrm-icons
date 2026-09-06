@@ -115,6 +115,7 @@ namespace Icons
         private ToolStripButton _loadButton;
         private ToolStripButton _applyButton;
         private ToolStripButton _cancelButton;
+        private ToolStripButton _contextButton;
         private ToolStripButton _aboutButton;
         private ToolStripLabel _statusLabel;
 
@@ -210,6 +211,13 @@ namespace Icons
                 table.Customizable &&
                 _solutionBox.SelectedItem is SolutionItem &&
                 WebResourceName.Validate(_nameBox.Text) == null;
+
+            // The preview needs an icon and nothing else: it works with no connection at all,
+            // on a stand-in navigation, which is most of what it is for before a table is picked.
+            _contextButton.Enabled = _selectedIcon != null && _catalog != null;
+
+            // An open window shows what is chosen now, not what was chosen when it opened.
+            RefreshContextIcon();
 
             _nameConcern = NameConcern();
             _solutionConcern = SolutionConcern();
