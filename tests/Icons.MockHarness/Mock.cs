@@ -106,13 +106,22 @@ namespace Icons.MockHarness
                 g.DrawLine(pen, _ox + x1 * _scale, _oy + y1 * _scale, _ox + x2 * _scale, _oy + y2 * _scale);
         }
 
-        protected void Text(Graphics g, string s, int px, FontStyle style, Color c, int x, int y, int height)
+        /// <summary>
+        /// A line of text. A width bounds it, and a label too long for its width is cut with an
+        /// ellipsis rather than allowed to run out of the panel - which is what the app does,
+        /// and the reason a long table name is worth seeing in a preview at all.
+        /// </summary>
+        protected void Text(Graphics g, string s, int px, FontStyle style, Color c, int x, int y,
+            int height, int width = 0)
         {
+            var flags = TextFormatFlags.Left | TextFormatFlags.VerticalCenter | TextFormatFlags.NoPrefix;
+            if (width > 0) flags |= TextFormatFlags.EndEllipsis;
+
             using (var font = new Font(Chrome.FontFamily, px * _scale, style, GraphicsUnit.Pixel))
             {
                 TextRenderer.DrawText(g, s, font,
-                    new Rectangle(_ox + x * _scale, _oy + y * _scale, 4000, height * _scale), c,
-                    TextFormatFlags.Left | TextFormatFlags.VerticalCenter | TextFormatFlags.NoPrefix);
+                    new Rectangle(_ox + x * _scale, _oy + y * _scale,
+                        (width > 0 ? width : 4000) * _scale, height * _scale), c, flags);
             }
         }
 
@@ -201,7 +210,8 @@ namespace Icons.MockHarness
                 if (entry.IsGroup)
                 {
                     Text(g, entry.Label, Chrome.NavGroupFontPx, FontStyle.Regular, t.SubText,
-                        Chrome.NavPadLeft, y, Chrome.NavGroupHeight);
+                        Chrome.NavPadLeft, y, Chrome.NavGroupHeight,
+                        Chrome.NavWidth - Chrome.NavPadLeft * 2);
                     y += Chrome.NavGroupHeight;
                     continue;
                 }
@@ -224,7 +234,7 @@ namespace Icons.MockHarness
 
             var textX = Chrome.NavPadLeft + Chrome.NavIconBox + Chrome.NavGapToText;
             Text(g, entry.Label, Chrome.NavFontPx, selected ? FontStyle.Bold : FontStyle.Regular,
-                t.Text, textX, y, Chrome.NavRowHeight);
+                t.Text, textX, y, Chrome.NavRowHeight, Chrome.NavWidth - textX - Chrome.NavPadLeft);
         }
     }
 

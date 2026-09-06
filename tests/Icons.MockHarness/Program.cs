@@ -50,7 +50,7 @@ namespace Icons.MockHarness
                 var dump = args.Length > 3 ? args[3] : null;
                 if (dump != null)
                 {
-                    if (!LoadNavigation(cast, dump))
+                    if (!LoadNavigation(cast, dump, catalog))
                     {
                         Console.WriteLine("FAIL: no nav.tsv under " + dump);
                         return 1;
@@ -98,7 +98,7 @@ namespace Icons.MockHarness
         /// them: the question the preview answers is how this icon sits among that app's own,
         /// and an extra row nobody has is not that question.
         /// </summary>
-        private static bool LoadNavigation(Cast cast, string folder)
+        private static bool LoadNavigation(Cast cast, string folder, IconCatalog catalog)
         {
             var file = Path.Combine(folder, "nav.tsv");
             if (!File.Exists(file)) return false;
@@ -127,6 +127,20 @@ namespace Icons.MockHarness
                     {
                         try { icon = SvgImage.Parse(File.ReadAllText(path)); }
                         catch (Exception e) { Console.WriteLine("  ! " + parts[2] + ": " + e.Message); }
+                    }
+                }
+
+                // A table whose icon the environment cannot supply - a standard one, mostly,
+                // since none of those keep theirs as a web resource - is drawn from the library
+                // by its own name. The app draws those from Fluent too, so this is closer to the
+                // truth than an empty box, though it is still a stand-in and not the org's.
+                if (icon == null)
+                {
+                    foreach (var word in label.ToLowerInvariant()
+                                 .Split(new[] { ' ', '-', '_' }, StringSplitOptions.RemoveEmptyEntries))
+                    {
+                        icon = Read(catalog, word);
+                        if (icon != null) break;
                     }
                 }
 
