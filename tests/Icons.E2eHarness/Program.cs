@@ -78,6 +78,13 @@ namespace Icons.E2eHarness
                 return CacheBench.Run(client, url, username, cache, root);
             }
 
+            // Another question of the same org: what an app's navigation is made of, and how
+            // much of it could be drawn. Reads only, so it never reaches the write run below.
+            if (args.Contains("--sitemap"))
+            {
+                return SiteMapProbe.Run(client, root);
+            }
+
             var org = new Org(client);
             org.EnsureTable();
 
