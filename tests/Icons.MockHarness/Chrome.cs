@@ -23,29 +23,12 @@ namespace Icons.MockHarness
         public const int NavPadLeft = 16;     // GUESS
         public const int NavGapToText = 12;   // GUESS
         public const int NavFontPx = 14;      // GUESS
+        public const int NavGroupHeight = 30; // GUESS
+        public const int NavGroupFontPx = 12; // GUESS
 
         // ----- site map, collapsed to a rail -----
         public const int RailWidth = 48;      // GUESS
         public const int RailIconBox = 20;    // GUESS
-
-        // ----- the page header over a grid -----
-        public const int HeaderHeight = 56;   // GUESS
-        public const int HeaderIconBox = 24;  // GUESS
-        public const int HeaderFontPx = 20;   // GUESS
-        public const int HeaderGap = 12;      // GUESS
-
-        // ----- a lookup's results, and the Recent flyout -----
-        public const int ListRowHeight = 36;  // GUESS
-        public const int ListIconBox = 16;    // GUESS
-        public const int ListFontPx = 14;     // GUESS
-        public const int ListPadLeft = 12;    // GUESS
-        public const int ListGapToText = 10;  // GUESS
-
-        // ----- a record's form header -----
-        public const int FormHeaderHeight = 64; // GUESS
-        public const int FormIconBox = 20;      // GUESS
-        public const int FormTitleFontPx = 20;  // GUESS
-        public const int FormSubFontPx = 12;    // GUESS
 
         public const string FontFamily = "Segoe UI";
     }
