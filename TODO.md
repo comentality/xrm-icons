@@ -37,6 +37,13 @@
       "reasonable to the medium" in the licence's words, and the sentence in docs/clean-room.md
       and the README saying nothing stored carries an obligation, which stops being true the day
       the first attributed icon ships and has to say instead that the page is where it lives.
+      What it unlocks is exactly the licences whose whole demand is a credit line: CC BY in any
+      version, and the sets under it - Font Awesome Free's icons, codicons, Noun Project's
+      free tier by import. CC BY 4.0 also asks that changes be indicated, and recolouring and
+      the dropped class are changes, so the page says what was done to each. It does not unlock
+      terms that ask for more: share-alike, which the recoloured copy would inherit; a licence
+      that forbids redistribution, which is Noun Project's API and Flaticon; or a copyleft set
+      inside an MIT DLL. The test for a candidate set is whether a notice is all it wants.
 - [ ] Coverage parity with IconEngine: no search for a table concept comes back empty. Not its
       icons — those are Flaticon's, fetched through a keyed API, and not being that is the point
       (docs/clean-room.md).
