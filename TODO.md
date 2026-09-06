@@ -20,6 +20,23 @@
       customer's org and cost us the line in docs/clean-room.md saying there is none.
       Phosphor's thin, light and duotone weights are left out: beside Fluent they read as a
       different tool rather than a different set.
+- [ ] Generate an attribution web resource, and make it mandatory for any icon that asks for one.
+      An HTML web resource beside the icons - `new_/icons/ATTRIBUTION.html`, in whatever folder
+      the environment keeps them - listing every icon this tool has written there: the name it is
+      stored under, the family, the author, the licence, and the link. Regenerated on every apply
+      from what the environment holds, not from what this session remembers, so each SVG has to
+      carry its own provenance in a comment for the page to be rebuilt from; published together
+      with the icon and the table, the way the rest already is. For the four bundled families it
+      is a courtesy. For a set licensed CC BY it is the obligation itself, and applying such an
+      icon without the page must not be offered. That is what would reopen the sources refused
+      so far - codicons, and the free tier of Noun Project - because the objection to both was
+      that the obligation landed on the customer with nothing carrying it, not that it existed.
+      It does not reopen bundling Noun Project: its API forbids distributing icons at all, so the
+      route there is import-your-own-SVG with the page taking the credit line. Two things to
+      settle before building it: whether a page in the solution that nobody opens is attribution
+      "reasonable to the medium" in the licence's words, and the sentence in docs/clean-room.md
+      and the README saying nothing stored carries an obligation, which stops being true the day
+      the first attributed icon ships and has to say instead that the page is where it lives.
 - [ ] Coverage parity with IconEngine: no search for a table concept comes back empty. Not its
       icons — those are Flaticon's, fetched through a keyed API, and not being that is the point
       (docs/clean-room.md).
