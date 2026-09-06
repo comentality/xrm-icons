@@ -1,0 +1,16 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net48</TargetFramework>
+    <OutputType>Exe</OutputType>
+    <UseWindowsForms>true</UseWindowsForms>
+    <LangVersion>latest</LangVersion>
+    <IsPackable>false</IsPackable>
+    <RootNamespace>Icons.MockHarness</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- Only the SVG reader and the icon library are needed here. The control and its
+         XrmToolBox base class are not, which is why this does not reference the package. -->
+    <ProjectReference Include="..\..\Icons\Icons.csproj" />
+  </ItemGroup>
+</Project>
