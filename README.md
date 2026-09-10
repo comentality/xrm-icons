@@ -60,6 +60,12 @@ resources, update table definitions and publish customisations.
 - **One button to apply** — stores the SVG as a web resource, sets the table's `IconVectorName`,
   and publishes the table and the web resource together in a single call. Publishing only one of
   them is how you get an app that shows the old icon, or asks for one that is not there yet.
+- **Ctrl+Z takes it back** — undo puts the table back where the apply found it: pointing at the
+  icon it named before, or at no icon at all, with the drawing that was written over back as it
+  was. Ctrl+Y does it again. It is another write and another publish rather than a keystroke
+  against something in memory, so it asks first, and it lands you back on the table it just put
+  back. It never deletes: a web resource this tool wrote stays where it is, with nothing pointing
+  at it.
 - **The classic PNG icons too, if you want them** — optionally generates and stores the 16×16,
   32×32 and 66×48 images for the older `IconSmallName`, `IconMediumName` and `IconLargeName`
   properties. Off by default, because Microsoft's guidance is to use the vector instead.
@@ -86,6 +92,9 @@ resources, update table definitions and publish customisations.
 5. Choose the theme colour or a fixed one.
 6. **Set as table icon**, and confirm. The status line says what was set on what; hover it for
    which web resources were created, which were updated, and what was published.
+7. Wrong icon on that one? **Ctrl+Z**, and confirm — the table goes back to what it had, and the
+   window lands on it again with the library still open. **Ctrl+Y** puts it back. Inside a text
+   box Ctrl+Z is left alone: there it still means the name you were halfway through typing.
 
 With *Only tables with no icon yet* ticked, applying drops that table out of the list and lands on
 the next one waiting — a name suggested for it, a search already made for it — so a run down the

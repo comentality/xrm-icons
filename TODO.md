@@ -96,7 +96,21 @@
       environment has no dark theme — Set Personal Options offers high contrast and nothing else
       — and deriving one from the light palette is a guess wearing a measurement's clothes.
       `docs/ui-measurements/notes.md` has the table and says what was not walked.
-- [ ] Ctrl+Z / Ctrl+Y — undo and redo.
+- [x] Ctrl+Z / Ctrl+Y — undo and redo. Of the write, not of the window: everything else here is
+      two clicks to do again by hand, and applying is the one thing that costs real effort to take
+      back now that it moves you off the table and drops it out of the unset-only list. Undo points
+      the table back at whatever it named before — or at nothing — puts back the drawing the apply
+      wrote over, and publishes; redo sends the same request again. It asks first, because this is
+      another write to somebody's environment rather than a keystroke against a document, and it
+      lands back on the table it just changed instead of the next one waiting. Inside a text box
+      the keystroke is left alone.
+      What it does not undo: the web resource itself. One this tool created stays where it is with
+      nothing pointing at it, because deleting out of a solution the customer ships is its own
+      decision. Nor does it survive the connection changing — the stack names a table in one org.
+      One thing had to be measured rather than assumed, and it was the opposite of what it looks
+      like: clearing an icon is an empty string, not null. A null in IconVectorName is read as
+      "leave this one alone", so an undo written that way publishes, reports success and changes
+      nothing. `tests/e2e.ps1` asks the platform that question on every run.
 - [x] Smooth the UX overall — fewer clicks to get an icon assigned. The table seeds the search,
       Enter reaches the results, a filter of one table is that table, a finished write reports on
       the status line rather than in a dialog, and applying lands on the next table waiting.
