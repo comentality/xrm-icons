@@ -63,13 +63,73 @@ namespace Icons.Logic
         public Color RasterColour { get; set; }
     }
 
+    /// <summary>
+    /// A web resource an apply wrote over, and what was in it before. Kept so that taking the
+    /// apply back can put the drawing back as well as the name the table points at: applying
+    /// twice to the same table reuses one name, so on the second run the old icon is not
+    /// somewhere else under another name - it is gone unless this holds it.
+    /// </summary>
+    public sealed class OverwrittenResource
+    {
+        public Guid Id { get; set; }
+        public string Name { get; set; }
+
+        /// <summary>The base64 content as it stood before, or null if it held none.</summary>
+        public string ContentBase64 { get; set; }
+    }
+
     /// <summary>What actually happened, for the status line and the log.</summary>
     public sealed class IconApplyResult
     {
         public List<string> Steps { get; } = new List<string>();
         public List<Guid> WebResourceIds { get; } = new List<Guid>();
         public bool Published { get; set; }
+
+        /// <summary>
+        /// What the table's four icon properties held when this apply read them, straight from
+        /// the org rather than from whatever the window remembered. This is what putting the
+        /// change back writes.
+        /// </summary>
         public string PreviousVectorIcon { get; set; }
+        public string PreviousSmallIcon { get; set; }
+        public string PreviousMediumIcon { get; set; }
+        public string PreviousLargeIcon { get; set; }
+
+        /// <summary>The web resources this apply overwrote, and what was in each before.</summary>
+        public List<OverwrittenResource> Overwritten { get; } = new List<OverwrittenResource>();
+    }
+
+    /// <summary>What a table's icon was before an apply, and what that apply wrote over.</summary>
+    public sealed class IconRevertRequest
+    {
+        public string TableLogicalName { get; set; }
+
+        /// <summary>What IconVectorName held before. Empty puts the table back to having no icon.</summary>
+        public string VectorName { get; set; }
+
+        /// <summary>
+        /// Whether the apply took the three classic slots. Only then are they put back: an apply
+        /// that left them alone has nothing to undo about them, and writing what they happened
+        /// to hold would be this tool changing something it never touched.
+        /// </summary>
+        public bool RestoreRasterIcons { get; set; }
+
+        public string SmallName { get; set; }
+        public string MediumName { get; set; }
+        public string LargeName { get; set; }
+
+        /// <summary>The web resources the apply wrote over, from its own result.</summary>
+        public IList<OverwrittenResource> Overwritten { get; set; }
+
+        /// <summary>Solution the table's update belongs to, or null for none.</summary>
+        public string SolutionUniqueName { get; set; }
+    }
+
+    /// <summary>What putting it back actually did.</summary>
+    public sealed class IconRevertResult
+    {
+        public List<string> Steps { get; } = new List<string>();
+        public bool Published { get; set; }
     }
 
     /// <summary>
@@ -155,6 +215,9 @@ namespace Icons.Logic
             var metadata = RetrieveTable(service, request.TableLogicalName);
 
             result.PreviousVectorIcon = metadata.IconVectorName;
+            result.PreviousSmallIcon = metadata.IconSmallName;
+            result.PreviousMediumIcon = metadata.IconMediumName;
+            result.PreviousLargeIcon = metadata.IconLargeName;
 
             if (metadata.IsCustomizable != null && !metadata.IsCustomizable.Value)
             {
@@ -207,6 +270,110 @@ namespace Icons.Logic
             return result;
         }
 
+        /// <summary>
+        /// Puts a table back the way an apply found it: the drawings that were written over
+        /// restored, the icon properties pointed back at the names they held before, and both
+        /// published. The same four steps as Apply, in the same order, with the old values - and
+        /// the same cancellation checks between them, because it is the same slow link.
+        ///
+        /// What it does not do is delete. A web resource this tool created is left where it is
+        /// with nothing pointing at it: deleting one is not the reverse of writing a file, it is
+        /// its own decision, and a solution the customer ships is no place for this tool to make
+        /// that decision uninvited.
+        ///
+        /// It is safe to run twice. Every step writes a value rather than a difference, so a
+        /// revert that failed halfway can simply be asked again.
+        /// </summary>
+        public static IconRevertResult Revert(
+            IOrganizationService service,
+            IconRevertRequest request,
+            Func<bool> cancelled = null,
+            Action<string> progress = null)
+        {
+            if (service == null) throw new ArgumentNullException(nameof(service));
+            if (request == null) throw new ArgumentNullException(nameof(request));
+            if (string.IsNullOrWhiteSpace(request.TableLogicalName))
+                throw new ArgumentException("No table to put back.", nameof(request));
+
+            cancelled = cancelled ?? (() => false);
+            progress = progress ?? (_ => { });
+
+            var result = new IconRevertResult();
+            var restored = new List<Guid>();
+
+            // 1. The drawings that were written over, back as they were.
+            foreach (var resource in request.Overwritten ?? new OverwrittenResource[0])
+            {
+                Stop(cancelled);
+                progress("Putting back " + resource.Name);
+
+                var content = new Entity("webresource", resource.Id);
+                content["content"] = resource.ContentBase64;
+                service.Update(content);
+
+                restored.Add(resource.Id);
+                result.Steps.Add("Put the web resource " + resource.Name + " back as it was");
+            }
+
+            // 2. Point the table back.
+            Stop(cancelled);
+            progress("Reading the definition of " + request.TableLogicalName);
+            var metadata = RetrieveTable(service, request.TableLogicalName);
+
+            if (metadata.IsCustomizable != null && !metadata.IsCustomizable.Value)
+            {
+                throw new InvalidOperationException(
+                    "The table " + request.TableLogicalName + " is locked against customisation, " +
+                    "so its icon cannot be changed back.");
+            }
+
+            metadata.IconVectorName = OrNothing(request.VectorName);
+            if (request.RestoreRasterIcons)
+            {
+                metadata.IconSmallName = OrNothing(request.SmallName);
+                metadata.IconMediumName = OrNothing(request.MediumName);
+                metadata.IconLargeName = OrNothing(request.LargeName);
+            }
+
+            Stop(cancelled);
+            progress("Setting the icon on " + request.TableLogicalName);
+
+            var update = new UpdateEntityRequest { Entity = metadata, MergeLabels = true };
+            if (!string.IsNullOrWhiteSpace(request.SolutionUniqueName))
+                update.SolutionUniqueName = request.SolutionUniqueName;
+
+            service.Execute(update);
+            result.Steps.Add("Put the icon on " + request.TableLogicalName + " back to " +
+                             (OrNothing(request.VectorName) ?? "none"));
+
+            // 3. One publish, for the same reason the apply had one: a table pointing at a
+            // drawing that is still the new one is the change only half taken back.
+            Stop(cancelled);
+            progress("Publishing");
+            service.Execute(new PublishXmlRequest
+            {
+                ParameterXml = PublishXml.For(restored, new[] { request.TableLogicalName })
+            });
+
+            result.Published = true;
+            result.Steps.Add(restored.Count == 0
+                ? "Published the table"
+                : "Published the table and " + restored.Count + " web resource" +
+                  (restored.Count == 1 ? "" : "s"));
+
+            return result;
+        }
+
+        /// <summary>
+        /// What to write into an icon property that held nothing before. Null rather than an
+        /// empty string: the platform reads null as "there is no icon here", and a name of no
+        /// characters is a different answer to the same question.
+        /// </summary>
+        private static string OrNothing(string name)
+        {
+            return string.IsNullOrWhiteSpace(name) ? null : name.Trim();
+        }
+
         private static byte[] ToPng(SvgImage image, int width, int height, Color colour)
         {
             using (var bitmap = image.Render(width, height, colour))
@@ -249,6 +416,13 @@ namespace Icons.Logic
                         "The web resource " + name + " came from a managed solution and cannot be changed.");
                 }
 
+                result.Overwritten.Add(new OverwrittenResource
+                {
+                    Id = existing.Id,
+                    Name = name,
+                    ContentBase64 = existing.GetAttributeValue<string>("content")
+                });
+
                 var update = new Entity("webresource", existing.Id);
                 update["content"] = contentBase64;
                 service.Update(update);
@@ -278,7 +452,10 @@ namespace Icons.Logic
         {
             var query = new QueryExpression("webresource")
             {
-                ColumnSet = new ColumnSet("webresourceid", "name", "webresourcetype", "ismanaged"),
+                // Content as well as the rest of it: what is in there now is the only copy of
+                // the drawing this write is about to replace, and after the update there is
+                // nowhere left to read it from.
+                ColumnSet = new ColumnSet("webresourceid", "name", "webresourcetype", "ismanaged", "content"),
                 Criteria =
                 {
                     Conditions = { new ConditionExpression("name", ConditionOperator.Equal, name) }
