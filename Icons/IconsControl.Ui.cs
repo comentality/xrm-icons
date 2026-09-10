@@ -172,7 +172,11 @@ namespace Icons
                 DropDownStyle = ComboBoxStyle.DropDownList
             };
             _styleBox.Items.AddRange(new object[] { "Both weights", "Outline", "Solid" });
-            _styleBox.SelectedIndex = 0;
+            // Outline rather than both, because both means every icon twice: the same drawing
+            // filled and unfilled, adjacent in the ranking, and a grid where half the cells are
+            // the alternative to the cell beside them is a worse first look at the library than
+            // one weight of it. Outline is the one a site map is drawn in.
+            _styleBox.SelectedIndex = 1;
             _styleBox.SelectedIndexChanged += (s, e) => ApplyFilter();
 
             _familyToggle = new CheckBox
