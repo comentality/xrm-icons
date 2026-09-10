@@ -29,6 +29,9 @@ namespace Icons.Tests
         /// <summary>How long every call takes. Zero by default.</summary>
         public TimeSpan Latency { get; set; } = TimeSpan.Zero;
 
+        /// <summary>The most rows this org will hand back in one page, whatever was asked for.</summary>
+        public int PageCap { get; set; } = int.MaxValue;
+
         /// <summary>Table definitions this org will admit to, by logical name.</summary>
         public Dictionary<string, EntityMetadata> Tables { get; } =
             new Dictionary<string, EntityMetadata>(StringComparer.OrdinalIgnoreCase);
@@ -147,17 +150,30 @@ namespace Icons.Tests
             var unpublished = request as RetrieveUnpublishedMultipleRequest;
             if (unpublished != null)
             {
-                var conditions = ((QueryExpression)unpublished.Query).Criteria.Conditions;
+                var query = (QueryExpression)unpublished.Query;
 
                 var matches = _webResources.Values
-                    .Where(e => conditions.All(c => Matches(e, c)))
+                    .Where(e => query.Criteria.Conditions.All(c => Matches(e, c)))
+                    .OrderBy(e => e.GetAttributeValue<string>("name"), StringComparer.OrdinalIgnoreCase)
                     .Select(e => e.Clone())
                     .ToList();
 
+                // A page no bigger than the caller asked for, and no bigger than this fake was
+                // told to hand out - which is how paging gets tested without five thousand rows.
+                var size = Math.Min(PageCap, query.PageInfo?.Count > 0 ? query.PageInfo.Count : int.MaxValue);
+                var skip = ((query.PageInfo?.PageNumber ?? 1) - 1) * size;
+                var page = matches.Skip(skip).Take(size).ToList();
+
                 Settle(name);
+                var collection = new EntityCollection(page)
+                {
+                    MoreRecords = skip + page.Count < matches.Count,
+                    PagingCookie = "page " + (query.PageInfo?.PageNumber ?? 1)
+                };
+
                 return new RetrieveUnpublishedMultipleResponse
                 {
-                    Results = { { "EntityCollection", new EntityCollection(matches) } }
+                    Results = { { "EntityCollection", collection } }
                 };
             }
 

@@ -482,14 +482,29 @@ namespace Icons.Logic
                         new ConditionExpression("webresourcetype", ConditionOperator.Equal, WebResourceTypeSvg),
                         new ConditionExpression("name", ConditionOperator.BeginsWith, folder)
                     }
-                }
+                },
+                // Paged, and the pages followed. A folder with more icons in it than one page
+                // holds is unlikely; a page that quietly credited the first five thousand and
+                // dropped the rest is the one way this can be wrong without anything saying so.
+                Orders = { new OrderExpression("name", OrderType.Ascending) },
+                PageInfo = new PagingInfo { Count = 500, PageNumber = 1 }
             };
 
-            var response = (RetrieveUnpublishedMultipleResponse)service.Execute(
-                new RetrieveUnpublishedMultipleRequest { Query = query });
+            var records = new List<Entity>();
+            while (true)
+            {
+                var response = (RetrieveUnpublishedMultipleResponse)service.Execute(
+                    new RetrieveUnpublishedMultipleRequest { Query = query });
+
+                records.AddRange(response.EntityCollection.Entities);
+                if (!response.EntityCollection.MoreRecords) break;
+
+                query.PageInfo.PageNumber++;
+                query.PageInfo.PagingCookie = response.EntityCollection.PagingCookie;
+            }
 
             var found = new List<KeyValuePair<string, string>>();
-            foreach (var record in response.EntityCollection.Entities)
+            foreach (var record in records)
             {
                 var name = record.GetAttributeValue<string>("name");
                 var content = record.GetAttributeValue<string>("content");

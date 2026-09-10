@@ -318,6 +318,26 @@ namespace Icons.Tests
         }
 
         [Test]
+        public void A_folder_bigger_than_one_page_is_credited_to_the_last_icon()
+        {
+            // Crediting the first page and dropping the rest is the one way this can be wrong
+            // without anything saying so.
+            _service.PageCap = 1;
+            foreach (var table in new[] { "contact", "lead", "opportunity" })
+            {
+                var earlier = _service.AddWebResource("new_/icons/" + table + ".svg", 11);
+                earlier["content"] = SvgOutput.ToBase64(SvgOutput.Build(Svg, IconColourMode.Theme, Color.Black, null,
+                    IconProvenance.For(new IconEntry(IconFamily.Fluent, table, "regular", IconStyle.Regular))));
+            }
+
+            IconApplier.Apply(_service, Credited());
+
+            var page = PageText();
+            foreach (var table in new[] { "account", "contact", "lead", "opportunity" })
+                Assert.That(page, Does.Contain("new_/icons/" + table + ".svg"), table + " should be credited");
+        }
+
+        [Test]
         public void An_icon_that_says_nothing_about_itself_is_not_credited()
         {
             // Somebody else put it there, or a version of this tool older than the page did.
