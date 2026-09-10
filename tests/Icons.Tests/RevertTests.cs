@@ -232,8 +232,9 @@ namespace Icons.Tests
         public void The_attribution_page_goes_back_with_the_drawing_it_described()
         {
             // The page an apply wrote over is a web resource it wrote over like any other, so it
-            // comes back the same way. That is the right answer rather than a lucky one: the
-            // page described the folder as it stood, and undo is putting the folder back.
+            // comes back the same way. It goes back to what it said, not to describing the
+            // folder: nothing here deletes, so the drawing it stops crediting is still stored
+            // with nothing pointing at it until the next apply rewrites the page.
             _service.Tables["contact"] = FakeOrganizationService.Table("contact");
 
             var first = new IconApplyRequest

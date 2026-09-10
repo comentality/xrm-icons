@@ -973,8 +973,8 @@ namespace Icons
             var confirm = MessageBox.Show(this,
                 "Set " + icon.DisplayName + " as the icon for " + table.DisplayName + "?\n\n" +
                 "This writes the web resource " + name + " and the attribution page beside it, " +
-                AttributionPage.NameFor(name) + ", adding either to " + solution.FriendlyName +
-                " if it is new, and publishes the table." + replacing + handover + concern,
+                AttributionPage.NameFor(name) + ", adding whichever is new to " + solution.FriendlyName +
+                ", and publishes the table." + replacing + handover + concern,
                 "Set table icon", MessageBoxButtons.OKCancel, MessageBoxIcon.Question);
             if (confirm != DialogResult.OK) return;
 

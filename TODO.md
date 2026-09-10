@@ -34,6 +34,11 @@
       it stops the apply before the table is touched, leaving the drawing stored with nothing
       pointing at it. Nothing bundled today sets it, and a test says so, so the licence table and
       the page's own claims are checked against `ABOUT.txt` rather than trusted to stay in step.
+      One thing could only be measured, and was, against a real org on 10 September 2026: the
+      platform stores an SVG with a comment in it and hands it back with the comment intact, and
+      takes `ATTRIBUTION.html` as an HTML web resource in the icons' own folder. Every icon in
+      the org would have been uncreditable if it did not, with every local test still green, so
+      `tests/e2e.ps1` asks it on every run.
       The two things to settle first were settled on 10 September 2026. A page nobody opens is
       attribution "reasonable to the medium": CC BY 4.0 s3(a)(2) allows attribution in any
       reasonable manner for the medium and names a link to a resource holding the information as

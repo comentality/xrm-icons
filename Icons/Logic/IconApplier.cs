@@ -294,11 +294,12 @@ namespace Icons.Logic
         /// published. The same four steps as Apply, in the same order, with the old values - and
         /// the same cancellation checks between them, because it is the same slow link.
         ///
-        /// The attribution page comes back with everything else, because an apply that rewrote
-        /// one recorded it the way it records any drawing it wrote over - and that is the right
-        /// answer rather than a lucky one, since the page described the folder as it stood and
-        /// this is putting the folder back. An apply that created the page leaves it standing,
-        /// slightly ahead of the folder until the next apply rewrites it.
+        /// The attribution page goes back to what it said before, because an apply that rewrote
+        /// one recorded it the way it records any drawing it wrote over. It is not left
+        /// describing the folder, though: nothing here deletes, so the drawing the page stops
+        /// crediting is still stored, with nothing pointing at it, until the next apply rewrites
+        /// the page from the folder as it then stands. Undoing an apply that created the page
+        /// leaves it standing for the same reason.
         ///
         /// What it does not do is delete. A web resource this tool created is left where it is
         /// with nothing pointing at it: deleting one is not the reverse of writing a file, it is

@@ -126,7 +126,11 @@ namespace Icons.Tests
             {
                 try
                 {
-                    var stored = SvgOutput.Build(_catalog.ReadSvg(icon), IconColourMode.Theme, Color.Black);
+                    // With the provenance comment, because that is what gets stored: 18,637
+                    // files that each gain a comment is the wrong place to find out that one
+                    // family's markup will not take one.
+                    var stored = SvgOutput.Build(_catalog.ReadSvg(icon), IconColourMode.Theme, Color.Black,
+                        null, IconProvenance.For(icon));
 
                     // What comes out has to be an SVG that still draws, or the table gets an
                     // icon that renders as nothing in the app and nowhere else complains.
