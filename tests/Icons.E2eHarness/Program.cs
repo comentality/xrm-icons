@@ -4,6 +4,7 @@ using System.IO;
 using System.Linq;
 using System.Text;
 using System.Windows.Forms;
+using Icons.Logic;
 using Microsoft.Xrm.Sdk;
 using Microsoft.Xrm.Tooling.Connector;
 
@@ -366,6 +367,81 @@ namespace Icons.E2eHarness
                             "the new web resource should be in the chosen solution "
                             + r.Probe.SelectedSolution + ", and it is in: "
                             + (holders.Count == 0 ? "nothing" : string.Join(", ", holders)));
+                    }
+                },
+                new Step
+                {
+                    Label = "take the last write back",
+                    Do = r => r.Probe.PressUndo(),
+                    Until = r => !r.Probe.Applying && r.Probe.Apply.Enabled,
+                    TimeoutMs = 240000
+                },
+                new Step
+                {
+                    Label = "the table points back at what it had before",
+                    Do = r =>
+                    {
+                        r.Check(r.Probe.Trouble == null,
+                            "nothing should be wrong after a clean undo, and the trouble line says \""
+                            + (r.Probe.Trouble ?? "") + "\"");
+                        r.Check(r.Dialogs.Count(d => d == "Undo the last change") == 1,
+                            "one confirm should have been asked, and the dialogs were: "
+                            + string.Join(" | ", r.Dialogs));
+
+                        var table = org.TableIcons();
+                        r.Check(table.IconVectorName == vectorName,
+                            "the table should point at " + vectorName
+                            + " again - what it held before the typed write - and IconVectorName is \""
+                            + (table.IconVectorName ?? "nothing") + "\"");
+
+                        r.Check(org.WebResourcesNamed(typedName).Count == 1,
+                            "and the web resource it stopped pointing at should still be there: "
+                            + "nothing here deletes one");
+
+                        r.Check(r.Probe.Redo.Enabled, "with the change offered back the other way");
+                    }
+                },
+                new Step
+                {
+                    Label = "do it again",
+                    Do = r => r.Probe.PressRedo(),
+                    Until = r => !r.Probe.Applying && r.Probe.Apply.Enabled,
+                    TimeoutMs = 240000
+                },
+                new Step
+                {
+                    Label = "the typed icon is on again",
+                    Do = r =>
+                    {
+                        var table = org.TableIcons();
+                        r.Check(table.IconVectorName == typedName,
+                            "a redo should put the typed name back on, and IconVectorName is \""
+                            + (table.IconVectorName ?? "nothing") + "\"");
+                        r.Check(org.WebResourcesNamed(typedName).Count == 1,
+                            "with the web resource updated rather than duplicated");
+                        r.Check(r.Probe.Undo.Enabled, "and the two buttons swapped back over");
+                    }
+                },
+                new Step
+                {
+                    Label = "the platform takes an icon off when the value is null",
+                    Do = r =>
+                    {
+                        // The one path the window cannot reach here: undo puts back whatever the
+                        // table held, and this fixture always held something. A table that had no
+                        // icon when it was applied to has to end up with none again, and whether
+                        // null in IconVectorName means that is the platform's answer rather than
+                        // this tool's - so it is asked of the platform, once, directly.
+                        IconApplier.Revert(client, new IconRevertRequest
+                        {
+                            TableLogicalName = Org.TableLogicalName,
+                            VectorName = null
+                        });
+
+                        var table = org.TableIcons();
+                        r.Check(string.IsNullOrEmpty(table.IconVectorName),
+                            "writing null should leave the table with no vector icon, and IconVectorName is \""
+                            + (table.IconVectorName ?? "nothing") + "\"");
                     }
                 }
             };

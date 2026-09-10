@@ -365,13 +365,18 @@ namespace Icons.Logic
         }
 
         /// <summary>
-        /// What to write into an icon property that held nothing before. Null rather than an
-        /// empty string: the platform reads null as "there is no icon here", and a name of no
-        /// characters is a different answer to the same question.
+        /// What to write into an icon property that held nothing before.
+        ///
+        /// An empty string, and not null, which is the opposite of what it looks like it should
+        /// be. A null in one of these properties is read as "this one is not part of the update"
+        /// and the icon stays exactly where it was - so an undo of the first icon a table ever
+        /// had would publish, report success, and change nothing. Measured against a real org on
+        /// 10 September 2026: tests/e2e.ps1 asks the platform this question directly, because it
+        /// is the platform's answer and not this tool's.
         /// </summary>
         private static string OrNothing(string name)
         {
-            return string.IsNullOrWhiteSpace(name) ? null : name.Trim();
+            return string.IsNullOrWhiteSpace(name) ? "" : name.Trim();
         }
 
         private static byte[] ToPng(SvgImage image, int width, int height, Color colour)

@@ -82,9 +82,10 @@ namespace Icons.Tests
 
             IconApplier.Revert(_service, Undoing(request, result));
 
-            // Null and not "": the property held nothing before, and nothing is not a name of
-            // no characters.
-            Assert.That(_service.LastUpdatedTable.IconVectorName, Is.Null);
+            // Empty and not null. A null in an icon property is read by the platform as "leave
+            // this one alone", so an undo written that way would publish and change nothing -
+            // measured against a real org, and asked again by tests/e2e.ps1 on every run.
+            Assert.That(_service.LastUpdatedTable.IconVectorName, Is.Empty);
         }
 
         [Test]
