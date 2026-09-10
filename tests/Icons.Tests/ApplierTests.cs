@@ -4,6 +4,7 @@ using System.Drawing;
 using System.Linq;
 using System.Text;
 using System.Xml.Linq;
+using Icons.Catalog;
 using Icons.Logic;
 using Microsoft.Xrm.Sdk;
 using NUnit.Framework;
@@ -252,6 +253,109 @@ namespace Icons.Tests
         public void A_table_the_org_does_not_have_is_reported()
         {
             Assert.That(() => IconApplier.Apply(_service, Request("nosuchtable")), Throws.Exception);
+        }
+
+        /// <summary>An icon that says where it came from, the way a real apply sends one.</summary>
+        private static IconApplyRequest Credited(string table = "account")
+        {
+            var request = Request(table);
+            request.Svg = SvgOutput.Build(Svg, IconColourMode.Theme, Color.Black, null,
+                IconProvenance.For(new IconEntry(IconFamily.Lucide, "folder", "regular", IconStyle.Regular)));
+
+            return request;
+        }
+
+        private string PageText()
+        {
+            var page = _service.WebResource("new_/icons/ATTRIBUTION.html");
+            Assert.That(page, Is.Not.Null, "the attribution page should have been written");
+            Assert.That(page.GetAttributeValue<OptionSetValue>("webresourcetype").Value, Is.EqualTo(1),
+                "an HTML web resource is type 1");
+
+            return new UTF8Encoding(false).GetString(
+                Convert.FromBase64String(page.GetAttributeValue<string>("content")));
+        }
+
+        [Test]
+        public void The_attribution_page_is_written_beside_the_icon()
+        {
+            // Including the icon this very apply wrote, which is still unpublished when the page
+            // is built - so the page has to be built from the unpublished view or it would come
+            // out missing the one icon it was rebuilt for.
+            IconApplier.Apply(_service, Credited());
+
+            var page = PageText();
+            Assert.That(page, Does.Contain("new_/icons/account.svg"));
+            Assert.That(page, Does.Contain("Lucide"));
+            Assert.That(page, Does.Contain("ISC"));
+        }
+
+        [Test]
+        public void Icons_already_in_the_folder_are_credited_too()
+        {
+            // The page says what is stored there, not what this session did.
+            var earlier = _service.AddWebResource("new_/icons/contact.svg", 11);
+            earlier["content"] = SvgOutput.ToBase64(SvgOutput.Build(Svg, IconColourMode.Theme, Color.Black, null,
+                IconProvenance.For(new IconEntry(IconFamily.Tabler, "user", "outline", IconStyle.Regular))));
+
+            IconApplier.Apply(_service, Credited());
+
+            var page = PageText();
+            Assert.That(page, Does.Contain("new_/icons/contact.svg"));
+            Assert.That(page, Does.Contain("Tabler Icons"));
+        }
+
+        [Test]
+        public void An_icon_in_another_folder_is_left_to_its_own_page()
+        {
+            var elsewhere = _service.AddWebResource("new_/other/contact.svg", 11);
+            elsewhere["content"] = SvgOutput.ToBase64(SvgOutput.Build(Svg, IconColourMode.Theme, Color.Black, null,
+                IconProvenance.For(new IconEntry(IconFamily.Tabler, "user", "outline", IconStyle.Regular))));
+
+            IconApplier.Apply(_service, Credited());
+
+            Assert.That(PageText(), Does.Not.Contain("new_/other/contact.svg"));
+        }
+
+        [Test]
+        public void An_icon_that_says_nothing_about_itself_is_not_credited()
+        {
+            // Somebody else put it there, or a version of this tool older than the page did.
+            IconApplier.Apply(_service, Request());
+
+            Assert.That(PageText(), Does.Contain("No icons written by this tool are stored here."));
+        }
+
+        [Test]
+        public void A_page_that_will_not_write_does_not_stop_a_courtesy_credit()
+        {
+            // MIT and ISC ask that the notice travel with the software, which ABOUT.txt is.
+            // Leaving the table without its icon over a courtesy would be the wrong trade.
+            _service.AddWebResource("new_/icons/ATTRIBUTION.html", 1, managed: true);
+
+            var result = IconApplier.Apply(_service, Credited());
+
+            Assert.That(result.Published, Is.True);
+            Assert.That(_service.LastUpdatedTable.IconVectorName, Is.EqualTo("new_/icons/account.svg"));
+            Assert.That(result.Steps.Any(s => s.Contains("Could not update new_/icons/ATTRIBUTION.html")), Is.True,
+                "and it says so rather than pretending the page was written");
+        }
+
+        [Test]
+        public void A_licence_that_asks_for_the_credit_stops_the_apply_instead()
+        {
+            _service.AddWebResource("new_/icons/ATTRIBUTION.html", 1, managed: true);
+
+            var request = Credited();
+            request.AttributionRequired = true;
+
+            Assert.That(() => IconApplier.Apply(_service, request),
+                Throws.TypeOf<InvalidOperationException>().And.Message.Contains("credit line"));
+
+            // The drawing is stored and nothing points at it, which is the same place a failed
+            // apply has always left one. What must not happen is the table wearing it.
+            Assert.That(_service.LastUpdatedTable, Is.Null, "the table was never touched");
+            Assert.That(_service.LastPublishXml, Is.Null, "and nothing was published");
         }
     }
 }
