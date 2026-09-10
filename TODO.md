@@ -79,11 +79,23 @@
       is actually looked at. `See it in context` opens it; with a connection it reads an
       app’s own site map, and without one it shows a stand-in and says so.
 
-- [ ] Measure the navigation, and replace the guesses. Every number the preview draws with is
-      marked GUESS in `Icons/Ui/NavChrome.cs` — nav width, row height, icon box, the greys —
-      and until `docs/ui-measurements/probe.js` has been run against a running app the preview
-      is the right shape at the wrong size. This is the only thing between it and being true
-      to size.
+- [x] Measure the navigation, and replace the guesses. Run on 9 September 2026 against Power
+      Pages Management in a demo org, with a `navChrome()` added to `probe.js` for the numbers
+      that hang off the pane rather than off an icon. Every size but the label's 14px was wrong,
+      and three were wrong in kind rather than degree: the pane is 200 and not 224, the row 35
+      and not 40, the icon box 16 and not 20, the rail 44 and not 48. Selection is *lighter*
+      than the pane — the selected row is painted the page's own white on grey, and in the rail
+      there is no fill at all, only the 4px bar — where the mock had it darker. The selected label is not bolded; the
+      mock was bolding it. A group header is a row-sized label at weight 600 in the same
+      #242424, not a smaller one in a second grey, so there is no second grey in the
+      navigation. And `currentColor` in the nav resolves to #424242, not the label's #242424,
+      which is the difference between an icon that sits in the row and one that shouts. The
+      app inlines the web resource, `<style>` block and all, and draws a 24-viewBox file at 16.
+      A clone with a baked `fill` kept it inside the nav, so Fixed mode is not painted over and
+      the preview can be trusted about both colour modes. What is still GUESS is dark: that
+      environment has no dark theme — Set Personal Options offers high contrast and nothing else
+      — and deriving one from the light palette is a guess wearing a measurement's clothes.
+      `docs/ui-measurements/notes.md` has the table and says what was not walked.
 - [ ] Ctrl+Z / Ctrl+Y — undo and redo.
 - [x] Smooth the UX overall — fewer clicks to get an icon assigned. The table seeds the search,
       Enter reaches the results, a filter of one table is that table, a finished write reports on

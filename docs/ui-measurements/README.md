@@ -45,6 +45,21 @@ that in `notes.md` — it is worth as much as a measurement, because it says whi
 mockup must not draw. But do not record it off the name alone; that turns the guard against
 invented contexts into a machine for inventing missing ones.
 
+## The pane itself, not just the icon
+
+`iconProbe` answers "how big is the icon and what is around it". The navigation mock needs
+more than an icon has: the width of the pane, the height and weight of a group header, what
+selection paints, the hairline at the pane's edge. Those hang off the nav, not off an icon,
+so `probe.js` carries a second function for them:
+
+```js
+navChrome()
+```
+
+Run it with the site map expanded, then click the hamburger and run it again for the rail.
+It returns the whole pane - every row, every header, the selected row's painted boxes - and
+`notes.md` records what came back.
+
 ## Pages worth walking
 
 Run the probe on each. The ones it answers on are the contexts the mockup will have.

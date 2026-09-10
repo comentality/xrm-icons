@@ -152,3 +152,114 @@ window.iconProbe = function (needle) {
   return out;
 };
 console.log("iconProbe ready. Call it with part of your web resource name, e.g. iconProbe('icons/account.svg')");
+// ---------------------------------------------------------------------------
+// navChrome() - the numbers iconProbe() cannot reach.
+//
+// iconProbe answers "how big is the icon and what is around it" for every place an icon is
+// drawn. The navigation mock needs more than that: the width of the pane itself, the height
+// and weight of a group header, what selection paints, the hairline between nav and page.
+// None of those hang off an icon, so they are measured from the nav pane directly.
+//
+// Call it with the site map expanded, then again collapsed to the rail:
+//
+//     navChrome()
+//
+// It returns the object and prints it. Save both runs into sitemap.json.
+window.navChrome = function () {
+  function rect(el) { var r = el.getBoundingClientRect(); return { x: r.x, y: r.y, w: r.width, h: r.height }; }
+  function css(el, k) { return getComputedStyle(el)[k]; }
+  function painted(el) {
+    // The row itself is usually transparent and something inside it does the painting.
+    var out = [];
+    var all = [el].concat([].slice.call(el.querySelectorAll('*')));
+    for (var i = 0; i < all.length; i++) {
+      var c = getComputedStyle(all[i]).backgroundColor;
+      if (c && c !== 'transparent' && !/rgba\(0, 0, 0, 0\)/.test(c)) {
+        var r = all[i].getBoundingClientRect();
+        if (r.width) out.push({ bg: c, x: r.x, y: r.y, w: r.width, h: r.height });
+      }
+    }
+    return out;
+  }
+  function leafText(el) {
+    var kids = el.querySelectorAll('*');
+    for (var i = 0; i < kids.length; i++) {
+      var c = kids[i];
+      if (c.children.length || !(c.textContent || '').trim()) continue;
+      // An inlined icon carries its own <style> block, whose CSS text is a text node too.
+      if (c.closest('svg')) continue;
+      if (!c.getBoundingClientRect().width) continue;
+      return c;
+    }
+    return null;
+  }
+
+  var nav = document.querySelector('[data-id="navbar-container"]');
+  if (!nav) {
+    var cands = [].slice.call(document.querySelectorAll('[role="navigation"],nav'));
+    nav = cands.filter(function (e) { var r = e.getBoundingClientRect(); return r.x < 10 && r.height > 300; })[0];
+  }
+  if (!nav) { console.log('No navigation pane found.'); return null; }
+
+  var navBox = rect(nav);
+  var items = [].slice.call(nav.querySelectorAll('[role="treeitem"]'));
+  var leaves = [], headers = [];
+  items.forEach(function (it) {
+    var group = it.querySelector('[role="group"]');
+    var label = leafText(it);
+    var svg = it.querySelector('svg, img');
+    var row = { text: label ? (label.textContent || '').trim().slice(0, 24) : null };
+    if (label) {
+      row.font = css(label, 'fontFamily').split(',')[0].replace(/["']/g, '');
+      row.fontPx = css(label, 'fontSize');
+      row.weight = css(label, 'fontWeight');
+      row.color = css(label, 'color');
+      row.textX = rect(label).x;
+    }
+    if (group) {
+      // A header treeitem wraps its whole group, so its own height is the group's. The
+      // header line is the label's own box.
+      row.headerH = label ? rect(label).h : null;
+      headers.push(row);
+      return;
+    }
+    var b = rect(it);
+    row.rowH = b.h;
+    row.rowW = b.w;
+    row.rowX = b.x;
+    if (svg) {
+      var s = rect(svg);
+      row.iconW = s.w; row.iconH = s.h;
+      row.padLeft = s.x - b.x;
+      row.gapToText = row.textX != null ? row.textX - (s.x + s.w) : null;
+      row.iconTag = svg.tagName.toLowerCase();
+    }
+    row.selected = it.getAttribute('aria-selected') === 'true';
+    if (row.selected) row.paints = painted(it);
+    leaves.push(row);
+  });
+
+  // Whatever sits to the right of the nav is the page the icon is seen against.
+  var page = [].slice.call(document.querySelectorAll('div')).filter(function (e) {
+    var r = e.getBoundingClientRect();
+    return r.x >= navBox.w - 2 && r.x <= navBox.w + 30 && r.width > 400 && r.height > 300 &&
+      !/rgba\(0, 0, 0, 0\)/.test(getComputedStyle(e).backgroundColor);
+  })[0];
+
+  var out = {
+    url: location.href,
+    when: new Date().toISOString(),
+    devicePixelRatio: window.devicePixelRatio,
+    innerWidth: window.innerWidth,
+    state: navBox.w < 120 ? 'collapsed (rail)' : 'expanded',
+    navWidth: navBox.w,
+    navBg: css(nav, 'backgroundColor'),
+    navBorderRight: [css(nav, 'borderRightWidth'), css(nav, 'borderRightColor')],
+    pageBg: page ? getComputedStyle(page).backgroundColor : null,
+    headers: headers,
+    rows: leaves
+  };
+  console.log(JSON.stringify(out, null, 2));
+  return out;
+};
+console.log("navChrome ready. Call navChrome() with the site map expanded, then collapsed.");

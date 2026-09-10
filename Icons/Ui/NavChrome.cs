@@ -5,11 +5,15 @@ namespace Icons.Ui
     /// <summary>
     /// Every number the mock draws with, in one place, each saying where it came from.
     ///
-    /// Nothing here has been measured yet. Every value is marked GUESS, and the point of the
-    /// mark is that it is a lie until a number from docs/ui-measurements replaces it. A site
-    /// map entry drawn four pixels off is not a preview of anything; it is a confident claim
-    /// about what the user is shipping. So the provenance travels with the constant rather
-    /// than in a commit message nobody reads again.
+    /// The sizes and the light colours were measured on 9 September 2026, in a model-driven
+    /// app in a demo org: Power Pages Management, on the Web Pages list, at 100% zoom and
+    /// devicePixelRatio 1, by `navChrome()` in docs/ui-measurements/probe.js. Rerun it there
+    /// and the same numbers should come back; if they do not, these are what changed.
+    ///
+    /// The dark colours are still GUESS. That environment has no dark theme to measure: Set
+    /// Personal Options offers high contrast and nothing else, so there was no dark app to
+    /// point the probe at. A dark palette derived from a light one is a guess wearing a
+    /// measurement's clothes, so they stay marked until someone runs it in an org that has one.
     ///
     /// Sizes are CSS pixels as a browser at 100% zoom would use them. The renderer multiplies
     /// by DeviceDpi / 96 so the drawing is the same physical size on the screen as the app.
@@ -17,20 +21,30 @@ namespace Icons.Ui
     public static class NavChrome
     {
         // ----- site map, expanded -----
-        public const int NavWidth = 224;      // GUESS
-        public const int NavRowHeight = 40;   // GUESS
-        public const int NavIconBox = 20;     // GUESS
-        public const int NavPadLeft = 16;     // GUESS
-        public const int NavGapToText = 12;   // GUESS
-        public const int NavFontPx = 14;      // GUESS
-        public const int NavGroupHeight = 30; // GUESS
-        public const int NavGroupFontPx = 12; // GUESS
+        // The pane is 200 wide including its 1px right border. Rows measured 181 because a
+        // scrollbar sat inside a nav with more entries than fitted; the mock does not scroll,
+        // so its rows are the full width.
+        public const int NavWidth = 200;      // measured
+        public const int NavRowHeight = 35;   // measured
+        public const int NavIconBox = 16;     // measured - the app draws a 24-viewBox icon at 16
+        public const int NavPadLeft = 14;     // measured 14.5, rounded
+        public const int NavGapToText = 14;   // measured - label starts at x 44.5
+        public const int NavFontPx = 14;      // measured - Segoe UI 400
+        // A group is a 35px label line with 4px above and below it: 244.0 to 287.0.
+        public const int NavGroupHeight = 43; // measured
+        public const int NavGroupFontPx = 14; // measured - same size as a row, weight 600
+
+        // The selection bar: 4 wide, 21 tall, 4 in from the left, centred in the row.
+        public const int AccentWidth = 4;     // measured
+        public const int AccentHeight = 21;   // measured
+        public const int AccentInset = 4;     // measured 4.0
 
         // ----- site map, collapsed to a rail -----
-        public const int RailWidth = 48;      // GUESS
-        public const int RailIconBox = 20;    // GUESS
+        // The icon does not re-centre when the pane narrows: it stays at the same 14.5.
+        public const int RailWidth = 44;      // measured
+        public const int RailIconBox = 16;    // measured
 
-        public const string FontFamily = "Segoe UI";
+        public const string FontFamily = "Segoe UI"; // measured
     }
 
     /// <summary>Light and dark, as two sets of the same colours.</summary>
@@ -39,14 +53,17 @@ namespace Icons.Ui
         public static readonly NavTheme Light = new NavTheme
         {
             Name = "Light",
-            Page = Color.FromArgb(0xFF, 0xFF, 0xFF),        // GUESS
-            NavBack = Color.FromArgb(0xFA, 0xF9, 0xF8),     // GUESS
-            NavSelected = Color.FromArgb(0xED, 0xEB, 0xE9), // GUESS
-            Text = Color.FromArgb(0x24, 0x24, 0x24),        // GUESS
-            SubText = Color.FromArgb(0x61, 0x61, 0x61),     // GUESS
-            Line = Color.FromArgb(0xE1, 0xDF, 0xDD),        // GUESS
-            Accent = Color.FromArgb(0x0F, 0x6C, 0xBD),      // GUESS
-            IconColour = Color.FromArgb(0x24, 0x24, 0x24)   // what currentColor resolves to
+            Page = Color.FromArgb(0xFF, 0xFF, 0xFF),        // measured - the canvas beside the nav
+            NavBack = Color.FromArgb(0xF0, 0xF0, 0xF0),     // measured
+            // Selection is lighter than the pane, not darker: the selected row is painted the
+            // page's own white. In the rail there is no fill at all, only the accent bar.
+            NavSelected = Color.FromArgb(0xFF, 0xFF, 0xFF), // measured
+            Text = Color.FromArgb(0x24, 0x24, 0x24),        // measured
+            // A group header is the same colour as a row, and differs only by weight.
+            SubText = Color.FromArgb(0x24, 0x24, 0x24),     // measured
+            Line = Color.FromArgb(0xD1, 0xD1, 0xD1),        // measured - the nav's 1px right border
+            Accent = Color.FromArgb(0x0F, 0x6C, 0xBD),      // measured
+            IconColour = Color.FromArgb(0x42, 0x42, 0x42)   // measured - what currentColor resolves to
         };
 
         public static readonly NavTheme Dark = new NavTheme
@@ -59,7 +76,7 @@ namespace Icons.Ui
             SubText = Color.FromArgb(0xA1, 0x9F, 0x9D),     // GUESS
             Line = Color.FromArgb(0x3B, 0x3A, 0x39),        // GUESS
             Accent = Color.FromArgb(0x47, 0x9E, 0xF5),      // GUESS
-            IconColour = Color.FromArgb(0xF3, 0xF2, 0xF1)
+            IconColour = Color.FromArgb(0xF3, 0xF2, 0xF1)   // GUESS
         };
 
         public string Name;

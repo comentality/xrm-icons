@@ -66,7 +66,7 @@ namespace Icons.Ui
         /// <summary>How tall a navigation of these rows is, in device pixels.</summary>
         public int Height(IEnumerable<NavRow> rows)
         {
-            var height = 16;
+            var height = 16; // the 8 above and the 8 below, as above
             foreach (var row in rows)
                 height += row.IsGroup ? NavChrome.NavGroupHeight : NavChrome.NavRowHeight;
 
@@ -100,13 +100,16 @@ namespace Icons.Ui
 
             Fill(g, new Rectangle(0, 0, NavChrome.NavWidth, HeightInCss(rows)), _theme.NavBack);
 
+            // The mock's own margin, not the app's. In the app the tree's padding-top is 0 and
+            // the 42px above the first row is the Site Map button, which the preview does not
+            // draw - so this 8 is breathing room for a cropped picture, and claims nothing.
             var top = 8;
             for (var i = 0; i < rows.Count; i++)
             {
                 var row = rows[i];
                 if (row.IsGroup)
                 {
-                    Text(g, row.Label, NavChrome.NavGroupFontPx, FontStyle.Regular, _theme.SubText,
+                    Text(g, row.Label, NavChrome.NavGroupFontPx, FontStyle.Bold, _theme.SubText,
                         NavChrome.NavPadLeft, top, NavChrome.NavGroupHeight,
                         NavChrome.NavWidth - NavChrome.NavPadLeft * 2);
 
@@ -124,7 +127,7 @@ namespace Icons.Ui
 
         private int HeightInCss(IList<NavRow> rows)
         {
-            var height = 16;
+            var height = 16; // the 8 above and the 8 below, as above
             foreach (var row in rows) height += row.IsGroup ? NavChrome.NavGroupHeight : NavChrome.NavRowHeight;
             return height;
         }
@@ -134,7 +137,9 @@ namespace Icons.Ui
             if (selected)
             {
                 Fill(g, new Rectangle(0, y, NavChrome.NavWidth, NavChrome.NavRowHeight), _theme.NavSelected);
-                Fill(g, new Rectangle(0, y + 8, 3, NavChrome.NavRowHeight - 16), _theme.Accent);
+                Fill(g, new Rectangle(NavChrome.AccentInset,
+                        y + (NavChrome.NavRowHeight - NavChrome.AccentHeight) / 2,
+                        NavChrome.AccentWidth, NavChrome.AccentHeight), _theme.Accent);
             }
 
             var iconY = y + (NavChrome.NavRowHeight - NavChrome.NavIconBox) / 2;
@@ -142,7 +147,7 @@ namespace Icons.Ui
                 selected ? iconColour : _theme.IconColour);
 
             var textX = NavChrome.NavPadLeft + NavChrome.NavIconBox + NavChrome.NavGapToText;
-            Text(g, row.Label, NavChrome.NavFontPx, selected ? FontStyle.Bold : FontStyle.Regular,
+            Text(g, row.Label, NavChrome.NavFontPx, FontStyle.Regular,
                 _theme.Text, textX, y, NavChrome.NavRowHeight,
                 NavChrome.NavWidth - textX - NavChrome.NavPadLeft);
         }
