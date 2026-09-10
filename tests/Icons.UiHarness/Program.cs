@@ -152,6 +152,7 @@ namespace Icons.UiHarness
                     failures += CheckContextPreviewOpens(control, outputDir);
                     failures += CheckNameSurvivesRebuild(control, form, outputDir);
                     failures += CheckUnsetOnlyFilter(control, form, outputDir);
+                    failures += CheckLockedTablesAreHiddenAndExplained(control, form, outputDir);
                     failures += CheckRasterHelpOffered(control);
                     failures += CheckFamiliesAreShownAndFiltered(control, form, outputDir);
 
@@ -544,6 +545,116 @@ namespace Icons.UiHarness
 
 
         /// <summary>
+        /// A table locked against customisation. It is not offered at all by default, because
+        /// nobody can give it an icon; unticking the box brings it back, and choosing it has to
+        /// say why it is a dead end - under the table box, where the choosing happened, rather
+        /// than in the red line at the foot of the pane that is for round trips that failed.
+        /// </summary>
+        private static int CheckLockedTablesAreHiddenAndExplained(IconsControl control, Form form, string outputDir)
+        {
+            const BindingFlags Private = BindingFlags.Instance | BindingFlags.NonPublic;
+
+            var tablesField = typeof(IconsControl).GetField("_tables", Private);
+            var showTables = typeof(IconsControl).GetMethod("ShowTables", Private);
+            var itemType = typeof(IconsControl).GetNestedType("TableItem", BindingFlags.NonPublic);
+            var lockedLabel = typeof(IconsControl).GetField("_lockedLabel", Private);
+            if (tablesField == null || showTables == null || itemType == null || lockedLabel == null)
+            {
+                Console.WriteLine("FAIL: the control's table plumbing has moved and the harness cannot seed it");
+                return 1;
+            }
+
+            var tables = (IList)Activator.CreateInstance(typeof(List<>).MakeGenericType(itemType));
+            tables.Add(SeededTable(itemType, "contact", "Contact"));
+            tables.Add(SeededTable(itemType, "solution", "Solution", null, false));
+            tablesField.SetValue(control, tables);
+
+            var tableBox = RowControl(control, "Table") as ComboBox;
+            var filterBox = RowControl(control, "Find table") as TextBox;
+            var hideLocked = Descendants(control)
+                .OfType<CheckBox>()
+                .FirstOrDefault(c => c.Text.StartsWith("Hide the ones", StringComparison.Ordinal));
+            var note = lockedLabel.GetValue(control) as Label;
+
+            if (tableBox == null || filterBox == null || hideLocked == null || note == null)
+            {
+                Console.WriteLine("FAIL: could not find the table row, the hide-locked box and the note under it");
+                return 1;
+            }
+
+            var failures = 0;
+
+            filterBox.Text = "";
+            showTables.Invoke(control, null);
+            Pump();
+
+            if (!hideLocked.Checked)
+            {
+                Console.WriteLine("FAIL: the hide-locked box should start ticked");
+                failures++;
+            }
+
+            if (tableBox.Items.Count != 1 || !tableBox.Items[0].ToString().Contains("(contact)"))
+            {
+                Console.WriteLine("FAIL: a locked table should not be offered, and the list holds " + Listed(tableBox));
+                failures++;
+            }
+            else
+            {
+                Console.WriteLine("OK: a table nobody can customise is left out of the list");
+            }
+
+            if (note.Visible)
+            {
+                Console.WriteLine("FAIL: nothing locked is chosen, so the note should be hidden; it says " + note.Text);
+                failures++;
+            }
+
+            hideLocked.Checked = false;
+            Pump();
+
+            if (tableBox.Items.Count != 2)
+            {
+                Console.WriteLine("FAIL: unticking should give the locked table back, and gives " + Listed(tableBox));
+                failures++;
+            }
+
+            tableBox.SelectedIndex = IndexOfTable(tableBox, "solution");
+            Pump();
+
+            if (!note.Visible || note.Text.IndexOf("locked against customisation", StringComparison.Ordinal) < 0)
+            {
+                Console.WriteLine("FAIL: choosing the locked table says " +
+                                  (note.Visible ? note.Text : "nothing") + " under the box");
+                failures++;
+            }
+            else
+            {
+                Console.WriteLine("OK: choosing a locked table says so under the table box");
+            }
+
+            Shoot(form, outputDir, "09-locked-table");
+
+            tableBox.SelectedIndex = IndexOfTable(tableBox, "contact");
+            Pump();
+
+            if (note.Visible)
+            {
+                Console.WriteLine("FAIL: the note outlived the table it was about; it still says " + note.Text);
+                failures++;
+            }
+            else
+            {
+                Console.WriteLine("OK: moving off the locked table takes the note with it");
+            }
+
+            hideLocked.Checked = true;
+            Pump();
+
+            return failures;
+        }
+
+        /// <summary>
         /// The PNG checkbox has to carry its own explanation, because "should I tick this?" is
         /// not answerable from the caption. The link is only checked for being there: the
         /// harness has no dialog sweeper, so clicking it would hang the run on a modal nobody
@@ -571,12 +682,12 @@ namespace Icons.UiHarness
                 : string.Join(", ", box.Items.Cast<object>().Select(i => i.ToString()));
         }
         private static object SeededTable(Type itemType, string logicalName, string displayName,
-                                          string currentIcon = null)
+                                          string currentIcon = null, bool customizable = true)
         {
             var item = Activator.CreateInstance(itemType, true);
             itemType.GetField("LogicalName").SetValue(item, logicalName);
             itemType.GetField("DisplayName").SetValue(item, displayName);
-            itemType.GetField("Customizable").SetValue(item, true);
+            itemType.GetField("Customizable").SetValue(item, customizable);
             itemType.GetField("CurrentIcon").SetValue(item, currentIcon);
             return item;
         }

@@ -202,6 +202,8 @@ namespace Icons
         private Button _colourButton;
         private CheckBox _rasterBox;
         private LinkLabel _rasterHelp;
+        private CheckBox _hideLockedBox;
+        private Label _lockedLabel;
         private Panel _preview;
         private Label _iconLabel;
         private Label _warningLabel;
@@ -235,6 +237,7 @@ namespace Icons
             _tableBox.Enabled = !Busy && _tables.Count > 0;
             _tableFilterBox.Enabled = !Busy && _tables.Count > 0;
             _unsetOnlyBox.Enabled = !Busy && _tables.Count > 0;
+            _hideLockedBox.Enabled = !Busy && _tables.Count > 0;
             _solutionBox.Enabled = !Busy && _solutions.Count > 0;
             _nameBox.Enabled = !_applying;
             _rasterBox.Enabled = !_applying;
@@ -356,6 +359,22 @@ namespace Icons
             var needed = TextRenderer.MeasureText(
                 text, _warningLabel.Font, new Size(room, 0), TextFormatFlags.WordBreak);
             _warningLabel.Height = Math.Max(46, needed.Height + _warningLabel.Padding.Vertical + 4);
+        }
+
+        /// <summary>
+        /// Why the table just chosen cannot take an icon, said under the box it was chosen in.
+        /// It is not an error and does not go in the red line at the foot of the pane: nothing
+        /// was attempted and nothing failed. With the hiding box ticked no such table is in the
+        /// list to choose, so this is what somebody who unticked it sees.
+        /// </summary>
+        private void ShowLocked(TableItem table)
+        {
+            var locked = table != null && !table.Customizable;
+
+            _lockedLabel.Text = locked
+                ? table.DisplayName + " is locked against customisation, so its icon cannot be changed."
+                : "";
+            _lockedLabel.Visible = locked;
         }
 
         private void UpdateStatus()
@@ -668,8 +687,10 @@ namespace Icons
         {
             var filter = (_tableFilterBox.Text ?? "").Trim();
             var unsetOnly = _unsetOnlyBox.Checked;
+            var hideLocked = _hideLockedBox.Checked;
             var matching = _tables.Where(t =>
                 (!unsetOnly || string.IsNullOrEmpty(t.CurrentIcon)) &&
+                (!hideLocked || t.Customizable) &&
                 (filter.Length == 0 ||
                  t.DisplayName.IndexOf(filter, StringComparison.OrdinalIgnoreCase) >= 0 ||
                  t.LogicalName.IndexOf(filter, StringComparison.OrdinalIgnoreCase) >= 0));
@@ -716,9 +737,10 @@ namespace Icons
             if (_tableBox.Items.Count == 0) return;
 
             // The row that took its index, or the last one when it was the end of the list -
-            // skipping the tables locked against customisation, which are in the unset-only list
-            // because they have no icon and will never take one. Landing on a dead end costs the
-            // click it was meant to save.
+            // skipping the tables locked against customisation. With the hiding box ticked there
+            // are none to skip; with it unticked the unset-only list is where they gather, since
+            // a table that will never take an icon has never been given one. Landing on a dead
+            // end costs the click it was meant to save.
             var start = Math.Min(Math.Max(wasAt, 0), _tableBox.Items.Count - 1);
 
             for (var i = start; i < _tableBox.Items.Count; i++)

@@ -281,8 +281,35 @@ namespace Icons
             };
             _unsetOnlyBox.CheckedChanged += (s, e) => ShowTables();
 
+            // A table locked against customisation cannot be given an icon by anybody, so it is
+            // not a candidate - and the unset-only list is where they gather, because a table
+            // that will never take an icon has never been given one. Hidden by default: a list
+            // that only offers what can be done with it is worth more than a complete one.
+            // Untick it to see them, and the line under the box says why the one you picked is
+            // a dead end.
+            _hideLockedBox = new CheckBox
+            {
+                Text = "Hide the ones locked against customisation",
+                Checked = true,
+                AutoSize = true,
+                Anchor = AnchorStyles.Left
+            };
+            _hideLockedBox.CheckedChanged += (s, e) => ShowTables();
+
             _tableBox = new ComboBox { Dock = DockStyle.Fill, DropDownStyle = ComboBoxStyle.DropDownList };
             _tableBox.SelectedIndexChanged += Table_SelectedIndexChanged;
+
+            // Under the box it is about, rather than in the red line at the foot of the pane
+            // with the round trips that failed. Nothing has gone wrong here: this is a fact
+            // about the table just chosen, and it belongs where the choosing happened.
+            _lockedLabel = new Label
+            {
+                Dock = DockStyle.Fill,
+                AutoSize = true,
+                Visible = false,
+                ForeColor = Color.FromArgb(0xA4, 0x26, 0x2C),
+                Padding = new Padding(0, 1, 0, 5)
+            };
 
             _solutionBox = new ComboBox { Dock = DockStyle.Fill, DropDownStyle = ComboBoxStyle.DropDownList };
             _solutionBox.SelectedIndexChanged += (s, e) => { SuggestName(); SyncEnabled(); };
@@ -340,7 +367,7 @@ namespace Icons
             {
                 Dock = DockStyle.Fill,
                 ColumnCount = 2,
-                RowCount = 10,
+                RowCount = 12,
                 Padding = new Padding(8, 6, 8, 6),
                 AutoScroll = true
             };
@@ -349,14 +376,16 @@ namespace Icons
 
             AddRow(form, 0, "Find table", _tableFilterBox);
             AddRow(form, 1, "", _unsetOnlyBox);
-            AddRow(form, 2, "Table", _tableBox);
-            AddRow(form, 3, "Solution", _solutionBox);
-            AddRow(form, 4, "Web resource", _nameBox);
-            AddRow(form, 5, "Colour", _themeColour);
-            AddRow(form, 6, "", _fixedColour);
-            AddRow(form, 7, "", _colourButton);
-            AddRow(form, 8, "", _rasterBox);
-            AddRow(form, 9, "", _rasterHelp);
+            AddRow(form, 2, "", _hideLockedBox);
+            AddRow(form, 3, "Table", _tableBox);
+            AddNoteRow(form, 4, _lockedLabel);
+            AddRow(form, 5, "Solution", _solutionBox);
+            AddRow(form, 6, "Web resource", _nameBox);
+            AddRow(form, 7, "Colour", _themeColour);
+            AddRow(form, 8, "", _fixedColour);
+            AddRow(form, 9, "", _colourButton);
+            AddRow(form, 10, "", _rasterBox);
+            AddRow(form, 11, "", _rasterHelp);
 
             var pane = new Panel { Dock = DockStyle.Fill };
             pane.Controls.Add(form);
@@ -380,6 +409,17 @@ namespace Icons
                     Padding = new Padding(0, 5, 6, 0)
                 }, 0, row);
             }
+            form.Controls.Add(control, 1, row);
+        }
+
+        /// <summary>
+        /// A line that belongs to the row above it, in the same column as the box it is about.
+        /// The row sizes to what is in it, so a hidden note takes no height at all rather than
+        /// leaving a gap under the table box for the times there is nothing to say.
+        /// </summary>
+        private static void AddNoteRow(TableLayoutPanel form, int row, Control control)
+        {
+            form.RowStyles.Add(new RowStyle(SizeType.AutoSize));
             form.Controls.Add(control, 1, row);
         }
 
@@ -560,10 +600,7 @@ namespace Icons
             var table = _tableBox.SelectedItem as TableItem;
             SeedSearch(table);
 
-            if (table != null && !table.Customizable)
-                _trouble = table.DisplayName + " is locked against customisation, so its icon cannot be changed.";
-            else if (_trouble != null && _trouble.Contains("locked against customisation"))
-                _trouble = null;
+            ShowLocked(table);
 
             SyncEnabled();
         }
