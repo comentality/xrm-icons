@@ -84,7 +84,7 @@ namespace Icons.Ui
         public event EventHandler<AppNavigation> AppChosen;
 
         /// <summary>The icon being chosen, and the colour it will be drawn in.</summary>
-        public void ShowIcon(SvgImage icon, string label, Color colour)
+        public void ShowChosen(SvgImage icon, string label, Color colour)
         {
             _surface.Chosen = icon;
             _surface.ChosenColour = colour;
@@ -175,7 +175,7 @@ namespace Icons.Ui
             }
 
             /// <summary>CSS pixels to this screen's pixels, so the drawing is the size the app is.</summary>
-            private float Scale
+            private float PixelScale
             {
                 get { return DeviceDpi / 96f; }
             }
@@ -187,7 +187,7 @@ namespace Icons.Ui
                 var g = e.Graphics;
                 using (var brush = new SolidBrush(_theme.Page)) g.FillRectangle(brush, ClientRectangle);
 
-                var painter = new NavPainter(_theme, Scale);
+                var painter = new NavPainter(_theme, PixelScale);
                 var rows = Rows ?? new List<NavRow>();
 
                 // The scroll position, so the navigation moves with the scrollbar.
@@ -259,7 +259,7 @@ namespace Icons.Ui
 
             private int Round(int cssPixels)
             {
-                return (int)Math.Round(cssPixels * Scale);
+                return (int)Math.Round(cssPixels * PixelScale);
             }
         }
     }

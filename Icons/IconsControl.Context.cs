@@ -68,7 +68,7 @@ namespace Icons
             var table = _tableBox.SelectedItem as TableItem;
             var colour = _fixedColour.Checked ? _colour : Color.FromArgb(0x24, 0x24, 0x24);
 
-            _context.ShowIcon(Drawable(_selectedIcon), table?.DisplayName ?? _selectedIcon.DisplayName, colour);
+            _context.ShowChosen(Drawable(_selectedIcon), table?.DisplayName ?? _selectedIcon.DisplayName, colour);
         }
 
         /// <summary>The chosen library icon as something drawable, or null if it will not read.</summary>
