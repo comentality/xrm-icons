@@ -5,6 +5,26 @@ the package page, so it has to stand on its own.
 
 ## Unreleased
 
+- **Reading the environment is a refresh button beside the table list it fills, rather than a caption in the toolbar.** Nothing but that button puts tables in that box, so it belongs beside the box rather than at the top of a window with everything else. The arrow is drawn out of the library the tool is built to browse, at the moment it opens, rather than kept as a resource of its own.
+
+  ![The refresh beside the table list](https://raw.githubusercontent.com/comentality/xrm-icons/main/docs/images/release/refresh-table.png)
+
+- **Set as table icon moved to the bottom right of the form it sends, which is where a window that fills something in keeps its last button.** It is the last thing done to what the form says — a table, a solution, a name, a colour, and then this — and it was sitting three inches away from all of it. The red line that says why a write failed still reads above it, so the reason and the retry are in the same place.
+
+  ![Set as table icon, bottom right](https://raw.githubusercontent.com/comentality/xrm-icons/main/docs/images/release/apply-button.png)
+
+- **Undo and redo are drawn as the two arrows everybody already knows, out of the same bundled library.** The captions were only taking width: what those buttons would take back is a table and an icon by name, which changes with every write, so the meaning was in the tooltip all along and still is.
+
+  ![Undo and redo, as arrows](https://raw.githubusercontent.com/comentality/xrm-icons/main/docs/images/release/undo-redo.png)
+
+- **The colour swatch sits on the Fixed colour line, and the PNG question on the line of the box it answers.** Each pair was reading as two settings on two rows when it is one setting and its answer. Which colour, right there; and where to find out whether to tick the box, right beside it.
+
+  ![The colour swatch and the PNG link, inline](https://raw.githubusercontent.com/comentality/xrm-icons/main/docs/images/release/inline-pairs.png)
+
+- **The window opens with Only tables with no icon yet ticked, because that list is the errand.** Giving icons to the tables that have none is why anybody opens this tool; the full list is one click away, for when you have come to change an icon that is already there. A table still leaves the narrowed list the moment you give it one.
+
+  ![Only tables with no icon yet, ticked](https://raw.githubusercontent.com/comentality/xrm-icons/main/docs/images/release/unset-only-open.png)
+
 - **The icon is drawn into an app's navigation inside the tool's window, where two colour swatches were.** It used to be a window you had to ask for, and the pane it now fills was spending its height on the same drawing twice, big on white and big on black. Those answered "does this survive both themes", which the navigation answers too — through its own *Dark* box, in the app's own colours rather than a swatch's — and they could not answer the question actually being asked, which is not what the drawing looks like but whether the row reads beside the rows it will be beside. Choosing an app still reads that app's own site map; the app list is now read at the end of the load rather than when a window opened, and an app list that will not come back costs the preview and nothing else.
 
   ![The icon in an app's navigation, in the tool's own window](https://raw.githubusercontent.com/comentality/xrm-icons/main/docs/images/release/in-context-embedded.png)

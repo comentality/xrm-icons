@@ -46,8 +46,10 @@ resources, update table definitions and publish customisations.
   and choosing one says under the table box why it is a dead end.
 - **See which tables still need one** — the load reads each table's current icon along with
   everything else, so *Only tables with no icon yet* narrows the list to the ones nobody has got
-  to, without another round trip. A table leaves that list the moment you give it an icon, so it
-  stays a working list rather than something to re-read.
+  to, without another round trip. It is ticked when the window opens, because that list is the
+  errand; the full one is a click away, for when you have come to change an icon that is already
+  there. A table leaves the narrowed list the moment you give it an icon, so it stays a working
+  list rather than something to re-read.
 - **Guesses where your icons live** — the same load reads where every icon this environment
   already has is stored, so the name it suggests follows your convention rather than this tool's.
   A table that already has an icon of yours is offered that exact name, so applying updates it
@@ -89,9 +91,10 @@ resources, update table definitions and publish customisations.
 
 1. Open the tool. The library is inside it, so you can browse and search before connecting.
 2. Connecting reads the environment's tables and its unmanaged solutions by itself — half a
-   second against a real environment, which is not worth a click. **Load tables** is there for
-   reading them again after somebody has changed something.
-3. Pick the table, and the unmanaged solution new web resources go into. Type enough of a table's
+   second against a real environment, which is not worth a click. The refresh button beside the
+   table list is there for reading them again after somebody has changed something.
+3. Pick the table, and the unmanaged solution new web resources go into. The list starts on the
+   tables with no icon yet; untick *Only tables with no icon yet* for all of them. Type enough of a table's
    name to leave one and that one is chosen. The solution is required:
    without one they would land in the default solution, where nothing you ship can see them. The
    solution you set as your preferred one in the maker portal is chosen for you and is the row the
@@ -106,14 +109,14 @@ resources, update table definitions and publish customisations.
    written over — and press Enter to move into the results, where the arrow keys walk them.
 5. Choose the theme colour or a fixed one, and look at the navigation above the form: that is
    the row your icon will be, beside the rows it will be beside.
-6. **Set as table icon**, and confirm. The status line says what was set on what; hover it for
+6. **Set as table icon**, bottom right, and confirm. The status line says what was set on what; hover it for
    which web resources were created, which were updated, and what was published.
 7. Wrong icon on that one? **Ctrl+Z**, and confirm — the table goes back to what it had, and the
    window lands on it again with the library still open. **Ctrl+Y** puts it back. Inside a text
    box Ctrl+Z is left alone: there it still means the name you were halfway through typing.
 
-With *Only tables with no icon yet* ticked, applying drops that table out of the list and lands on
-the next one waiting — a name suggested for it, a search already made for it — so a run down the
+With *Only tables with no icon yet* ticked — which is how the window opens — applying drops
+that table out of the list and lands on the next one waiting — a name suggested for it, a search already made for it — so a run down the
 list is pick an icon, apply, pick an icon, apply.
 
 Running it a second time on the same table updates the same web resource rather than leaving a
