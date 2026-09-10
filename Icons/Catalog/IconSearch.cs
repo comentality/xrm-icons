@@ -132,6 +132,16 @@ namespace Icons.Catalog
             { "log",            new[] { "list", "document" } },
             { "session",        new[] { "clock", "flow" } },
             { "rollup",         new[] { "sum", "chart" } },
+
+            // Words the seeding rule stranded. Each of these used to seed on a substring the
+            // library was never asked for - Business Unit on a shelving unit, Rating Model on a
+            // box model, Time Entry on a brand called Sentry - and now falls back to the word
+            // before it. These are the seven tables where there was no word before it either.
+            { "app",            new[] { "apps", "grid", "window" } },
+            { "business",       new[] { "building", "briefcase" } },
+            { "duplicate",      new[] { "copy", "stamp" } },
+            { "rating",         new[] { "star" } },
+            { "time",           new[] { "clock", "timer" } },
         };
 
         /// <summary>
@@ -196,11 +206,40 @@ namespace Icons.Catalog
 
             for (var i = terms.Count - 1; i >= 0; i--)
             {
+                if (!WorthSeeding(icons, terms[i])) continue;
+
                 var single = new[] { terms[i] };
                 if (Answers(icons, single)) return terms[i];
             }
 
             return "";
+        }
+
+        /// <summary>
+        /// Whether a single word is one this library can be trusted to answer, rather than one
+        /// it merely produces results for.
+        ///
+        /// The difference is what a hit is made of. <see cref="Score"/> takes a prefix or a
+        /// substring, which is right for somebody typing - "fold" should reach folder - and
+        /// wrong for a word nobody typed: Payment Term finds <c>terminal</c>, Hierarchy Rule
+        /// finds <c>ruler</c>, Social Profile finds <c>vehicle_car_profile</c>, and Time Entry
+        /// finds a brand called Sentry. Each is a confident wrong answer in a box the user did
+        /// not fill in, which reads worse than the box left alone.
+        ///
+        /// So the word has to be one of two things, and a number would decide neither of them:
+        /// literal, meaning some icon is called exactly that and the library really does draw
+        /// the thing - or curated, meaning <see cref="Synonyms"/> says what this Dataverse word
+        /// looks like. Anything else, and the search moves on to the word before it: Rating
+        /// Model asks about ratings rather than about box models.
+        /// </summary>
+        private static bool WorthSeeding(IReadOnlyList<IconEntry> icons, string term)
+        {
+            if (Synonyms.ContainsKey(term)) return true;
+
+            for (var i = 0; i < icons.Count; i++)
+                if (string.Equals(icons[i].Name, term, StringComparison.OrdinalIgnoreCase)) return true;
+
+            return false;
         }
 
         /// <summary>Whether anything in the library answers these terms at all.</summary>

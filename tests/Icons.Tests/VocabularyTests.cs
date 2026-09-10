@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using System.Linq;
+using System.Reflection;
 using Icons.Catalog;
 using NUnit.Framework;
 
@@ -94,6 +95,66 @@ namespace Icons.Tests
             // The point above is coverage, not seeding something at any cost. A name the
             // library has no answer to must still leave the box alone.
             Assert.That(IconSearch.SeedFor(_catalog.Icons, "Zzzznotanicon"), Is.Empty);
+        }
+
+        /// <summary>
+        /// What the measurement caught, by name. Each of these seeded a word the library only
+        /// appeared to answer - a substring or a prefix of something else entirely - and each is
+        /// a confident wrong answer in a box nobody filled in.
+        /// </summary>
+        [TestCase("Social Profile", "profile", "vehicle_car_profile is a car")]
+        [TestCase("Field Security Profile", "profile", "and so is the one this table used to get")]
+        [TestCase("Payment Term", "term", "terminal is a command prompt")]
+        [TestCase("Hierarchy Rule", "rule", "ruler is a ruler")]
+        [TestCase("Duplicate Detection Rule", "rule", "and so is this one's")]
+        [TestCase("Time Entry", "entry", "brand-sentry is somebody's logo")]
+        [TestCase("Business Unit", "unit", "shelving-unit is a bookcase")]
+        [TestCase("Rating Model", "model", "box-model is a CSS diagram")]
+        public void A_word_the_library_only_seems_to_answer_is_not_seeded(string table, string wrong, string why)
+        {
+            Assert.That(IconSearch.SeedFor(_catalog.Icons, table), Is.Not.EqualTo(wrong), why);
+        }
+
+        /// <summary>
+        /// And what it falls back to instead. The rule is not "seed less": every one of these
+        /// gets a better word than the one it lost, from the name it already had.
+        /// </summary>
+        [TestCase("Social Profile", "social")]
+        [TestCase("Hierarchy Rule", "hierarchy")]
+        [TestCase("Payment Term", "payment")]
+        [TestCase("Queue Item", "queue")]
+        [TestCase("Project Team Member", "team")]
+        [TestCase("Sales Order", "order")]
+        public void The_word_before_it_is_what_gets_seeded(string table, string expected)
+        {
+            Assert.That(IconSearch.SeedFor(_catalog.Icons, table), Is.EqualTo(expected));
+        }
+
+        [Test]
+        public void A_word_some_icon_is_actually_called_is_seeded_on_its_own()
+        {
+            // Literal, so no curation is needed for it: the library really does draw the thing.
+            Assert.That(IconSearch.SeedFor(_catalog.Icons, "Calendar"), Is.EqualTo("calendar"));
+            Assert.That(IconSearch.SeedFor(_catalog.Icons, "Shipment Folder"), Is.EqualTo("folder"));
+        }
+
+        [Test]
+        public void Every_word_the_vocabulary_maps_to_is_one_the_bundle_draws()
+        {
+            // An alias the bundle does not draw is dead weight that reads like coverage. Reached
+            // by reflection rather than by widening the tool's surface for a test: the table is
+            // an implementation detail of the search, and this is the only thing that reads it.
+            var field = typeof(IconSearch).GetField("Synonyms", BindingFlags.NonPublic | BindingFlags.Static);
+            Assert.That(field, Is.Not.Null, "IconSearch.Synonyms has been renamed; so has this test's grip on it");
+
+            var vocabulary = (Dictionary<string, string[]>)field.GetValue(null);
+            var dead = new List<string>();
+
+            foreach (var entry in vocabulary)
+                foreach (var alias in entry.Value)
+                    if (!IconSearch.Rank(_catalog.Icons, alias).Any()) dead.Add(entry.Key + " -> " + alias);
+
+            Assert.That(dead, Is.Empty, "these aliases name nothing the bundle draws: " + string.Join(", ", dead));
         }
     }
 }

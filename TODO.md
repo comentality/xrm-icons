@@ -6,7 +6,7 @@
       be - though it turned out to widen coverage too, because 16 of the words in Synonyms that
       Fluent never named are named outright by one of the others. Two of those are wrong in the
       way codicons are wrong: quote is quotation marks in Lucide and Tabler, and log is a wooden
-      log in Phosphor. Both score 100 and lead the grid. See the seeding item below.
+      log in Phosphor. Both score 100 and lead the grid. See the ranking item below.
       Codicons (microsoft/vscode-codicons, 639 icons) were measured too and left out. They are
       the same look, not a different one - both sets are Microsoft drawing the same language,
       and side by side at 16, 32 and 64 only `person` reads differently. 104 names are shared
@@ -78,17 +78,35 @@
       (docs/clean-room.md).
 - [x] Explain in the tool's UI when the classic PNG icons are worth writing, and when they are not.
 - [x] Filter to show only entities without an icon.
-- [ ] Stop seeding a search the library only appears to answer. Measuring the standard tables
-      turned up confident nonsense as well as gaps: Social Profile seeds `profile` and leads with
-      `vehicle_car_profile` at 96, Payment Term leads with `checkbox_indeterminate`, Hierarchy Rule
-      with `ruler`. `SeedFor`'s last-word fallback takes a substring hit as a match, and a wrong
-      suggestion reads worse than an untouched box. Probably a floor on the score that justifies
-      seeding, but it needs a rule deciding rather than a number guessing.
-      Four families make this worse in a new way: an exact name hit scores 100 and a synonym
-      answer 15, so a family that happens to name an icon after a Dataverse word leads the grid
-      whatever it actually drew. Quote gets Lucide and Tabler's quotation marks; Log gets
-      Phosphor's wooden log. The other fourteen words this turned up are right, so the rule
-      cannot be to distrust the newer families.
+- [x] Stop seeding a search the library only appears to answer. It is not a floor on the score:
+      a number would not have decided any of them, because the wrong answers scored 98 as often
+      as 28. The fallback word now has to be one of two things - literal, meaning some icon is
+      called exactly that, or curated, meaning `Synonyms` says what the Dataverse word looks
+      like - and anything else moves on to the word before it. Substrings and prefixes are still
+      how search works for somebody typing, where "fold" should reach folder; they are just not
+      how a box nobody filled in gets filled in.
+      Measured over the 162 standard tables. Eighteen were seeding on a word the library only
+      appeared to answer: Payment Term on `terminal`, Hierarchy Rule on `ruler`, Social Profile
+      and Field Security Profile on `vehicle_car_profile`, Business Unit on `shelving-unit`,
+      Rating Model on `box-model`, List Member on `member-of` - the set-theory symbol - Rollup
+      Query on Google BigQuery's logo, and Time Entry on a brand called Sentry. Eleven of the
+      eighteen found a better word in their own name by falling back one further: Hierarchy Rule
+      seeds `hierarchy`, Payment Term seeds `payment`, Social Profile seeds `social`, Queue Item
+      seeds `queue`, Project Team Member seeds `team`. The other seven had no word before it
+      either, and got the five entries `app`, `business`, `duplicate`, `rating` and `time` in
+      Synonyms - which is what the fixture always said the answer to a silent table was. No
+      standard table seeds an empty box, and none of the eighteen seeds its wrong word.
+- [ ] Rank a synonym answer against an exact name that means something else. This is the other
+      half of the item above, and the seeding rule does not touch it: an exact name hit scores
+      100 and a synonym answer 15, so a family that happens to name an icon after a Dataverse
+      word leads the grid whatever it actually drew. Quote gets Lucide and Tabler's quotation
+      marks; Log gets Phosphor's wooden log. Seeding better made this more visible rather than
+      less - Rating Model now seeds `rating` and leads with `rating_mature`, a content rating;
+      Field Security Profile seeds `security` and leads with a CCTV camera; Work Order Service
+      seeds `order` and leads with `re_order`. The seed is right in all three and the ranking is
+      not. The other fourteen words the four families turned up are right, so the rule cannot be
+      to distrust the newer families, and it cannot be to distrust an exact hit either: the whole
+      point of `person` leading with person is that an exact hit usually is the answer.
 - [x] Preview the icon in context, in a window of its own. Narrowed to the navigation: the
       grid and form header were mocked and dropped, because the navigation is where the icon
       is actually looked at. `See it in context` opens it; with a connection it reads an

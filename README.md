@@ -35,9 +35,12 @@ resources, update table definitions and publish customisations.
   icon actually named for your word still wins; the mapping only fills in where nothing is.
 - **The table you pick asks for you** — choosing a table puts its own word in the search box, so
   the grid is showing buildings by the time you look at it. A two-word table falls back to the
-  word the library knows — *Sales Order* searches for the order — and a table it can say nothing
-  about seeds nothing rather than an empty grid. It only ever writes over its own last
-  suggestion: a search you typed is yours.
+  word the library knows — *Sales Order* searches for the order, *Hierarchy Rule* for the
+  hierarchy — and it only falls back to a word some icon is really called, or one the tool has
+  been taught. Nothing is seeded on a word the library merely produces results for: *Payment
+  Term* is not a terminal and *Social Profile* is not a car in profile. A table it can say
+  nothing about seeds nothing rather than a confident wrong answer. It only ever writes over its
+  own last suggestion: a search you typed is yours.
 - **See which tables still need one** — the load reads each table's current icon along with
   everything else, so *Only tables with no icon yet* narrows the list to the ones nobody has got
   to, without another round trip. A table leaves that list the moment you give it an icon, so it
