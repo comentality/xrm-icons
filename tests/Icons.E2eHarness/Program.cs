@@ -228,6 +228,29 @@ namespace Icons.E2eHarness
                             var svg = Encoding.UTF8.GetString(Convert.FromBase64String(firstContent ?? ""));
                             r.Check(svg.Contains("currentColor"),
                                 "the SVG should follow the theme by default, and does not mention currentColor");
+
+                            // The platform's answer, not this tool's: a stored icon carries a
+                            // comment, and the attribution page is rebuilt from those comments.
+                            // An SVG the platform stripped or refused over it would leave every
+                            // icon in the org uncreditable, and nothing local would notice.
+                            r.Check(svg.Contains(Provenance.Marker),
+                                "the stored SVG should still carry its provenance comment, and it does not");
+                        }
+
+                        var pageName = AttributionPage.NameFor(vectorName);
+                        var page = org.WebResourcesNamed(pageName);
+                        r.Check(page.Count == 1,
+                            "an attribution page should have been written beside the icon as " + pageName
+                            + ", and there are " + page.Count);
+                        if (page.Count == 1)
+                        {
+                            r.Check(page[0].GetAttributeValue<OptionSetValue>("webresourcetype").Value == 1,
+                                "the page should be an HTML web resource (type 1)");
+
+                            var html = Encoding.UTF8.GetString(
+                                Convert.FromBase64String(page[0].GetAttributeValue<string>("content") ?? ""));
+                            r.Check(html.Contains(vectorName),
+                                "the page should credit the icon that was just written, and does not name it");
                         }
 
                         var table = org.TableIcons();
@@ -509,7 +532,11 @@ namespace Icons.E2eHarness
                     var names = new[]
                     {
                         seedName, vectorName, typedName,
-                        raster("small"), raster("medium"), raster("large")
+                        raster("small"), raster("medium"), raster("large"),
+                        // One per folder the run wrote into: the typed path is somewhere else,
+                        // and it got its own page rather than a mention on this one.
+                        vectorName == null ? null : AttributionPage.NameFor(vectorName),
+                        typedName == null ? null : AttributionPage.NameFor(typedName)
                     };
                     foreach (var problem in new Org(client).Cleanup(names))
                     {

@@ -186,13 +186,12 @@ namespace Icons.SlowHarness
             var unpublished = request as RetrieveUnpublishedMultipleRequest;
             if (unpublished != null)
             {
-                var wanted = ((QueryExpression)unpublished.Query).Criteria.Conditions
-                    .First(c => c.AttributeName == "name").Values[0] as string;
+                var conditions = ((QueryExpression)unpublished.Query).Criteria.Conditions.ToList();
 
                 return Answer(Begin("webresource-find"), () =>
                     (OrganizationResponse)new RetrieveUnpublishedMultipleResponse
                     {
-                        Results = { { "EntityCollection", new EntityCollection(FindWebResources(wanted)) } }
+                        Results = { { "EntityCollection", new EntityCollection(FindWebResources(conditions)) } }
                     });
             }
 
@@ -307,16 +306,39 @@ namespace Icons.SlowHarness
             lock (_lock) return Tables.ToArray();
         }
 
-        private List<Entity> FindWebResources(string name)
+        /// <summary>
+        /// The web resources a query asks for: one by name, or a whole folder of them, and
+        /// optionally of one kind. The tool asks both ways - by name to find what it is about to
+        /// write over, by folder to rebuild the attribution page - and a fake that answered the
+        /// second as if it were the first would hand back nothing and look like an empty folder.
+        /// </summary>
+        private List<Entity> FindWebResources(IEnumerable<ConditionExpression> conditions)
         {
             lock (_lock)
             {
                 return _webResources.Values
-                    .Where(e => string.Equals(e.GetAttributeValue<string>("name"), name,
-                        StringComparison.OrdinalIgnoreCase))
+                    .Where(e => conditions.All(c => Matches(e, c)))
                     .Select(Clone)
                     .ToList();
             }
+        }
+
+        private static bool Matches(Entity record, ConditionExpression condition)
+        {
+            if (condition.AttributeName == "webresourcetype")
+            {
+                var type = record.GetAttributeValue<OptionSetValue>("webresourcetype");
+                return type != null && type.Value == Convert.ToInt32(condition.Values[0]);
+            }
+
+            if (condition.AttributeName != "name") return true;
+
+            var name = record.GetAttributeValue<string>("name") ?? "";
+            var wanted = condition.Values[0] as string ?? "";
+
+            return condition.Operator == ConditionOperator.BeginsWith
+                ? name.StartsWith(wanted, StringComparison.OrdinalIgnoreCase)
+                : string.Equals(name, wanted, StringComparison.OrdinalIgnoreCase);
         }
 
         private static Entity Clone(Entity source)
