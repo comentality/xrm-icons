@@ -24,6 +24,14 @@ namespace Icons
         private bool _readingNavigation;
 
         /// <summary>
+        /// The chosen icon, parsed, kept until a different one is chosen. RefreshContextIcon
+        /// runs on every change the window makes - every keystroke in the name box among them -
+        /// and reading an SVG out of the bundle and parsing it for each of those is a cost with
+        /// nothing to show for it: the drawing has not changed.
+        /// </summary>
+        private SvgImage _selectedDrawing;
+
+        /// <summary>
         /// The navigations this environment has, read once and kept. Null until asked for; the
         /// list is small and does not change while a tool window is open.
         /// </summary>
@@ -57,9 +65,8 @@ namespace Icons
             if (_context == null || _context.IsDisposed) return;
 
             var table = _tableBox.SelectedItem as TableItem;
-            var drawing = _selectedIcon == null || _catalog == null ? null : Drawable(_selectedIcon);
 
-            _context.ShowChosen(drawing,
+            _context.ShowChosen(_selectedDrawing,
                 table?.DisplayName ?? _selectedIcon?.DisplayName,
                 _fixedColour.Checked ? _colour : (Color?)null);
         }
@@ -110,7 +117,7 @@ namespace Icons
                 new NavRow("Recent", FromLibrary("history")),
                 new NavRow("Pinned", FromLibrary("pin")),
                 new NavRow("Customers", null, true),
-                new NavRow(label, Drawable(_selectedIcon)),
+                new NavRow(label, _selectedDrawing),
                 new NavRow("Contacts", FromLibrary("person")),
                 new NavRow("Sales", null, true),
                 new NavRow("Leads", FromLibrary("target")),
@@ -253,7 +260,7 @@ namespace Icons
                 {
                     mine = rows.Count;
                     itsOwnRow = true;
-                    rows.Add(new NavRow(entry.Label, Drawable(_selectedIcon)));
+                    rows.Add(new NavRow(entry.Label, _selectedDrawing));
                     continue;
                 }
 
@@ -271,7 +278,7 @@ namespace Icons
                 if (tables.Count > 0)
                 {
                     mine = tables[tables.Count / 2].i;
-                    rows[mine] = new NavRow(chosenLabel ?? rows[mine].Label, Drawable(_selectedIcon));
+                    rows[mine] = new NavRow(chosenLabel ?? rows[mine].Label, _selectedDrawing);
                     note = app.Name + " - its own navigation. "
                            + (chosenLabel ?? "This table") + " is not in this app, so the icon is standing in a row of it.";
                 }

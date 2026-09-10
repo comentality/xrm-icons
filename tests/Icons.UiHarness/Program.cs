@@ -308,7 +308,63 @@ namespace Icons.UiHarness
 
             Console.WriteLine("OK: the preview draws on both themes");
 
+            failures += CheckChosenRowIsScrolledTo(preview, form, outputDir);
+
             return failures;
+        }
+
+        /// <summary>
+        /// A real app's navigation is forty rows where the stand-in is ten, and the pane is a few
+        /// hundred pixels tall. A preview whose whole point is the row being chosen for is worth
+        /// nothing if that row is below the fold, so the chosen row is scrolled to - and a row
+        /// already in view is left alone, because scrolling under somebody who can see what they
+        /// asked for is its own kind of wrong.
+        ///
+        /// Handed a navigation directly: nothing without a connection produces one this long,
+        /// and the length is the whole point.
+        /// </summary>
+        private static int CheckChosenRowIsScrolledTo(ContextPreview preview, Form form, string outputDir)
+        {
+            var surface = preview.Controls.OfType<ScrollableControl>().FirstOrDefault(c => c.AutoScroll);
+            if (surface == null)
+            {
+                Console.WriteLine("FAIL: the preview has nothing that scrolls, so a long navigation would be cut");
+                return 1;
+            }
+
+            var many = Enumerable.Range(0, 40)
+                .Select(i => new NavRow("Table " + i, null))
+                .ToList();
+
+            preview.ShowNavigation(many, 3, "A stand-in navigation, near the top.", true);
+            Pump();
+
+            if (surface.AutoScrollPosition.Y != 0)
+            {
+                Console.WriteLine("FAIL: a row already in view should not move the navigation, and it scrolled to "
+                                  + surface.AutoScrollPosition.Y);
+                return 1;
+            }
+
+            preview.ShowNavigation(many, 34, "A stand-in navigation, near the bottom.", true);
+            Pump();
+
+            if (surface.AutoScrollPosition.Y == 0)
+            {
+                Console.WriteLine("FAIL: row 34 of 40 is below the fold and the navigation did not scroll to it");
+                Shoot(form, outputDir, "10-chosen-row-lost");
+                return 1;
+            }
+
+            Console.WriteLine("OK: a chosen row below the fold is scrolled into view, one already in view is not");
+            Shoot(form, outputDir, "10-chosen-row-far-down");
+
+            // Back to what the window had, so the shots after this are of the tool rather than
+            // of this check's leavings.
+            preview.ShowNavigation(new List<NavRow>(), -1, "", false);
+            Pump();
+
+            return 0;
         }
 
         private static int CheckNameSurvivesRebuild(IconsControl control, Form form, string outputDir)

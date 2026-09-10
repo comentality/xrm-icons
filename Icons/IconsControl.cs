@@ -885,6 +885,7 @@ namespace Icons
         private void SelectIcon(IconEntry icon)
         {
             _selectedIcon = icon;
+            _selectedDrawing = icon == null || _catalog == null ? null : Drawable(icon);
 
             _iconLabel.Text = icon == null
                 ? "No icon chosen"

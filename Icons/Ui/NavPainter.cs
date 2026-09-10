@@ -77,6 +77,25 @@ namespace Icons.Ui
             return At(height);
         }
 
+        /// <summary>
+        /// Where a row's top edge sits, in device pixels from the top of the drawing. What a
+        /// caller wants it for is scrolling to a row it has just selected, which in a real site
+        /// map can be forty rows down.
+        /// </summary>
+        public int Top(IList<NavRow> rows, int index)
+        {
+            var top = 8; // the mock's own margin, as in Draw
+            for (var i = 0; i < index && i < rows.Count; i++)
+                top += rows[i].IsGroup ? NavChrome.NavGroupHeight : NavChrome.NavRowHeight;
+
+            return At(top);
+        }
+
+        public int RowHeight
+        {
+            get { return At(NavChrome.NavRowHeight); }
+        }
+
         public int Width
         {
             get { return At(NavChrome.NavWidth); }

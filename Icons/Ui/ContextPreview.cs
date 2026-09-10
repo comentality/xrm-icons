@@ -104,9 +104,17 @@ namespace Icons.Ui
         /// </summary>
         public void ShowChosen(SvgImage icon, string label, Color? fixedColour)
         {
+            var named = string.IsNullOrWhiteSpace(label) ? "This table" : label;
+
+            // Called after every change the window makes, most of which are not changes to any
+            // of these three - and repainting a navigation costs a font per row.
+            if (ReferenceEquals(_surface.Chosen, icon)
+                && _surface.ChosenFixed == fixedColour
+                && _surface.ChosenLabel == named) return;
+
             _surface.Chosen = icon;
             _surface.ChosenFixed = fixedColour;
-            _surface.ChosenLabel = string.IsNullOrWhiteSpace(label) ? "This table" : label;
+            _surface.ChosenLabel = named;
             _surface.Invalidate();
         }
 
@@ -145,6 +153,7 @@ namespace Icons.Ui
             _surface.Selected = selected;
             _surface.RenameChosen = renameChosen;
             _noteLabel.Text = note ?? "";
+            _surface.ScrollToChosen();
             _surface.Invalidate();
         }
 
@@ -199,6 +208,33 @@ namespace Icons.Ui
                     _theme = value ?? NavTheme.Light;
                     Invalidate();
                 }
+            }
+
+            /// <summary>
+            /// Brings the chosen row into view. A real site map is forty rows where the stand-in
+            /// is ten, and a preview whose whole point is the row you are choosing for is worth
+            /// nothing if that row is below the fold of a pane this size. A row already in view
+            /// is left where it is: scrolling under somebody who can see what they asked for is
+            /// its own kind of wrong.
+            /// </summary>
+            public void ScrollToChosen()
+            {
+                var rows = Rows;
+                if (rows == null || Selected < 0 || Selected >= rows.Count) return;
+                if (ClientSize.Height <= 0) return;
+
+                var painter = new NavPainter(_theme, PixelScale);
+                var top = painter.Top(rows, Selected);
+                var height = painter.RowHeight;
+
+                // The scrollbar only goes as far as this says there is to go, and it is
+                // otherwise worked out while painting - which has not happened yet.
+                AutoScrollMinSize = new Size(painter.Width + Round(120), painter.Height(rows) + Round(16));
+
+                var view = -AutoScrollPosition.Y;
+                if (top >= view && top + height <= view + ClientSize.Height) return;
+
+                AutoScrollPosition = new Point(0, Math.Max(0, top - (ClientSize.Height - height) / 2));
             }
 
             /// <summary>CSS pixels to this screen's pixels, so the drawing is the size the app is.</summary>
