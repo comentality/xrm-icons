@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Drawing;
 using System.Linq;
 using System.Text;
+using Icons.Catalog;
 using Icons.Logic;
 using Microsoft.Xrm.Sdk;
 using NUnit.Framework;
@@ -225,6 +226,49 @@ namespace Icons.Tests
 
             Assert.That(progress.First(), Does.Contain("Putting back"));
             Assert.That(progress.Last(), Is.EqualTo("Publishing"));
+        }
+
+        [Test]
+        public void The_attribution_page_goes_back_with_the_drawing_it_described()
+        {
+            // The page an apply wrote over is a web resource it wrote over like any other, so it
+            // comes back the same way. That is the right answer rather than a lucky one: the
+            // page described the folder as it stood, and undo is putting the folder back.
+            _service.Tables["contact"] = FakeOrganizationService.Table("contact");
+
+            var first = new IconApplyRequest
+            {
+                TableLogicalName = "account",
+                Svg = SvgOutput.Build(Svg, IconColourMode.Theme, Color.Black, null,
+                    IconProvenance.For(new IconEntry(IconFamily.Fluent, "building", "regular", IconStyle.Regular))),
+                WebResourceName = "new_/icons/account.svg",
+                RasterColour = Color.Black
+            };
+            IconApplier.Apply(_service, first);
+
+            var second = new IconApplyRequest
+            {
+                TableLogicalName = "contact",
+                Svg = SvgOutput.Build(Svg, IconColourMode.Theme, Color.Black, null,
+                    IconProvenance.For(new IconEntry(IconFamily.Lucide, "user", "regular", IconStyle.Regular))),
+                WebResourceName = "new_/icons/contact.svg",
+                RasterColour = Color.Black
+            };
+            var result = IconApplier.Apply(_service, second);
+            Assert.That(Page(), Does.Contain("new_/icons/contact.svg"), "the second apply should have credited it");
+
+            IconApplier.Revert(_service, Undoing(second, result));
+
+            Assert.That(Page(), Does.Contain("new_/icons/account.svg"));
+            Assert.That(Page(), Does.Not.Contain("new_/icons/contact.svg"),
+                "and the page should be back to describing the folder as the first apply left it");
+        }
+
+        private string Page()
+        {
+            var page = _service.WebResource("new_/icons/ATTRIBUTION.html");
+            return new UTF8Encoding(false).GetString(
+                Convert.FromBase64String(page.GetAttributeValue<string>("content")));
         }
     }
 }
