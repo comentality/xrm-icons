@@ -3,6 +3,24 @@
 Every released version, newest first. The bolded sentence of each entry is the one that goes on
 the package page, so it has to stand on its own.
 
+## Unreleased
+
+- **The icon is drawn into an app's navigation inside the tool's window, where two colour swatches were.** It used to be a window you had to ask for, and the pane it now fills was spending its height on the same drawing twice, big on white and big on black. Those answered "does this survive both themes", which the navigation answers too — through its own *Dark* box, in the app's own colours rather than a swatch's — and they could not answer the question actually being asked, which is not what the drawing looks like but whether the row reads beside the rows it will be beside. Choosing an app still reads that app's own site map; the app list is now read at the end of the load rather than when a window opened, and an app list that will not come back costs the preview and nothing else.
+
+  ![The icon in an app's navigation, in the tool's own window](https://raw.githubusercontent.com/comentality/xrm-icons/main/docs/images/release/in-context-embedded.png)
+
+- **Tables nobody can customise are left out of the list, and picking one says why under the table box.** They gather in *Only tables with no icon yet*, because a table that will never take an icon has never been given one, and a list that only offers what can be done with it is worth more than a complete one. Untick the box to see them. The line explaining the dead end moves out of the red trouble line at the foot of the pane, which is for round trips that failed: nothing was attempted here.
+
+  ![A locked table, and the line under the box](https://raw.githubusercontent.com/comentality/xrm-icons/main/docs/images/release/locked-table.png)
+
+- **The library opens on outline weight rather than both, so no drawing is in the grid twice.** Both weights put the same icon filled and unfilled adjacent in the ranking, and half the cells in the first look at the library were the alternative to the cell beside them. Outline is the weight a site map is drawn in, and the other two are one dropdown away.
+
+  ![Weight, on Outline](https://raw.githubusercontent.com/comentality/xrm-icons/main/docs/images/release/weight.png)
+
+- Two faults only a live preview made visible went with it. The chosen row is filled in as it is painted rather than when the navigation arrived, so picking a different icon changes what is drawn — before, the row kept whatever had been chosen when the window opened. And *Follow the app theme* no longer sends the light theme's #242424 into a dark navigation and calls the result a preview: no colour is passed at all, and the theme on show resolves `currentColor` itself.
+
+- The slow-connection harness gained the app read as a fourth thing that can be slow or fail, and a scenario saying it must cost the preview only. The window harness photographs the preview in place, on both themes, and checks that a locked table is hidden and then explained.
+
 ## v1.0.0 — 10 September 2026
 
 The first release.

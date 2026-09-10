@@ -41,6 +41,9 @@ resources, update table definitions and publish customisations.
   Term* is not a terminal and *Social Profile* is not a car in profile. A table it can say
   nothing about seeds nothing rather than a confident wrong answer. It only ever writes over its
   own last suggestion: a search you typed is yours.
+- **Only the tables you can actually do something with** — a table locked against customisation
+  cannot be given an icon by anybody, so it is left out of the list; untick the box to see them,
+  and choosing one says under the table box why it is a dead end.
 - **See which tables still need one** — the load reads each table's current icon along with
   everything else, so *Only tables with no icon yet* narrows the list to the ones nobody has got
   to, without another round trip. A table leaves that list the moment you give it an icon, so it
@@ -54,8 +57,11 @@ resources, update table definitions and publish customisations.
   name is a text box: type any path you like over it and that is what gets written. A path you
   type is then the one the next table gets too, with its own file name — emptying the box asks
   for the environment's convention back.
-- **See it before you commit** — the chosen icon is previewed on light and on dark, at a size
-  that shows what it is and at the size a site map really renders it.
+- **See it before you commit** — beside the library, the icon is drawn into an app's navigation,
+  at the size the app draws it, among the icons it will sit beside. Without a connection that is
+  a stand-in navigation and it says so; with one, choose any app in the environment and the
+  preview is read from that app's own site map. A *Dark* box puts it on a dark theme, which for
+  an icon that follows the theme is the other half of the question.
 - **Colour that survives a theme change** — by default the icon is written with
   `fill="currentColor"`, so the app colours it and it stays legible in dark mode. This is
   [what Microsoft asks for](https://learn.microsoft.com/en-us/power-apps/developer/model-driven-apps/image-web-resources)
@@ -98,7 +104,8 @@ resources, update table definitions and publish customisations.
 4. The table's own word is already in the search box, so the grid is showing what that table is
    about before you type anything. Type your own search over it when it is not — yours is never
    written over — and press Enter to move into the results, where the arrow keys walk them.
-5. Choose the theme colour or a fixed one.
+5. Choose the theme colour or a fixed one, and look at the navigation above the form: that is
+   the row your icon will be, beside the rows it will be beside.
 6. **Set as table icon**, and confirm. The status line says what was set on what; hover it for
    which web resources were created, which were updated, and what was published.
 7. Wrong icon on that one? **Ctrl+Z**, and confirm — the table goes back to what it had, and the
