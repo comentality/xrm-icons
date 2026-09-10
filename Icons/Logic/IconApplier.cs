@@ -4,6 +4,7 @@ using System.Drawing;
 using System.Drawing.Imaging;
 using System.IO;
 using System.Linq;
+using System.Text;
 using Microsoft.Crm.Sdk.Messages;
 using Microsoft.Xrm.Sdk;
 using Microsoft.Xrm.Sdk.Messages;
@@ -61,6 +62,16 @@ namespace Icons.Logic
         /// chosen here even when the vector icon is left theme-coloured.
         /// </summary>
         public Color RasterColour { get; set; }
+
+        /// <summary>
+        /// Whether this icon's licence asks for a credit line, rather than only that its notice
+        /// travel with the software. False for every family bundled today, so the attribution
+        /// page is a courtesy and a failure to write it does not stop the icon being applied.
+        /// True makes the page the price of the icon: if it cannot be written, nothing is,
+        /// because an attributed icon in a customer's environment with nothing crediting it is
+        /// the one outcome this must not produce.
+        /// </summary>
+        public bool AttributionRequired { get; set; }
     }
 
     /// <summary>
@@ -209,7 +220,14 @@ namespace Icons.Logic
                 }
             }
 
-            // 3. Point the table at them.
+            // 3. The page that says where these drawings came from, rebuilt from the folder as
+            // it now stands. Before the table update rather than after it, so that a licence
+            // which demands the credit can stop the apply while the icon is still a file
+            // nothing points at.
+            Stop(cancelled);
+            WriteAttributionPage(service, request, result, cancelled, progress);
+
+            // 4. Point the table at them.
             Stop(cancelled);
             progress("Reading the definition of " + request.TableLogicalName);
             var metadata = RetrieveTable(service, request.TableLogicalName);
@@ -253,7 +271,7 @@ namespace Icons.Logic
             service.Execute(update);
             result.Steps.Add("Set the icon on " + request.TableLogicalName);
 
-            // 4. Both components, one publish. Either alone leaves the app looking at the old
+            // 5. Both components, one publish. Either alone leaves the app looking at the old
             // icon or at an icon that is not there yet.
             Stop(cancelled);
             progress("Publishing");
@@ -387,6 +405,112 @@ namespace Icons.Logic
                 bitmap.Save(buffer, ImageFormat.Png);
                 return buffer.ToArray();
             }
+        }
+
+        /// <summary>
+        /// Rewrites the attribution page beside the icon just stored, from every icon in that
+        /// folder that says where it came from.
+        ///
+        /// Read back from the environment rather than assembled from what this session
+        /// remembers: the folder holds icons written by other people, other machines and older
+        /// versions of this tool, and a page that credited only the one icon in front of us
+        /// would be worse than none. An icon carrying no provenance is left out rather than
+        /// guessed at.
+        /// </summary>
+        private static void WriteAttributionPage(
+            IOrganizationService service,
+            IconApplyRequest request,
+            IconApplyResult result,
+            Func<bool> cancelled,
+            Action<string> progress)
+        {
+            var name = AttributionPage.NameFor(request.WebResourceName);
+
+            try
+            {
+                progress("Reading what is stored in " + AttributionPage.FolderOf(request.WebResourceName));
+                var stored = AttributionPage.Read(ReadIconSvgs(service, request.WebResourceName));
+
+                Stop(cancelled);
+                progress("Writing " + name);
+
+                var html = AttributionPage.Build(stored, DateTime.Now);
+                var id = UpsertWebResource(
+                    service, name, AttributionPage.WebResourceTypeHtml,
+                    SvgOutput.ToBase64(html), request.SolutionUniqueName, result);
+
+                result.WebResourceIds.Add(id);
+            }
+            catch (CancelledException)
+            {
+                throw;
+            }
+            catch (Exception ex)
+            {
+                if (request.AttributionRequired)
+                {
+                    throw new InvalidOperationException(
+                        "This icon's licence asks for a credit line, and the page carrying it (" + name +
+                        ") could not be written: " + ex.Message + " The icon has not been put on the table.", ex);
+                }
+
+                // A courtesy that failed is not a reason to leave the table without its icon.
+                result.Steps.Add("Could not update " + name + " (" + ex.Message + ")");
+            }
+        }
+
+        /// <summary>
+        /// Every SVG web resource in the same folder as the icon being stored, by name and
+        /// text.
+        ///
+        /// Unpublished, because the icon this apply just wrote is unpublished until the publish
+        /// two steps from here - and a page rebuilt from the published view would be a page
+        /// missing the very icon it was rebuilt for.
+        /// </summary>
+        private static IEnumerable<KeyValuePair<string, string>> ReadIconSvgs(
+            IOrganizationService service, string iconWebResourceName)
+        {
+            var folder = AttributionPage.FolderOf(iconWebResourceName);
+
+            var query = new QueryExpression("webresource")
+            {
+                ColumnSet = new ColumnSet("name", "content"),
+                Criteria =
+                {
+                    Conditions =
+                    {
+                        new ConditionExpression("webresourcetype", ConditionOperator.Equal, WebResourceTypeSvg),
+                        new ConditionExpression("name", ConditionOperator.BeginsWith, folder)
+                    }
+                }
+            };
+
+            var response = (RetrieveUnpublishedMultipleResponse)service.Execute(
+                new RetrieveUnpublishedMultipleRequest { Query = query });
+
+            var found = new List<KeyValuePair<string, string>>();
+            foreach (var record in response.EntityCollection.Entities)
+            {
+                var name = record.GetAttributeValue<string>("name");
+                var content = record.GetAttributeValue<string>("content");
+                if (string.IsNullOrEmpty(name) || string.IsNullOrEmpty(content)) continue;
+
+                string svg;
+                try
+                {
+                    svg = new UTF8Encoding(false).GetString(Convert.FromBase64String(content));
+                }
+                catch (FormatException)
+                {
+                    // Not base64 at all. Somebody else's web resource, and not this tool's
+                    // business to complain about.
+                    continue;
+                }
+
+                found.Add(new KeyValuePair<string, string>(name, svg));
+            }
+
+            return found;
         }
 
         /// <summary>

@@ -972,7 +972,8 @@ namespace Icons
 
             var confirm = MessageBox.Show(this,
                 "Set " + icon.DisplayName + " as the icon for " + table.DisplayName + "?\n\n" +
-                "This writes the web resource " + name + ", adding it to " + solution.FriendlyName +
+                "This writes the web resource " + name + " and the attribution page beside it, " +
+                AttributionPage.NameFor(name) + ", adding either to " + solution.FriendlyName +
                 " if it is new, and publishes the table." + replacing + handover + concern,
                 "Set table icon", MessageBoxButtons.OKCancel, MessageBoxIcon.Question);
             if (confirm != DialogResult.OK) return;
@@ -984,7 +985,7 @@ namespace Icons
             try
             {
                 var source = _catalog.ReadSvg(icon);
-                svg = SvgOutput.Build(source, mode, _colour);
+                svg = SvgOutput.Build(source, mode, _colour, null, IconProvenance.For(icon));
                 image = SvgImage.Parse(source);
             }
             catch (Exception ex)
@@ -1002,7 +1003,8 @@ namespace Icons
                 SolutionUniqueName = solution.UniqueName,
                 IncludeRasterIcons = _rasterBox.Checked,
                 Image = image,
-                RasterColour = _colour
+                RasterColour = _colour,
+                AttributionRequired = IconLicence.For(icon.Family).RequiresNotice
             };
 
             var generation = ++_generation;

@@ -70,8 +70,9 @@ namespace Icons.Tests
             var xml = XDocument.Parse(_service.LastPublishXml);
 
             Assert.That(xml.Descendants("entity").Single().Value, Is.EqualTo("account"));
-            Assert.That(xml.Descendants("webresource").Single().Value,
-                Is.EqualTo(result.WebResourceIds.Single().ToString("D")));
+            Assert.That(xml.Descendants("webresource").Select(e => e.Value),
+                Is.EquivalentTo(result.WebResourceIds.Select(id => id.ToString("D"))),
+                "the drawing and the attribution page beside it");
         }
 
         [Test]
@@ -92,7 +93,8 @@ namespace Icons.Tests
             IconApplier.Apply(_service, Request());
 
             Assert.That(_service.WebResourceCount, Is.EqualTo(afterFirst));
-            Assert.That(_service.Calls.Count(c => c == "Update"), Is.EqualTo(1));
+            Assert.That(_service.Calls.Count(c => c == "Update"), Is.EqualTo(2),
+                "the second run rewrites the drawing and the attribution page, and creates neither");
         }
 
         [Test]
@@ -105,7 +107,8 @@ namespace Icons.Tests
             IconApplier.Apply(_service, Request());
 
             Assert.That(_service.Calls, Does.Contain("RetrieveUnpublishedMultiple"));
-            Assert.That(_service.WebResourceCount, Is.EqualTo(1));
+            Assert.That(_service.WebResourceCount, Is.EqualTo(2),
+                "the one that was already there, rewritten, and the attribution page");
         }
 
         [Test]
@@ -187,7 +190,8 @@ namespace Icons.Tests
             Assert.That(_service.LastUpdatedTable.IconMediumName, Is.EqualTo("new_/icons/account_medium.png"));
             Assert.That(_service.LastUpdatedTable.IconLargeName, Is.EqualTo("new_/icons/account_large.png"));
 
-            Assert.That(result.WebResourceIds.Count, Is.EqualTo(4), "all four go in the one publish");
+            Assert.That(result.WebResourceIds.Count, Is.EqualTo(5),
+                "the drawing, its three PNGs and the attribution page all go in the one publish");
         }
 
         [Test]

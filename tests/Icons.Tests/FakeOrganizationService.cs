@@ -90,6 +90,36 @@ namespace Icons.Tests
             info.SetValue(target, value, null);
         }
 
+        /// <summary>
+        /// The three conditions the tool actually asks with: a name equal to one, a name
+        /// beginning with a folder, and a web resource type. Anything else is a question this
+        /// fake has never been asked, and it says so rather than answering wrongly.
+        /// </summary>
+        private static bool Matches(Entity record, ConditionExpression condition)
+        {
+            if (condition.AttributeName == "webresourcetype")
+            {
+                var type = record.GetAttributeValue<OptionSetValue>("webresourcetype");
+                return type != null && type.Value == Convert.ToInt32(condition.Values[0]);
+            }
+
+            if (condition.AttributeName != "name")
+                throw new NotSupportedException("This fake knows nothing about " + condition.AttributeName + ".");
+
+            var name = record.GetAttributeValue<string>("name") ?? "";
+            var wanted = condition.Values[0] as string ?? "";
+
+            switch (condition.Operator)
+            {
+                case ConditionOperator.Equal:
+                    return string.Equals(name, wanted, StringComparison.OrdinalIgnoreCase);
+                case ConditionOperator.BeginsWith:
+                    return name.StartsWith(wanted, StringComparison.OrdinalIgnoreCase);
+                default:
+                    throw new NotSupportedException("This fake cannot answer a " + condition.Operator + " on a name.");
+            }
+        }
+
         private void Record(string call)
         {
             Calls.Add(call);
@@ -117,11 +147,10 @@ namespace Icons.Tests
             var unpublished = request as RetrieveUnpublishedMultipleRequest;
             if (unpublished != null)
             {
-                var wanted = ((QueryExpression)unpublished.Query).Criteria.Conditions
-                    .First(c => c.AttributeName == "name").Values[0] as string;
+                var conditions = ((QueryExpression)unpublished.Query).Criteria.Conditions;
 
                 var matches = _webResources.Values
-                    .Where(e => string.Equals(e.GetAttributeValue<string>("name"), wanted, StringComparison.OrdinalIgnoreCase))
+                    .Where(e => conditions.All(c => Matches(e, c)))
                     .Select(e => e.Clone())
                     .ToList();
 

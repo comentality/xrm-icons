@@ -45,7 +45,14 @@ namespace Icons.Logic
         /// Declared width and height, or null to leave them alone. The viewBox is never touched:
         /// changing it would crop the drawing rather than resize it.
         /// </param>
-        public static string Build(string svg, IconColourMode mode, Color colour, int? sizePixels = null)
+        /// <param name="provenance">
+        /// Where the icon came from, to be written into the file as a comment, or null to write
+        /// none. What this method does to the drawing is added to its change list here, because
+        /// this is the only place that knows which attribute carried the colour.
+        /// </param>
+        public static string Build(
+            string svg, IconColourMode mode, Color colour, int? sizePixels = null,
+            IconProvenance provenance = null)
         {
             if (svg == null) throw new ArgumentNullException(nameof(svg));
             if (sizePixels.HasValue && sizePixels.Value <= 0)
@@ -80,7 +87,8 @@ namespace Icons.Logic
             // with fill="none" on the root so the shape between the lines stays empty. Setting
             // fill on one of those fills it in, which turns a drawing of a folder into a black
             // pentagon. The root says which kind it is, because that is where both sets put it.
-            if (root.Attribute("stroke") != null)
+            var stroked = root.Attribute("stroke") != null;
+            if (stroked)
                 root.SetAttributeValue("stroke", ink);
             else
                 root.SetAttributeValue("fill", ink);
@@ -90,6 +98,18 @@ namespace Icons.Logic
                 var size = sizePixels.Value.ToString(CultureInfo.InvariantCulture);
                 root.SetAttributeValue("width", size);
                 root.SetAttributeValue("height", size);
+            }
+
+            // Inside the root rather than above it, so that anything which takes the element on
+            // its own - a preview, a copy into another file - takes the credit with it. The
+            // caller's record is left alone: it describes the icon, not this particular write.
+            if (provenance != null)
+            {
+                var written = provenance.Copy();
+                written.Changes.Add(Provenance.ColourChange(stroked, ink));
+                if (sizePixels.HasValue) written.Changes.Add(Provenance.SizeChange(sizePixels.Value));
+
+                root.AddFirst(new XComment(Provenance.Comment(written)));
             }
 
             var settings = new XmlWriterSettings
