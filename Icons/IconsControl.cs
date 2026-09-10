@@ -153,13 +153,14 @@ namespace Icons
 
         private SplitContainer _body;
         private bool _splitterLaid;
+        private SplitContainer _targetSplit;
+        private bool _targetSplitLaid;
 
         private ToolStripButton _loadButton;
         private ToolStripButton _applyButton;
         private ToolStripButton _cancelButton;
         private ToolStripButton _undoButton;
         private ToolStripButton _redoButton;
-        private ToolStripButton _contextButton;
         private ToolStripButton _aboutButton;
         private ToolStripLabel _statusLabel;
 
@@ -204,7 +205,6 @@ namespace Icons
         private LinkLabel _rasterHelp;
         private CheckBox _hideLockedBox;
         private Label _lockedLabel;
-        private Panel _preview;
         private Label _iconLabel;
         private Label _warningLabel;
         private Label _troubleLabel;
@@ -261,11 +261,7 @@ namespace Icons
                 _solutionBox.SelectedItem is SolutionItem &&
                 WebResourceName.Validate(_nameBox.Text) == null;
 
-            // The preview needs an icon and nothing else: it works with no connection at all,
-            // on a stand-in navigation, which is most of what it is for before a table is picked.
-            _contextButton.Enabled = _selectedIcon != null && _catalog != null;
-
-            // An open window shows what is chosen now, not what was chosen when it opened.
+            // The preview is showing what is chosen now, not what was chosen a change ago.
             RefreshContextIcon();
 
             _nameConcern = NameConcern();
@@ -612,6 +608,12 @@ namespace Icons
                     // just learned is worth a better suggestion either way.
                     SuggestName();
                     SyncEnabled();
+
+                    // Last, and only on the way through: the preview pane is on screen from the
+                    // moment the tool opens, and this is what turns its stand-in into this
+                    // environment's own navigation. A load that got this far has a connection
+                    // that answers, so the query is worth making without being asked for.
+                    ReadApps();
                 }
             });
         }
@@ -903,7 +905,6 @@ namespace Icons
                 }
             }
 
-            _preview.Invalidate();
             SyncEnabled();
         }
 
@@ -1441,6 +1442,8 @@ namespace Icons
             _suggestedFor = null;
             // The search a table of the old org seeded is not this org's table's search either.
             _seededFor = null;
+            // The preview is showing the last org's apps, and its icons around ours.
+            ResetContext();
             _tableBox.Items.Clear();
             _solutionBox.Items.Clear();
             _trouble = null;

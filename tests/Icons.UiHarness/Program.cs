@@ -7,6 +7,7 @@ using System.IO;
 using System.Linq;
 using System.Reflection;
 using System.Windows.Forms;
+using Icons.Ui;
 
 namespace Icons.UiHarness
 {
@@ -149,7 +150,7 @@ namespace Icons.UiHarness
                         Console.WriteLine("OK: apply stays dead until there is a table to apply to");
                     }
 
-                    failures += CheckContextPreviewOpens(control, outputDir);
+                    failures += CheckContextPreviewIsInTheWindow(control, form, outputDir);
                     failures += CheckNameSurvivesRebuild(control, form, outputDir);
                     failures += CheckUnsetOnlyFilter(control, form, outputDir);
                     failures += CheckLockedTablesAreHiddenAndExplained(control, form, outputDir);
@@ -249,53 +250,30 @@ namespace Icons.UiHarness
         /// list. Reflection, because the product needs no seam for this and should not grow one.
         /// </summary>
         /// <summary>
-        /// Opens the in-context preview and photographs it.
-        ///
-        /// It is a window of its own, so nothing else in this harness would ever draw it, and a
-        /// form that throws on its first paint throws in front of a user. There is no connection
-        /// here, so what it must show is the stand-in navigation - and it must say that it is
-        /// one, because a preview of an invented navigation and a preview of the environment's
-        /// own are worth very different amounts.
+        /// The in-context preview, which is part of the window rather than a window of its own.
+        /// It is on screen from the moment the tool opens, so nothing has to be clicked to see
+        /// it - and with no connection what it must show is the stand-in navigation, and it
+        /// must say that it is one, because a preview of an invented navigation and a preview
+        /// of the environment's own are worth very different amounts.
         /// </summary>
-        private static int CheckContextPreviewOpens(Control control, string outputDir)
+        private static int CheckContextPreviewIsInTheWindow(Control control, Form form, string outputDir)
         {
             var failures = 0;
 
-            var button = Descendants(control)
-                .OfType<ToolStrip>()
-                .SelectMany(t => t.Items.OfType<ToolStripButton>())
-                .FirstOrDefault(b => b.Text.StartsWith("See it in context"));
-
-            if (button == null)
+            var preview = Descendants(control).OfType<ContextPreview>().FirstOrDefault();
+            if (preview == null)
             {
-                Console.WriteLine("FAIL: no in-context preview button found");
+                Console.WriteLine("FAIL: the in-context preview is not in the window");
                 return 1;
             }
 
-            if (!button.Enabled)
+            if (!preview.Visible || preview.Width <= 0 || preview.Height <= 0)
             {
-                Console.WriteLine("FAIL: the preview button is dead with an icon chosen");
-                return 1;
+                Console.WriteLine("FAIL: the preview is in the window but has no room to draw in");
+                failures++;
             }
 
-            button.PerformClick();
-            Pump();
-
-            var window = Application.OpenForms.OfType<Form>()
-                .FirstOrDefault(f => f.Text == "The icon in context");
-
-            if (window == null)
-            {
-                Console.WriteLine("FAIL: clicking the preview button opened no window");
-                return 1;
-            }
-
-            Pump();
-            Shoot(window, outputDir, "06-in-context");
-
-            var note = Descendants(window)
-                .OfType<ToolStrip>()
-                .SelectMany(t => t.Items.OfType<ToolStripLabel>())
+            var note = Descendants(preview).OfType<Label>()
                 .Where(l => l.Name == "note")
                 .Select(l => l.Text)
                 .FirstOrDefault();
@@ -311,8 +289,24 @@ namespace Icons.UiHarness
                 Console.WriteLine("OK: with no connection the preview shows a stand-in and says so");
             }
 
-            window.Close();
+            // The dark box is the only place the icon is now seen on a dark ground, so it has
+            // to be there and it has to redraw rather than throw.
+            var dark = Descendants(preview).OfType<CheckBox>().FirstOrDefault(c => c.Text == "Dark");
+            if (dark == null)
+            {
+                Console.WriteLine("FAIL: the preview offers no way to see the icon on a dark theme");
+                return failures + 1;
+            }
+
+            dark.Checked = true;
             Pump();
+            Shoot(form, outputDir, "06-in-context-dark");
+
+            dark.Checked = false;
+            Pump();
+            Shoot(form, outputDir, "06-in-context");
+
+            Console.WriteLine("OK: the preview draws on both themes");
 
             return failures;
         }

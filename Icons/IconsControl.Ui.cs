@@ -1,8 +1,8 @@
 using System;
 using System.Drawing;
-using System.Drawing.Drawing2D;
 using System.Windows.Forms;
 using Icons.Catalog;
+using Icons.Ui;
 using Label = System.Windows.Forms.Label;
 
 namespace Icons
@@ -57,6 +57,10 @@ namespace Icons
             // The library is inside this assembly, so it opens without a connection and the
             // window has something in it from the first moment.
             LoadCatalog();
+
+            // And so does the preview: a navigation nobody's environment ever had, saying so.
+            ShowStandIn("A stand-in navigation. Only your icon is real.");
+
             SyncEnabled();
         }
 
@@ -66,16 +70,32 @@ namespace Icons
         /// </summary>
         private void LaySplitter()
         {
-            if (_splitterLaid || _body == null) return;
+            if (_body == null || _targetSplit == null) return;
 
+            // The navigation is 200 CSS pixels wide before the page beside it, and this pane is
+            // where it lives now, so the target side is wider than it was when it held a form.
             const int libraryMinimum = 320;
-            const int targetMinimum = 300;
-            if (_body.Width < libraryMinimum + targetMinimum + _body.SplitterWidth) return;
+            const int targetMinimum = 340;
 
-            _body.Panel1MinSize = libraryMinimum;
-            _body.Panel2MinSize = targetMinimum;
-            _body.SplitterDistance = Math.Max(libraryMinimum, _body.Width - 380);
-            _splitterLaid = true;
+            if (!_splitterLaid && _body.Width >= libraryMinimum + targetMinimum + _body.SplitterWidth)
+            {
+                _body.Panel1MinSize = libraryMinimum;
+                _body.Panel2MinSize = targetMinimum;
+                _body.SplitterDistance = Math.Max(libraryMinimum, _body.Width - 430);
+                _splitterLaid = true;
+            }
+
+            // The form's own height, so it opens whole and the preview takes what is over.
+            const int formHeight = 350;
+            const int previewMinimum = 120;
+
+            if (!_targetSplitLaid && _targetSplit.Height >= formHeight + previewMinimum + _targetSplit.SplitterWidth)
+            {
+                _targetSplit.Panel1MinSize = previewMinimum;
+                _targetSplit.Panel2MinSize = 200;
+                _targetSplit.SplitterDistance = _targetSplit.Height - formHeight;
+                _targetSplitLaid = true;
+            }
         }
 
         private ToolStrip BuildToolbar()
@@ -101,13 +121,6 @@ namespace Icons
 
             _redoButton = new ToolStripButton("Redo") { DisplayStyle = ToolStripItemDisplayStyle.Text };
             _redoButton.Click += (s, e) => Redo();
-
-            _contextButton = new ToolStripButton("See it in context")
-            {
-                DisplayStyle = ToolStripItemDisplayStyle.Text,
-                ToolTipText = "Show the icon in an app's navigation, at the size the app draws it"
-            };
-            _contextButton.Click += (s, e) => ShowContext();
 
             _cancelButton = new ToolStripButton("Cancel")
             {
@@ -140,8 +153,6 @@ namespace Icons
                 new ToolStripSeparator(),
                 _undoButton,
                 _redoButton,
-                new ToolStripSeparator(),
-                _contextButton,
                 new ToolStripSeparator(),
                 _statusLabel,
                 _aboutButton
@@ -245,8 +256,13 @@ namespace Icons
 
         private Control BuildTargetPane()
         {
-            _preview = new Panel { Dock = DockStyle.Top, Height = 140, BackColor = SystemColors.Window };
-            _preview.Paint += Preview_Paint;
+            // The icon where it will be seen, in the place two big swatches of it used to be.
+            // Light and dark side by side answered "does this drawing survive both themes";
+            // this answers that too, through its own Dark box, and also the question the
+            // swatches could not - whether the row reads beside the rows it will be beside, at
+            // the size the app really draws it.
+            _context = new ContextPreview { Dock = DockStyle.Fill };
+            _context.AppChosen += Context_AppChosen;
 
             _iconLabel = new Label
             {
@@ -387,12 +403,26 @@ namespace Icons
             AddRow(form, 10, "", _rasterBox);
             AddRow(form, 11, "", _rasterHelp);
 
+            var below = new Panel { Dock = DockStyle.Fill };
+            below.Controls.Add(form);
+            below.Controls.Add(_troubleLabel);
+            below.Controls.Add(_warningLabel);
+            below.Controls.Add(_iconLabel);
+
+            // The preview above, the form below, and a splitter between them, because how much
+            // navigation is worth looking at is not the same question every time: a long site
+            // map wants the height, and a table that is halfway through being named does not.
+            _targetSplit = new SplitContainer
+            {
+                Dock = DockStyle.Fill,
+                Orientation = Orientation.Horizontal,
+                SplitterWidth = 6
+            };
+            _targetSplit.Panel1.Controls.Add(_context);
+            _targetSplit.Panel2.Controls.Add(below);
+
             var pane = new Panel { Dock = DockStyle.Fill };
-            pane.Controls.Add(form);
-            pane.Controls.Add(_troubleLabel);
-            pane.Controls.Add(_warningLabel);
-            pane.Controls.Add(_iconLabel);
-            pane.Controls.Add(_preview);
+            pane.Controls.Add(_targetSplit);
             return pane;
         }
 
@@ -610,7 +640,6 @@ namespace Icons
             // Thumbnails are drawn in the chosen colour, so they all have to go.
             ClearThumbnails();
             _grid.Invalidate();
-            _preview.Invalidate();
             SyncEnabled();
         }
 
@@ -624,54 +653,8 @@ namespace Icons
                 _colourButton.BackColor = _colour;
                 ClearThumbnails();
                 _grid.Invalidate();
-                _preview.Invalidate();
+                RefreshContextIcon();
             }
-        }
-
-        private void Preview_Paint(object sender, PaintEventArgs e)
-        {
-            e.Graphics.Clear(SystemColors.Window);
-
-            if (_selectedIcon == null || _catalog == null)
-            {
-                TextRenderer.DrawText(e.Graphics, "Pick an icon from the library",
-                    Font, _preview.ClientRectangle, SystemColors.GrayText,
-                    TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter);
-                return;
-            }
-
-            // Light and dark side by side, because the default is an icon that takes its colour
-            // from the theme and the whole question is whether it survives both.
-            var half = _preview.ClientRectangle.Width / 2;
-            var light = new Rectangle(0, 0, half, _preview.ClientRectangle.Height);
-            var dark = new Rectangle(half, 0, _preview.ClientRectangle.Width - half, _preview.ClientRectangle.Height);
-
-            using (var brush = new SolidBrush(Color.FromArgb(0x1B, 0x1A, 0x19)))
-                e.Graphics.FillRectangle(brush, dark);
-
-            var onLight = _fixedColour.Checked ? _colour : Color.FromArgb(0x24, 0x24, 0x24);
-            var onDark = _fixedColour.Checked ? _colour : Color.FromArgb(0xF3, 0xF2, 0xF1);
-
-            e.Graphics.SmoothingMode = SmoothingMode.AntiAlias;
-            DrawPreview(e.Graphics, light, onLight);
-            DrawPreview(e.Graphics, dark, onDark);
-        }
-
-        private void DrawPreview(Graphics graphics, Rectangle area, Color colour)
-        {
-            const int big = 72;
-            const int small = 20;
-
-            var thumbnail = Thumbnail(_selectedIcon, big, colour);
-            graphics.DrawImage(thumbnail,
-                area.X + (area.Width - big) / 2,
-                area.Y + 18,
-                big, big);
-
-            // The size it will actually be seen at in a site map, next to the size that shows
-            // what it is.
-            var tiny = Thumbnail(_selectedIcon, small, colour);
-            graphics.DrawImage(tiny, area.X + (area.Width - small) / 2, area.Y + 104, small, small);
         }
     }
 }

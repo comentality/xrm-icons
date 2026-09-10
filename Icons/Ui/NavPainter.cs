@@ -18,7 +18,11 @@ namespace Icons.Ui
             IsGroup = group;
         }
 
-        public string Label { get; }
+        /// <summary>
+        /// Settable for one row only: the one the chosen icon stands in, whose caption is the
+        /// table's name when the navigation around it is a stand-in.
+        /// </summary>
+        public string Label { get; set; }
 
         /// <summary>What draws it, or null when nothing can and the row shows an empty slot.</summary>
         public SvgImage Icon { get; set; }

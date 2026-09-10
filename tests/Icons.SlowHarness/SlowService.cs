@@ -276,8 +276,19 @@ namespace Icons.SlowHarness
         public EntityCollection RetrieveMultiple(QueryBase query)
         {
             var q = query as QueryExpression;
-            if (q == null || q.EntityName != "solution")
-                throw new NotSupportedException("The tool only queries solutions this way.");
+            if (q == null) throw new NotSupportedException("The tool only queries with a QueryExpression.");
+
+            // This org has no model-driven app, and says so by answering rather than by
+            // refusing: the preview asks after every load, and a fake that threw here would
+            // put "could not read this environment's apps" on a window nothing is wrong with.
+            if (q.EntityName == "appmodule")
+                return Answer(Begin("apps"), () => new EntityCollection());
+
+            if (q.EntityName == "appmodulecomponent")
+                return Answer(Begin("app-components"), () => new EntityCollection());
+
+            if (q.EntityName != "solution")
+                throw new NotSupportedException("The tool does not query " + q.EntityName + " this way.");
 
             return Answer(Begin("solutions"), () =>
             {

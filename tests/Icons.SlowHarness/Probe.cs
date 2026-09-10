@@ -2,6 +2,7 @@ using System;
 using System.Linq;
 using System.Reflection;
 using System.Windows.Forms;
+using Icons.Ui;
 
 namespace Icons.SlowHarness
 {
@@ -71,11 +72,25 @@ namespace Icons.SlowHarness
         public ComboBox Tables { get { return Field<ComboBox>("_tableBox"); } }
         public TextBox TableFilter { get { return Field<TextBox>("_tableFilterBox"); } }
         public CheckBox UnsetOnly { get { return Field<CheckBox>("_unsetOnlyBox"); } }
+        public CheckBox HideLocked { get { return Field<CheckBox>("_hideLockedBox"); } }
         public CheckBox Raster { get { return Field<CheckBox>("_rasterBox"); } }
         public ComboBox Solutions { get { return Field<ComboBox>("_solutionBox"); } }
         public TextBox Name { get { return Field<TextBox>("_nameBox"); } }
         public TextBox Search { get { return Field<TextBox>("_searchBox"); } }
         public ListView Grid { get { return Field<ListView>("_grid"); } }
+
+        /// <summary>What the in-context preview is saying about the navigation it is drawing.</summary>
+        public string ContextNote
+        {
+            get
+            {
+                var preview = Field<ContextPreview>("_context");
+                if (preview == null) return "";
+
+                var note = preview.Controls.Cast<Control>().FirstOrDefault(c => c.Name == "note");
+                return note == null ? "" : note.Text;
+            }
+        }
 
         /// <summary>
         /// What the tool thinks is outstanding. Read directly rather than inferred from the

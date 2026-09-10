@@ -38,6 +38,7 @@ namespace Icons.SlowHarness
                 CloseDuringLoad(),
                 LoadTwice(),
                 LoadFails(),
+                AppsFailLast(),
                 SolutionsFailOnReload(),
                 SwitchMidLoad(),
                 StaleAnswerDiscarded(),
@@ -270,8 +271,11 @@ namespace Icons.SlowHarness
                     r.Check(r.Service.Log("tables").Count == 1,
                         "three presses, one query, and there were " + r.Service.Log("tables").Count);
                     r.Check(r.Probe.Load.Enabled, "and Load should be live again afterwards");
-                    r.Check(r.Probe.Tables.Items.Count == 3,
-                        "the tables should all be in the list, and there are " + r.Probe.Tables.Items.Count);
+                    // Two of the three: the frozen one is locked against customisation and is
+                    // hidden until somebody asks for it.
+                    r.Check(r.Probe.Tables.Items.Count == 2,
+                        "the tables that can take an icon should be in the list, and there are "
+                        + r.Probe.Tables.Items.Count);
                 });
         }
 
@@ -310,8 +314,52 @@ namespace Icons.SlowHarness
                 .At(2700, "press Load again", r => r.Probe.PressLoad())
                 .At(4200, "and this time it lands", r =>
                 {
-                    r.Check(r.Probe.Tables.Items.Count == 3, "the second load should fill the list");
+                    r.Check(r.Probe.Tables.Items.Count == 2, "the second load should fill the list");
                     r.Check(r.Probe.Trouble == null, "with the failure gone from the window");
+                });
+        }
+
+        /// <summary>
+        /// The app list is the last link of the load chain, read for the preview that is on
+        /// screen from the moment the tool opens. It is the least of the three: an environment
+        /// whose apps will not come back is still one whose tables and solutions did, and the
+        /// window has to stay every bit as usable - with the preview saying what it fell back
+        /// to rather than showing an invented navigation as though it were the org's.
+        /// </summary>
+        private static Scenario AppsFailLast()
+        {
+            return new Scenario
+            {
+                Name = "apps-fail-last",
+                Why = "an app list that will not come back must cost the preview only",
+                Wire = s =>
+                {
+                    s.Latency = Slow("apps", 800);
+                    s.Fails = call => call.Label == "apps"
+                        ? new TimeoutException("The request channel timed out while waiting for a reply.")
+                        : null;
+                }
+            }
+                .At(200, "press Load", r => r.Probe.PressLoad())
+                .At(2500, "the tables and solutions are in, the apps are not", r =>
+                {
+                    r.Check(r.Probe.Tables.Items.Count > 0,
+                        "the tables landed before the apps were asked for, and the list holds "
+                        + r.Probe.Tables.Items.Count);
+                    r.Check(r.Probe.Solutions.Items.Count > 0,
+                        "and so did the solutions, and the box holds " + r.Probe.Solutions.Items.Count);
+                    r.Check(r.Probe.Load.Enabled, "Load must be live again");
+                    r.Check(r.Probe.Trouble == null,
+                        "and nothing is wrong with this window, though it says \"" + r.Probe.Trouble + "\"");
+                    r.Check(r.Probe.ContextNote.IndexOf("stand-in", StringComparison.OrdinalIgnoreCase) >= 0,
+                        "the preview must own up to what it is drawing, and says \"" + r.Probe.ContextNote + "\"");
+
+                    // Last of the three, so the two that matter are on screen while this one is
+                    // still out rather than behind it.
+                    var order = r.Service.Log().Select(c => c.Label).ToList();
+                    r.Check(order.IndexOf("apps") > order.IndexOf("solutions"),
+                        "the apps must be asked for after the solutions, and the org saw: "
+                        + string.Join(", ", order));
                 });
         }
 
@@ -754,6 +802,20 @@ namespace Icons.SlowHarness
                         + string.Join(", ", r.Probe.TableNames()));
 
                     r.Probe.UnsetOnly.Checked = true;
+
+                    // The locked table has no icon and never will, so it is in the unset-only
+                    // list honestly - and hidden, because nothing can be done with it there.
+                    // Unticking brings it back, and the rest of this scenario is about what the
+                    // advance does when it meets one.
+                    r.Check(!r.Probe.TableNames().Any(n => n.Contains("(contoso_frozen)")),
+                        "a table nobody can customise should be hidden by default, and the list holds: "
+                        + string.Join(", ", r.Probe.TableNames()));
+
+                    r.Probe.HideLocked.Checked = false;
+
+                    r.Check(r.Probe.TableNames().Any(n => n.Contains("(contoso_frozen)")),
+                        "unticking should give it back, and the list holds: "
+                        + string.Join(", ", r.Probe.TableNames()));
 
                     r.Check(!r.Probe.TableNames().Any(n => n.Contains("(contoso_settled)")),
                         "a table that already has an icon has no business in the unset list, which holds: "

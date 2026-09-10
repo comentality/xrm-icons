@@ -11,13 +11,12 @@ using XrmToolBox.Extensibility;
 namespace Icons
 {
     /// <summary>
-    /// The icon in an app's navigation: the window, and everything the window cannot fetch for
-    /// itself.
+    /// The icon in an app's navigation: everything the preview pane cannot fetch for itself.
     ///
-    /// The reading lives here rather than in the window because this is where the tool already
+    /// The reading lives here rather than in the pane because this is where the tool already
     /// guards a slow connection - a generation that moves on when the connection changes, a
-    /// disposed check on every callback, and a busy flag that keeps a second click from starting
-    /// a second read. A form that fetched its own data would have to repeat all of it.
+    /// disposed check on every callback, and a busy flag that keeps a second choice from
+    /// starting a second read. A control that fetched its own data would repeat all of it.
     /// </summary>
     public partial class IconsControl
     {
@@ -30,45 +29,54 @@ namespace Icons
         /// </summary>
         private IReadOnlyList<AppNavigation> _apps;
 
-        private void ShowContext()
+        /// <summary>
+        /// The navigation before the environment has said anything: something to look at from
+        /// the first moment the window opens, and a note saying what it is. An invented
+        /// navigation and the environment's own are worth very different amounts, and the
+        /// preview must never let them be mistaken for each other.
+        /// </summary>
+        private void ShowStandIn(string note)
         {
-            if (_selectedIcon == null || _catalog == null) return;
+            if (_context == null) return;
 
-            if (_context != null && !_context.IsDisposed)
-            {
-                RefreshContextIcon();
-                _context.Activate();
-                return;
-            }
-
-            _context = new ContextPreview();
-            _context.AppChosen += Context_AppChosen;
-            _context.FormClosed += (s, e) => _context = null;
-
-            RefreshContextIcon();
-
-            // Something to look at before anything is asked of the connection, and a note that
-            // says what it is. An invented navigation and the environment's own are worth very
-            // different amounts, and the window must never let them be mistaken for each other.
             var stand = StandInNavigation();
-            _context.ShowNavigation(stand.Key, stand.Value,
-                "A stand-in navigation. Only your icon is real.");
-
-            _context.Show(this);
-
-            if (Service != null) ReadApps();
+            _context.ShowNavigation(stand.Key, stand.Value, note, true);
         }
 
-        /// <summary>Pushes the current icon and colour into an open window.</summary>
+        /// <summary>
+        /// Pushes what is chosen now into the preview: the drawing, the name of the table it is
+        /// for, and the colour - or no colour at all, which is how "follow the app theme" is
+        /// said. The preview is showing one theme or the other and knows what currentColor
+        /// resolves to in it; this window does not.
+        ///
+        /// Called from SyncEnabled, so it runs after every change and the preview is never
+        /// showing the icon before the last one.
+        /// </summary>
         private void RefreshContextIcon()
         {
             if (_context == null || _context.IsDisposed) return;
-            if (_selectedIcon == null || _catalog == null) return;
 
             var table = _tableBox.SelectedItem as TableItem;
-            var colour = _fixedColour.Checked ? _colour : Color.FromArgb(0x24, 0x24, 0x24);
+            var drawing = _selectedIcon == null || _catalog == null ? null : Drawable(_selectedIcon);
 
-            _context.ShowChosen(Drawable(_selectedIcon), table?.DisplayName ?? _selectedIcon.DisplayName, colour);
+            _context.ShowChosen(drawing,
+                table?.DisplayName ?? _selectedIcon?.DisplayName,
+                _fixedColour.Checked ? _colour : (Color?)null);
+        }
+
+        /// <summary>
+        /// What the preview was told about the last org, thrown away. The apps are that org's,
+        /// and so is every icon in the navigation drawn beside ours.
+        /// </summary>
+        private void ResetContext()
+        {
+            _apps = null;
+            _readingNavigation = false;
+
+            if (_context == null || _context.IsDisposed) return;
+
+            _context.ShowApps(new List<AppNavigation>());
+            ShowStandIn("A stand-in navigation. Only your icon is real.");
         }
 
         /// <summary>The chosen library icon as something drawable, or null if it will not read.</summary>
@@ -126,9 +134,16 @@ namespace Icons
 
         // ===== reading from the environment =====
 
+        /// <summary>
+        /// The last link of the load chain. The preview is always on screen now, so the app
+        /// list is read for it rather than waiting for a window to be opened - one query, at
+        /// the end of a load that has already made two, and the only thing that turns the
+        /// stand-in into this environment's own navigation.
+        /// </summary>
         private void ReadApps()
         {
             if (_readingNavigation || Service == null) return;
+            if (_context == null || _context.IsDisposed) return;
 
             var generation = _generation;
             _readingNavigation = true;
@@ -142,26 +157,24 @@ namespace Icons
                 {
                     _readingNavigation = false;
 
-                    // Both can have gone while this was on the wire: the tab can be closed, and
-                    // the preview window is the user's to close whenever they like.
+                    // The tab can be closed while this was on the wire, taking the preview with
+                    // it; the callback still runs.
                     if (IsDisposed || generation != _generation) return;
                     if (_context == null || _context.IsDisposed) return;
 
                     if (args.Error != null)
                     {
                         _context.ShowBusy("");
-                        _context.ShowNavigation(StandInNavigation().Key, 4,
-                            "Could not read this environment's apps. Showing a stand-in.");
+                        ShowStandIn("Could not read this environment's apps. Showing a stand-in.");
                         return;
                     }
 
                     _apps = (IReadOnlyList<AppNavigation>)args.Result;
                     _context.ShowBusy("");
                     _context.ShowApps(_apps);
-                    _context.ShowNavigation(StandInNavigation().Key, 4,
-                        _apps.Count == 0
-                            ? "This environment has no app with a navigation. Showing a stand-in."
-                            : "A stand-in navigation. Choose an app to see the real one.");
+                    ShowStandIn(_apps.Count == 0
+                        ? "This environment has no app with a navigation. Showing a stand-in."
+                        : "A stand-in navigation. Choose an app to see the real one.");
                 }
             });
         }
@@ -204,8 +217,7 @@ namespace Icons
 
                     if (args.Error != null)
                     {
-                        _context.ShowNavigation(StandInNavigation().Key, 4,
-                            "Could not read " + app.Name + ". Showing a stand-in.");
+                        ShowStandIn("Could not read " + app.Name + ". Showing a stand-in.");
                         return;
                     }
 
@@ -226,6 +238,7 @@ namespace Icons
         {
             var rows = new List<NavRow>();
             var mine = -1;
+            var itsOwnRow = false;
 
             foreach (var entry in entries)
             {
@@ -239,6 +252,7 @@ namespace Icons
                     && string.Equals(entry.TableLogicalName, chosenTable, StringComparison.OrdinalIgnoreCase))
                 {
                     mine = rows.Count;
+                    itsOwnRow = true;
                     rows.Add(new NavRow(entry.Label, Drawable(_selectedIcon)));
                     continue;
                 }
@@ -267,7 +281,10 @@ namespace Icons
                 }
             }
 
-            _context.ShowNavigation(rows, mine, note);
+            // The chosen row's caption is this window's to write only when it is standing in a
+            // row that is not the table's own. Where the app names the table itself, that label
+            // is what will be read beside the icon.
+            _context.ShowNavigation(rows, mine, note, mine >= 0 && !itsOwnRow);
         }
 
         /// <summary>One of the environment's own icons, or null when it will not read.</summary>
