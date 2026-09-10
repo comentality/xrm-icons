@@ -94,6 +94,14 @@ namespace Icons
             };
             _applyButton.Click += (s, e) => Apply();
 
+            // Tooltips rather than captions, because what they would take back is a table and
+            // an icon by name and that changes with every write. SyncUndo keeps them true.
+            _undoButton = new ToolStripButton("Undo") { DisplayStyle = ToolStripItemDisplayStyle.Text };
+            _undoButton.Click += (s, e) => Undo();
+
+            _redoButton = new ToolStripButton("Redo") { DisplayStyle = ToolStripItemDisplayStyle.Text };
+            _redoButton.Click += (s, e) => Redo();
+
             _contextButton = new ToolStripButton("See it in context")
             {
                 DisplayStyle = ToolStripItemDisplayStyle.Text,
@@ -129,6 +137,9 @@ namespace Icons
                 new ToolStripSeparator(),
                 _applyButton,
                 _cancelButton,
+                new ToolStripSeparator(),
+                _undoButton,
+                _redoButton,
                 new ToolStripSeparator(),
                 _contextButton,
                 new ToolStripSeparator(),
@@ -369,6 +380,45 @@ namespace Icons
         }
 
         // ===== events =====
+
+        /// <summary>
+        /// Ctrl+Z and Ctrl+Y, wherever the focus is in this window - except inside a text box,
+        /// where Ctrl+Z already means the thing it has always meant. Taking it over there would
+        /// charge somebody a publish for wanting the web resource name they were halfway through
+        /// typing back.
+        /// </summary>
+        protected override bool ProcessCmdKey(ref Message message, Keys keyData)
+        {
+            // Only while there is something to take back. The key does what the button does,
+            // including being nobody's when the button is dead: a window that has written
+            // nothing has no business swallowing a keystroke meant for whatever is behind it.
+            if (!(FocusedControl() is TextBoxBase))
+            {
+                if (keyData == (Keys.Control | Keys.Z) && _undoButton.Enabled) { Undo(); return true; }
+                if (keyData == (Keys.Control | Keys.Y) && _redoButton.Enabled) { Redo(); return true; }
+            }
+
+            return base.ProcessCmdKey(ref message, keyData);
+        }
+
+        /// <summary>
+        /// The control the keystroke was meant for. ActiveControl names the child of a container
+        /// that holds the focus, and for anything nested that child is another container - so it
+        /// is followed down rather than asked once.
+        /// </summary>
+        private Control FocusedControl()
+        {
+            Control control = this;
+
+            while (control is ContainerControl)
+            {
+                var inside = ((ContainerControl)control).ActiveControl;
+                if (inside == null) break;
+                control = inside;
+            }
+
+            return control;
+        }
 
         private void Grid_RetrieveVirtualItem(object sender, RetrieveVirtualItemEventArgs e)
         {

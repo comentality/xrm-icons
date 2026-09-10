@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Windows.Forms;
 
 namespace Icons.SlowHarness
 {
@@ -44,6 +45,9 @@ namespace Icons.SlowHarness
                 CancelApply(),
                 ApplyFails(),
                 SwitchMidApply(),
+                UndoPutsItBack(),
+                UndoGuarded(),
+                UndoForgottenOnSwitch(),
                 UnsetOnlyFilter(),
                 TableSeedsTheSearch(),
                 FilterOfOnePicksIt(),
@@ -580,6 +584,143 @@ namespace Icons.SlowHarness
                     r.Check(r.Probe.StatusDetail.Length == 0,
                         "nor may its steps be left readable, and the tooltip says \""
                         + r.Probe.StatusDetail.Replace("\n", " | ") + "\"");
+                });
+        }
+
+
+        /// <summary>
+        /// Ctrl+Z, after a write has landed. Undo is not a keystroke against a document held in
+        /// memory here - it is a second write and a second publish - so what this asks is that
+        /// it goes out at all, that it goes out once, and that the window lands back on the table
+        /// it just put back rather than on whatever the apply moved it to.
+        /// </summary>
+        private static Scenario UndoPutsItBack()
+        {
+            return OpenOnATable(new Scenario
+            {
+                Name = "undo-puts-it-back",
+                Why = "an applied icon must be takeable back, and the window must land on the table it took it off",
+                Wire = s => s.Latency = Slow("publish", 300)
+            })
+                .At(1900, "press Apply and confirm", r => r.Probe.PressApply())
+                .At(3200, "the write landed and there is something to take back", r =>
+                {
+                    r.Check(!r.Probe.Applying, "the apply should be finished by now");
+                    r.Check(r.Probe.Undo.Enabled, "and Undo should be offering to take it back");
+                    r.Check(!r.Probe.Redo.Enabled, "with nothing to do again yet");
+                    r.Check(r.Probe.Undo.ToolTipText.IndexOf("Account", StringComparison.OrdinalIgnoreCase) >= 0,
+                        "and the tooltip should name the table it would put back, and says \""
+                        + r.Probe.Undo.ToolTipText + "\"");
+                })
+                .At(3400, "press Ctrl+Z", r =>
+                {
+                    r.Check(r.Probe.SendKey(Keys.Control | Keys.Z),
+                        "the window should take Ctrl+Z for itself rather than pass it on");
+                })
+                .At(5200, "the table is back the way it was", r =>
+                {
+                    r.Check(!r.Probe.Applying, "the undo should be finished");
+                    r.Check(r.Service.Log("table-update").Count == 2,
+                        "the table should have been written twice - set, then put back - and it was written "
+                        + r.Service.Log("table-update").Count + " times");
+                    r.Check(r.Service.Log("publish").Count == 2,
+                        "with a publish behind each, and there were " + r.Service.Log("publish").Count);
+                    r.Check(r.Dialogs.Count(d => d == "Undo the last change") == 1,
+                        "one confirm before it went out, and the dialogs were: " + string.Join(" | ", r.Dialogs));
+                    r.Check((r.Probe.Tables.SelectedItem ?? "").ToString().Contains("contoso_account"),
+                        "and the window should land on the table it just put back, not on the next one waiting; it is on \""
+                        + (r.Probe.Tables.SelectedItem ?? "nothing") + "\"");
+                    r.Check(!r.Probe.Undo.Enabled, "with nothing left to take back");
+                    r.Check(r.Probe.Redo.Enabled, "and the change offered back the other way");
+                })
+                .At(5400, "press Ctrl+Y", r => r.Probe.SendKey(Keys.Control | Keys.Y))
+                .At(7200, "it is on again", r =>
+                {
+                    r.Check(r.Service.Log("table-update").Count == 3,
+                        "doing it again is a third write, and there were "
+                        + r.Service.Log("table-update").Count);
+                    r.Check(r.Probe.Undo.Enabled && !r.Probe.Redo.Enabled,
+                        "and the two buttons should have changed places");
+                    r.Check(r.Probe.Trouble == null,
+                        "with nothing wrong, and the trouble line says \"" + (r.Probe.Trouble ?? "") + "\"");
+                });
+        }
+
+        /// <summary>
+        /// The same rule the apply lives under, because it is the same kind of thing: one write
+        /// out at a time. Two reverts over one table is how half of one interleaves with half of
+        /// another - and Ctrl+Z is cheaper to press twice than a button is.
+        /// </summary>
+        private static Scenario UndoGuarded()
+        {
+            return OpenOnATable(new Scenario
+            {
+                Name = "undo-guarded",
+                Why = "undo must be dead until there is something to take back, and while it is taking it",
+                Wire = s => s.Latency = Slow("table-read", 20, 2500)
+            })
+                .At(1700, "before anything has been written", r =>
+                {
+                    r.Check(!r.Probe.Undo.Enabled, "there is nothing to take back yet");
+                    r.Check(!r.Probe.Redo.Enabled, "and nothing to do again");
+                    r.Check(!r.Probe.SendKey(Keys.Control | Keys.Z),
+                        "and Ctrl+Z should be left to whatever else wants it");
+                })
+                .At(1900, "press Apply and confirm", r => r.Probe.PressApply())
+                .At(3400, "press Undo", r => r.Probe.PressUndo())
+                .At(4200, "while the revert is out", r =>
+                {
+                    r.Check(r.Probe.Applying, "the revert should still be on the wire");
+                    r.Check(!r.Probe.Undo.Enabled, "Undo should be dead while it is undoing");
+                    r.Check(!r.Probe.Redo.Enabled, "and Redo with it");
+                    r.Check(!r.Probe.Apply.Enabled, "and Apply, which would be a second writer over the same table");
+                    r.Check(!r.Probe.Load.Enabled, "and Load, which mid-write believes half a truth");
+                    r.Check(r.Probe.Cancel.Enabled, "with Cancel live, or the wait cannot be escaped");
+                    r.Probe.PressUndo();
+                    r.Probe.SendKey(Keys.Control | Keys.Z);
+                })
+                .At(7500, "count what happened", r =>
+                {
+                    r.Check(r.Service.Log("table-update").Count == 2,
+                        "three presses, one revert, and the table was written "
+                        + r.Service.Log("table-update").Count + " times");
+                    r.Check(r.Dialogs.Count(d => d == "Undo the last change") == 1,
+                        "one confirm asked, and the dialogs were: " + string.Join(" | ", r.Dialogs));
+                    r.Check(r.Probe.Apply.Enabled && r.Probe.Load.Enabled,
+                        "with the tool given back afterwards");
+                });
+        }
+
+        /// <summary>
+        /// An undo names a web resource and a table in the org it was written against. Another
+        /// org has its own contoso_account, and putting this one's icon back on that one would be
+        /// a write nobody asked for into an environment nobody was looking at.
+        /// </summary>
+        private static Scenario UndoForgottenOnSwitch()
+        {
+            return OpenOnATable(new Scenario
+            {
+                Name = "undo-forgotten-on-switch",
+                Why = "what can be taken back belongs to one org, and must not survive the connection changing",
+                Wire = s => s.Latency = Slow("publish", 200)
+            })
+                .At(1900, "press Apply and confirm", r => r.Probe.PressApply())
+                .At(3200, "there is something to take back", r =>
+                    r.Check(r.Probe.Undo.Enabled, "the write landed, so Undo should be offering it"))
+                .At(3600, "switch to another org", r =>
+                {
+                    var old = r.Service;
+                    r.SwitchTo(SlowService.Sampled("Fabrikam"));
+                    r.Service = old;
+                })
+                .At(5000, "the offer is gone with it", r =>
+                {
+                    r.Check(!r.Probe.Undo.Enabled,
+                        "the change belongs to the org that is no longer connected, and Undo is still offering it");
+                    r.Check(!r.Probe.Redo.Enabled, "and Redo with it");
+                    r.Check(r.Service.Log("table-update").Count == 1,
+                        "with nothing written to the old org after the switch, and it was written "
+                        + r.Service.Log("table-update").Count + " times");
                 });
         }
 

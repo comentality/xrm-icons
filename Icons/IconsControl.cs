@@ -39,6 +39,32 @@ namespace Icons
             }
         }
 
+        /// <summary>
+        /// An apply that can be taken back, and put back again.
+        ///
+        /// It holds names rather than the TableItem it was applied to: a reload builds new ones,
+        /// and a stack pointing at the old objects would be putting icons on tables the window
+        /// is no longer showing. What the org held before comes from the apply's own result -
+        /// the org's answer from a moment before the write, not this window's memory of it.
+        /// </summary>
+        private sealed class AppliedChange
+        {
+            public string TableLogicalName;
+            public string TableDisplayName;
+            public string IconDisplayName;
+
+            public string PreviousVector;
+            public string PreviousSmall;
+            public string PreviousMedium;
+            public string PreviousLarge;
+
+            /// <summary>The drawings this apply wrote over, and what was in each before.</summary>
+            public IList<OverwrittenResource> Overwritten;
+
+            /// <summary>The whole write again, for doing it a second time.</summary>
+            public IconApplyRequest Request;
+        }
+
         private sealed class SolutionItem
         {
             public Guid Id;
@@ -75,7 +101,23 @@ namespace Icons
 
         private bool _loadingTables;
         private bool _loadingSolutions;
+
+        /// <summary>
+        /// Whether a write is out: an apply, an undo of one, or a redo. All three are the same
+        /// shape - a few calls and a publish - and the window may not start a second one.
+        /// </summary>
         private bool _applying;
+
+        /// <summary>What the status line calls the write that is out.</summary>
+        private string _writeStep = "Applying...";
+
+        /// <summary>
+        /// The applies that can be taken back, newest on top, and the ones taken back that can
+        /// be done again. Both are emptied when the connection changes: they name web resources
+        /// and tables in one org, and mean nothing in the next.
+        /// </summary>
+        private readonly Stack<AppliedChange> _undoable = new Stack<AppliedChange>();
+        private readonly Stack<AppliedChange> _redoable = new Stack<AppliedChange>();
 
         /// <summary>What went wrong with the last thing asked, or null. Outlives its dialog.</summary>
         private string _trouble;
@@ -115,6 +157,8 @@ namespace Icons
         private ToolStripButton _loadButton;
         private ToolStripButton _applyButton;
         private ToolStripButton _cancelButton;
+        private ToolStripButton _undoButton;
+        private ToolStripButton _redoButton;
         private ToolStripButton _contextButton;
         private ToolStripButton _aboutButton;
         private ToolStripLabel _statusLabel;
@@ -186,6 +230,8 @@ namespace Icons
             _loadButton.Enabled = !Busy;
             _cancelButton.Enabled = _applying;
 
+            SyncUndo();
+
             _tableBox.Enabled = !Busy && _tables.Count > 0;
             _tableFilterBox.Enabled = !Busy && _tables.Count > 0;
             _unsetOnlyBox.Enabled = !Busy && _tables.Count > 0;
@@ -224,6 +270,28 @@ namespace Icons
             ShowConcerns();
 
             UpdateStatus();
+        }
+
+        /// <summary>
+        /// The two buttons that write a change out again, backwards or forwards, and what they
+        /// say they would do. The keystrokes are the point and the buttons are how anybody finds
+        /// out they exist - so the tooltip names the table and the icon rather than explaining
+        /// what undo is.
+        /// </summary>
+        private void SyncUndo()
+        {
+            _undoButton.Enabled = !Busy && _undoable.Count > 0;
+            _redoButton.Enabled = !Busy && _redoable.Count > 0;
+
+            _undoButton.ToolTipText = _undoable.Count == 0
+                ? "Nothing to take back yet (Ctrl+Z)"
+                : "Put " + _undoable.Peek().TableDisplayName + " back the way it was before " +
+                  _undoable.Peek().IconDisplayName + " went on it (Ctrl+Z)";
+
+            _redoButton.ToolTipText = _redoable.Count == 0
+                ? "Nothing to do again (Ctrl+Y)"
+                : "Set " + _redoable.Peek().IconDisplayName + " on " +
+                  _redoable.Peek().TableDisplayName + " again (Ctrl+Y)";
         }
 
         /// <summary>
@@ -297,7 +365,7 @@ namespace Icons
             string text;
             if (_loadingTables) text = "Loading tables...";
             else if (_loadingSolutions) text = "Loading solutions...";
-            else if (_applying) text = "Applying...";
+            else if (_applying) text = _writeStep;
             else if (_tables.Count == 0) text = _library.Count + " icons. Load tables to choose where one goes.";
             else
             {
@@ -939,6 +1007,7 @@ namespace Icons
 
             var generation = ++_generation;
             _applying = true;
+            _writeStep = "Applying...";
             _trouble = null;
             _outcome = null;
             _outcomeSteps = null;
@@ -994,6 +1063,19 @@ namespace Icons
 
                     var result = (IconApplyResult)args.Result;
 
+                    Remember(new AppliedChange
+                    {
+                        TableLogicalName = table.LogicalName,
+                        TableDisplayName = table.DisplayName,
+                        IconDisplayName = icon.DisplayName,
+                        PreviousVector = result.PreviousVectorIcon,
+                        PreviousSmall = result.PreviousSmallIcon,
+                        PreviousMedium = result.PreviousMediumIcon,
+                        PreviousLarge = result.PreviousLargeIcon,
+                        Overwritten = result.Overwritten,
+                        Request = request
+                    });
+
                     // The list in memory now disagrees with the org unless this is written back.
                     table.CurrentIcon = name;
                     if (request.IncludeRasterIcons)
@@ -1023,6 +1105,272 @@ namespace Icons
             });
         }
 
+
+        // ===== taking it back =====
+        //
+        // Undo here is not a keystroke against a document held in memory. It is another write to
+        // somebody's environment and another publish, so it goes out the way an apply does - one
+        // worker, cancellable, the generation bumped - and it asks first. A reflex Ctrl+Z that
+        // published a customisation unannounced would be worse than the mistake it was reaching
+        // for.
+
+        /// <summary>
+        /// Keeps an apply so it can be taken back, and drops whatever was waiting to be done
+        /// again: a new write is a new branch, and the redo behind it was for a history that no
+        /// longer happened.
+        /// </summary>
+        private void Remember(AppliedChange change)
+        {
+            _undoable.Push(change);
+            _redoable.Clear();
+        }
+
+        /// <summary>
+        /// Puts the table back the way it was before the last apply: pointing at whatever it
+        /// named before, with the drawings that were written over back as they were.
+        /// </summary>
+        private void Undo()
+        {
+            if (Busy || _undoable.Count == 0 || Service == null) return;
+
+            // Peeked rather than popped. Every step of the revert writes a value rather than a
+            // difference, so one that failed halfway can simply be asked again - and an entry
+            // taken off the stack by a write that did not land is an undo nobody can reach for
+            // a second time.
+            var change = _undoable.Peek();
+
+            var back = string.IsNullOrEmpty(change.PreviousVector)
+                ? change.TableDisplayName + " had no icon before this, and goes back to having none."
+                : change.TableDisplayName + " goes back to " + change.PreviousVector + ".";
+
+            var drawings = change.Overwritten == null || change.Overwritten.Count == 0
+                ? "The web resource that was written stays where it is - nothing here deletes one."
+                : "The " + (change.Overwritten.Count == 1 ? "drawing" : "drawings") +
+                  " this wrote over " + (change.Overwritten.Count == 1 ? "goes" : "go") +
+                  " back to what " + (change.Overwritten.Count == 1 ? "it held" : "they held") + " too.";
+
+            var confirm = MessageBox.Show(this,
+                "Take back setting " + change.IconDisplayName + " on " + change.TableDisplayName + "?\n\n" +
+                back + " " + drawings + "\n\n" +
+                "This is another write to the environment, and it publishes the table.",
+                "Undo the last change", MessageBoxButtons.OKCancel, MessageBoxIcon.Question);
+            if (confirm != DialogResult.OK) return;
+
+            var request = new IconRevertRequest
+            {
+                TableLogicalName = change.TableLogicalName,
+                VectorName = change.PreviousVector,
+                RestoreRasterIcons = change.Request.IncludeRasterIcons,
+                SmallName = change.PreviousSmall,
+                MediumName = change.PreviousMedium,
+                LargeName = change.PreviousLarge,
+                Overwritten = change.Overwritten,
+                SolutionUniqueName = change.Request.SolutionUniqueName
+            };
+
+            var generation = ++_generation;
+            _applying = true;
+            _writeStep = "Putting it back...";
+            _trouble = null;
+            _outcome = null;
+            _outcomeSteps = null;
+            SyncEnabled();
+
+            WorkAsync(new WorkAsyncInfo
+            {
+                Message = "Putting it back...",
+                IsCancelable = true,
+                Work = (worker, args) =>
+                {
+                    args.Result = IconApplier.Revert(
+                        Service,
+                        request,
+                        () => worker.CancellationPending,
+                        message => worker.ReportProgress(0, message));
+                },
+                ProgressChanged = args =>
+                {
+                    if (IsDisposed) return;
+                    if (generation != _generation) return;
+                    _statusLabel.Text = args.UserState as string ?? "Putting it back...";
+                },
+                PostWorkCallBack = args =>
+                {
+                    if (IsDisposed) return;
+                    if (generation != _generation) return;
+
+                    _applying = false;
+
+                    if (args.Cancelled || args.Error is IconApplier.CancelledException)
+                    {
+                        _trouble = "Cancelled. The table may or may not have been put back, " +
+                                   "depending on how far it had got - reload to see. Undo is still " +
+                                   "offered, and asking for it again is safe.";
+                        SyncEnabled();
+                        return;
+                    }
+
+                    if (args.Error != null)
+                    {
+                        _trouble = "Could not put it back: " + args.Error.Message;
+                        SyncEnabled();
+                        MessageBox.Show(this, args.Error.Message, "Could not put it back",
+                            MessageBoxButtons.OK, MessageBoxIcon.Error);
+                        return;
+                    }
+
+                    var result = (IconRevertResult)args.Result;
+
+                    _undoable.Pop();
+                    _redoable.Push(change);
+
+                    SettleOn(change.TableLogicalName, change.PreviousVector,
+                             change.PreviousSmall, change.PreviousMedium, change.PreviousLarge,
+                             change.Request.IncludeRasterIcons);
+
+                    _outcome = string.IsNullOrEmpty(change.PreviousVector)
+                        ? "Took " + change.IconDisplayName + " back off " + change.TableDisplayName
+                        : "Put " + change.TableDisplayName + " back on " + change.PreviousVector;
+                    _outcomeSteps = string.Join("\n", result.Steps);
+                    SyncEnabled();
+                }
+            });
+        }
+
+        /// <summary>
+        /// Does the last undone apply again: the same request, sent a second time. The web
+        /// resource exists by now, so this is an update where the first one was a create - and
+        /// what it finds on the table is read fresh, because what was there before a redo is not
+        /// what was there before the apply it repeats.
+        /// </summary>
+        private void Redo()
+        {
+            if (Busy || _redoable.Count == 0 || Service == null) return;
+
+            var change = _redoable.Peek();
+
+            var confirm = MessageBox.Show(this,
+                "Set " + change.IconDisplayName + " on " + change.TableDisplayName + " again?\n\n" +
+                "This writes the web resource " + change.Request.WebResourceName +
+                " and publishes the table, the way it did the first time.",
+                "Do it again", MessageBoxButtons.OKCancel, MessageBoxIcon.Question);
+            if (confirm != DialogResult.OK) return;
+
+            var request = change.Request;
+
+            var generation = ++_generation;
+            _applying = true;
+            _writeStep = "Doing it again...";
+            _trouble = null;
+            _outcome = null;
+            _outcomeSteps = null;
+            SyncEnabled();
+
+            WorkAsync(new WorkAsyncInfo
+            {
+                Message = "Doing it again...",
+                IsCancelable = true,
+                Work = (worker, args) =>
+                {
+                    args.Result = IconApplier.Apply(
+                        Service,
+                        request,
+                        () => worker.CancellationPending,
+                        message => worker.ReportProgress(0, message));
+                },
+                ProgressChanged = args =>
+                {
+                    if (IsDisposed) return;
+                    if (generation != _generation) return;
+                    _statusLabel.Text = args.UserState as string ?? "Doing it again...";
+                },
+                PostWorkCallBack = args =>
+                {
+                    if (IsDisposed) return;
+                    if (generation != _generation) return;
+
+                    _applying = false;
+
+                    if (args.Cancelled || args.Error is IconApplier.CancelledException)
+                    {
+                        _trouble = "Cancelled. The table may or may not have been changed, " +
+                                   "depending on how far it had got - reload to see.";
+                        SyncEnabled();
+                        return;
+                    }
+
+                    if (args.Error != null)
+                    {
+                        _trouble = "Could not set the icon: " + args.Error.Message;
+                        SyncEnabled();
+                        MessageBox.Show(this, args.Error.Message, "Could not set the icon",
+                            MessageBoxButtons.OK, MessageBoxIcon.Error);
+                        return;
+                    }
+
+                    var result = (IconApplyResult)args.Result;
+
+                    _redoable.Pop();
+
+                    // Built out of this run's own result rather than carried over from the first
+                    // one: the undo behind a redo has to put back what was there a moment ago.
+                    _undoable.Push(new AppliedChange
+                    {
+                        TableLogicalName = change.TableLogicalName,
+                        TableDisplayName = change.TableDisplayName,
+                        IconDisplayName = change.IconDisplayName,
+                        PreviousVector = result.PreviousVectorIcon,
+                        PreviousSmall = result.PreviousSmallIcon,
+                        PreviousMedium = result.PreviousMediumIcon,
+                        PreviousLarge = result.PreviousLargeIcon,
+                        Overwritten = result.Overwritten,
+                        Request = request
+                    });
+
+                    SettleOn(change.TableLogicalName,
+                             request.WebResourceName,
+                             RasterIcons.NameFor(request.WebResourceName, IconSlot.Small),
+                             RasterIcons.NameFor(request.WebResourceName, IconSlot.Medium),
+                             RasterIcons.NameFor(request.WebResourceName, IconSlot.Large),
+                             request.IncludeRasterIcons);
+
+                    _outcome = "Set " + change.IconDisplayName + " on " + change.TableDisplayName + " again";
+                    _outcomeSteps = string.Join("\n", result.Steps);
+                    SyncEnabled();
+                }
+            });
+        }
+
+        /// <summary>
+        /// Writes what the org now holds back into the list in memory, rebuilds the table list,
+        /// and lands on the table that just changed.
+        ///
+        /// Not on the next one waiting, which is where an apply lands. An undo or a redo is
+        /// somebody saying "that one, again" - the table they mean is the one that just moved,
+        /// and leaving them somewhere else would be answering a question they did not ask.
+        /// </summary>
+        private void SettleOn(string logicalName, string vector,
+                              string small, string medium, string large, bool raster)
+        {
+            var table = _tables.FirstOrDefault(t => t.LogicalName == logicalName);
+            if (table != null)
+            {
+                table.CurrentIcon = vector;
+                if (raster)
+                {
+                    table.CurrentSmall = small;
+                    table.CurrentMedium = medium;
+                    table.CurrentLarge = large;
+                }
+            }
+
+            ShowTables();
+
+            var index = _tableBox.Items.Cast<TableItem>().ToList()
+                .FindIndex(t => t.LogicalName == logicalName);
+            if (index >= 0) _tableBox.SelectedIndex = index;
+        }
+
         // ===== plumbing =====
 
         public override void UpdateConnection(IOrganizationService newService, ConnectionDetail detail,
@@ -1048,6 +1396,11 @@ namespace Icons
 
             _tables = new List<TableItem>();
             _solutions = new List<SolutionItem>();
+            // An undo names a web resource and a table in the org it was written against. In the
+            // next one it is at best meaningless, and at worst a write to a table that happens
+            // to share a name.
+            _undoable.Clear();
+            _redoable.Clear();
             // Where the last org kept its icons says nothing about where this one does, and
             // neither does the folder somebody chose for a table that is not in this one.
             _locations = IconLocations.None;
@@ -1068,7 +1421,7 @@ namespace Icons
                 // is the only report the user gets of what the old org may be left holding.
                 // Cancelled before the base class runs, or a load it starts is what gets cancelled.
                 CancelWorker();
-                _trouble = "The connection changed while an icon was being applied. The previous " +
+                _trouble = "The connection changed while a change was being written. The previous " +
                            "environment may or may not have been changed - reconnect to it to see.";
             }
 

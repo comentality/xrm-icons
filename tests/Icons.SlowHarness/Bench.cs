@@ -285,6 +285,18 @@ namespace Icons.SlowHarness
 
         public void Stop() { _timer.Stop(); _timer.Dispose(); }
 
+        /// <summary>
+        /// The dialogs a run is supposed to say yes to. Everything else is closed, and WM_CLOSE
+        /// on an OKCancel box is its Cancel button - so a confirm missing from this list is a
+        /// write the suite quietly calls off and then wonders why nothing happened.
+        /// </summary>
+        private static bool Confirms(string caption)
+        {
+            return caption == "Set table icon"
+                || caption == "Undo the last change"
+                || caption == "Do it again";
+        }
+
         private void Sweep()
         {
             var mine = _run.Form.IsDisposed ? IntPtr.Zero : _run.Form.Handle;
@@ -299,7 +311,7 @@ namespace Icons.SlowHarness
 
                 _run.Dialogs.Add(text);
 
-                var ok = text == "Set table icon" ? GetDlgItem(hwnd, IDOK) : IntPtr.Zero;
+                var ok = Confirms(text) ? GetDlgItem(hwnd, IDOK) : IntPtr.Zero;
                 if (ok != IntPtr.Zero) PostMessage(ok, BM_CLICK, IntPtr.Zero, IntPtr.Zero);
                 else PostMessage(hwnd, WM_CLOSE, IntPtr.Zero, IntPtr.Zero);
                 return true;

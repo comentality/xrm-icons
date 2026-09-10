@@ -37,6 +37,8 @@ namespace Icons.SlowHarness
         public ToolStripButton Load { get { return Field<ToolStripButton>("_loadButton"); } }
         public ToolStripButton Apply { get { return Field<ToolStripButton>("_applyButton"); } }
         public ToolStripButton Cancel { get { return Field<ToolStripButton>("_cancelButton"); } }
+        public ToolStripButton Undo { get { return Field<ToolStripButton>("_undoButton"); } }
+        public ToolStripButton Redo { get { return Field<ToolStripButton>("_redoButton"); } }
 
         public string Status { get { return Field<ToolStripLabel>("_statusLabel").Text; } }
 
@@ -120,6 +122,24 @@ namespace Icons.SlowHarness
         public void PressApply() { Apply.PerformClick(); }
 
         public void PressCancel() { Cancel.PerformClick(); }
+
+        public void PressUndo() { Undo.PerformClick(); }
+
+        public void PressRedo() { Redo.PerformClick(); }
+
+        /// <summary>
+        /// A keystroke as the window itself sees it. Sent to ProcessCmdKey rather than through
+        /// the message queue, for the same reason Enter is: a harness window is not the focused
+        /// one, and a key that lands nowhere would pass by proving nothing.
+        /// </summary>
+        public bool SendKey(Keys keys)
+        {
+            var method = typeof(IconsControl).GetMethod("ProcessCmdKey", Priv);
+            if (method == null) throw new MissingMethodException("IconsControl", "ProcessCmdKey");
+
+            var args = new object[] { new Message(), keys };
+            return (bool)method.Invoke(_control, args);
+        }
 
         /// <summary>
         /// Enter, in the search box. Sent to the handler rather than through the message queue:
