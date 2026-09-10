@@ -797,8 +797,18 @@ namespace Icons.SlowHarness
                 .At(200, "press Load", r => r.Probe.PressLoad())
                 .At(1800, "narrow to the tables with no icon", r =>
                 {
+                    r.Check(r.Probe.UnsetOnly.Checked,
+                        "the window should have opened on the tables with no icon yet");
+                    r.Check(!r.Probe.TableNames().Any(n => n.Contains("(contoso_settled)")),
+                        "so a table that already has one should not be listed, and the list holds: "
+                        + string.Join(", ", r.Probe.TableNames()));
+
+                    // Everything, and then narrowed again, because the box unticks as well as
+                    // ticks and the list has to come back whole.
+                    r.Probe.UnsetOnly.Checked = false;
+
                     r.Check(r.Probe.TableNames().Any(n => n.Contains("(contoso_settled)")),
-                        "the unfiltered list should hold every table, and holds: "
+                        "unticking should give back every table, and holds: "
                         + string.Join(", ", r.Probe.TableNames()));
 
                     r.Probe.UnsetOnly.Checked = true;
@@ -1087,6 +1097,11 @@ namespace Icons.SlowHarness
                 .At(1600, "pick an icon, the old table, and the PNGs", r =>
                 {
                     r.Probe.PickFirstIcon();
+
+                    // This table already has an icon, which is the point of it - so it is not in
+                    // the list the window opens on, and seeing it takes unticking the box.
+                    r.Probe.UnsetOnly.Checked = false;
+
                     r.Probe.PickTable("contoso_legacy");
                     r.Probe.Raster.Checked = true;
                 })

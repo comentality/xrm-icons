@@ -35,8 +35,10 @@ namespace Icons.SlowHarness
 
         // ===== what is on screen =====
 
-        public ToolStripButton Load { get { return Field<ToolStripButton>("_loadButton"); } }
-        public ToolStripButton Apply { get { return Field<ToolStripButton>("_applyButton"); } }
+        // Buttons on the form rather than items on the toolbar: the reload sits beside the
+        // table list it fills, and the apply at the foot of the form that fills it in.
+        public Button Load { get { return Field<Button>("_loadButton"); } }
+        public Button Apply { get { return Field<Button>("_applyButton"); } }
         public ToolStripButton Cancel { get { return Field<ToolStripButton>("_cancelButton"); } }
         public ToolStripButton Undo { get { return Field<ToolStripButton>("_undoButton"); } }
         public ToolStripButton Redo { get { return Field<ToolStripButton>("_redoButton"); } }

@@ -132,6 +132,15 @@ namespace Icons.E2eHarness
                 },
                 new Step
                 {
+                    // The window opens on the tables with no icon yet, and the fixture table
+                    // leaves that list the moment the first write lands. This run applies to it
+                    // twice on purpose - the second apply is what proves an apply updates rather
+                    // than duplicates - so it has to go on being able to see it.
+                    Label = "show every table, not only the ones still without an icon",
+                    Do = r => r.Probe.UnsetOnly.Checked = false
+                },
+                new Step
+                {
                     Label = "search for calendar",
                     Do = r => r.Probe.Field<TextBox>("_searchBox").Text = "calendar",
                     Until = r => r.Probe.Grid.VirtualListSize > 0,

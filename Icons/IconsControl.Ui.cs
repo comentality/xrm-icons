@@ -2,6 +2,7 @@ using System;
 using System.Drawing;
 using System.Windows.Forms;
 using Icons.Catalog;
+using Icons.Logic;
 using Icons.Ui;
 using Label = System.Windows.Forms.Label;
 
@@ -58,6 +59,9 @@ namespace Icons
             // window has something in it from the first moment.
             LoadCatalog();
 
+            // And once it is open the buttons can be drawn out of it.
+            DressButtons();
+
             // And so does the preview: a navigation nobody's environment ever had, saying so.
             ShowStandIn("A stand-in navigation. Only your icon is real.");
 
@@ -85,8 +89,10 @@ namespace Icons
                 _splitterLaid = true;
             }
 
-            // The form's own height, so it opens whole and the preview takes what is over.
-            const int formHeight = 350;
+            // The form's own height, so it opens whole and the preview takes what is over. Nine
+            // rows of it, the line that names the chosen icon above them, and the strip with the
+            // apply button under them.
+            const int formHeight = 325;
             const int previewMinimum = 120;
 
             if (!_targetSplitLaid && _targetSplit.Height >= formHeight + previewMinimum + _targetSplit.SplitterWidth)
@@ -100,26 +106,12 @@ namespace Icons
 
         private ToolStrip BuildToolbar()
         {
-            _loadButton = new ToolStripButton("Load tables")
-            {
-                DisplayStyle = ToolStripItemDisplayStyle.Text,
-                ToolTipText = "Read the tables and solutions from the connected environment"
-            };
-            _loadButton.Click += (s, e) => LoadEverything();
-
-            _applyButton = new ToolStripButton("Set as table icon")
-            {
-                DisplayStyle = ToolStripItemDisplayStyle.Text,
-                ToolTipText = "Store the chosen icon as a web resource, point the table at it, and publish"
-            };
-            _applyButton.Click += (s, e) => Apply();
-
             // Tooltips rather than captions, because what they would take back is a table and
             // an icon by name and that changes with every write. SyncUndo keeps them true.
-            _undoButton = new ToolStripButton("Undo") { DisplayStyle = ToolStripItemDisplayStyle.Text };
+            _undoButton = new ToolStripButton("Undo");
             _undoButton.Click += (s, e) => Undo();
 
-            _redoButton = new ToolStripButton("Redo") { DisplayStyle = ToolStripItemDisplayStyle.Text };
+            _redoButton = new ToolStripButton("Redo");
             _redoButton.Click += (s, e) => Redo();
 
             _cancelButton = new ToolStripButton("Cancel")
@@ -144,21 +136,73 @@ namespace Icons
                 GripStyle = ToolStripGripStyle.Hidden,
                 RenderMode = ToolStripRenderMode.System
             };
+            // What is left up here is what is about the window rather than about the table in
+            // it: taking a write back, stopping one that is out, what the last one did. Loading
+            // and applying have gone to the two places they are about - the table list and the
+            // foot of the form that fills in the write.
             toolbar.Items.AddRange(new ToolStripItem[]
             {
-                _loadButton,
-                new ToolStripSeparator(),
-                _applyButton,
-                _cancelButton,
-                new ToolStripSeparator(),
                 _undoButton,
                 _redoButton,
+                new ToolStripSeparator(),
+                _cancelButton,
                 new ToolStripSeparator(),
                 _statusLabel,
                 _aboutButton
             });
 
             return toolbar;
+        }
+
+        /// <summary>
+        /// Puts drawings on the three buttons that read better as one than as words: the reload,
+        /// and the two that move through what has been written. They are drawn out of the library this tool is
+        /// for, at the moment it opens, rather than kept as resources of their own - the icons
+        /// are already in the assembly and a second copy of an arrow would be a second thing to
+        /// keep true.
+        ///
+        /// Nothing here is required for the window to work. A library that would not open leaves
+        /// the buttons as they were built, which is why each one carries its own words too.
+        /// </summary>
+        private void DressButtons()
+        {
+            var refresh = Glyph("arrow_clockwise");
+            if (refresh != null) _loadButton.Image = refresh;
+
+            Dress(_undoButton, "arrow_undo");
+            Dress(_redoButton, "arrow_redo");
+        }
+
+        private void Dress(ToolStripButton button, string name)
+        {
+            var glyph = Glyph(name);
+            if (glyph == null) return;
+
+            button.Image = glyph;
+
+            // The caption goes, and the text stays: it is what the button answers to from a
+            // test bench and what a screen reader has to read out.
+            button.DisplayStyle = ToolStripItemDisplayStyle.Image;
+        }
+
+        /// <summary>
+        /// One icon out of the bundled library, at the size a button wants it, or null when the
+        /// library has nothing by that name - which is a build that was made without it, and a
+        /// window with far bigger problems than a wordless button.
+        /// </summary>
+        private Image Glyph(string name)
+        {
+            if (_catalog == null) return null;
+
+            try
+            {
+                var entry = new IconEntry(IconFamily.Fluent, name, "regular", IconStyle.Regular);
+                return SvgImage.Parse(_catalog.ReadSvg(entry)).Render(16, SystemColors.ControlText);
+            }
+            catch
+            {
+                return null;
+            }
         }
 
         private Control BuildLibraryPane()
@@ -289,9 +333,14 @@ namespace Icons
             // The common errand is "which of these has nobody given an icon yet", and the
             // answer is already in hand: the load reads IconVectorName with everything else,
             // so this narrows the list without another round trip.
+            //
+            // Ticked to begin with, because that errand is the reason anybody opens this tool:
+            // the list of tables with no icon is the work, and the full list is what you ask for
+            // when you have come to change one that is already there.
             _unsetOnlyBox = new CheckBox
             {
                 Text = "Only tables with no icon yet",
+                Checked = true,
                 AutoSize = true,
                 Anchor = AnchorStyles.Left
             };
@@ -314,6 +363,21 @@ namespace Icons
 
             _tableBox = new ComboBox { Dock = DockStyle.Fill, DropDownStyle = ComboBoxStyle.DropDownList };
             _tableBox.SelectedIndexChanged += Table_SelectedIndexChanged;
+
+            // Beside the list it fills, rather than a caption at the top of the window. Reading
+            // the environment is what puts tables in that box and nothing else does, so this is
+            // where somebody looking at an empty box looks - and a circling arrow is the one
+            // drawing that needs no caption anywhere it appears.
+            _loadButton = new Button
+            {
+                Width = 23,
+                Height = 23,
+                Margin = new Padding(0, 1, 6, 0),
+                Padding = new Padding(0),
+                AccessibleName = "Load tables"
+            };
+            _loadButton.Click += (s, e) => LoadEverything();
+            _hints.SetToolTip(_loadButton, "Read the tables and solutions from the connected environment");
 
             // Under the box it is about, rather than in the red line at the foot of the pane
             // with the round trips that failed. Nothing has gone wrong here: this is a fact
@@ -342,32 +406,61 @@ namespace Icons
             };
             _themeColour.CheckedChanged += Colour_ModeChanged;
 
-            _fixedColour = new RadioButton { Text = "Fixed colour", AutoSize = true, Anchor = AnchorStyles.Left };
+            // The swatch sits on the same line as the radio button that turns it on, because it
+            // is what "fixed colour" means: which colour, right there, rather than a row below
+            // it reading as one more setting of its own.
+            _fixedColour = new RadioButton
+            {
+                Text = "Fixed colour",
+                AutoSize = true,
+                Margin = new Padding(0, 3, 0, 0)
+            };
             _fixedColour.CheckedChanged += Colour_ModeChanged;
 
-            _colourButton = new Button { Text = "", Width = 40, Height = 22, BackColor = _colour, Anchor = AnchorStyles.Left };
+            _colourButton = new Button
+            {
+                Text = "",
+                Width = 40,
+                Height = 22,
+                BackColor = _colour,
+                Margin = new Padding(10, 0, 0, 0)
+            };
             _colourButton.Click += Colour_Pick;
 
             _rasterBox = new CheckBox
             {
-                Text = "Also write the three classic PNG icons",
+                Text = "Also write the classic PNG icons",
                 AutoSize = true,
-                Anchor = AnchorStyles.Left
+                Margin = new Padding(0, 3, 0, 0)
             };
 
             // Off by default, and the answer to "should I tick this?" is a paragraph rather
-            // than a caption. It goes behind a link, in the same dialog the icon licence uses.
+            // than a caption. It goes behind a link, in the same dialog the icon licence uses -
+            // and on the line of the box it is the answer for, which is where a question about
+            // that box gets asked.
             _rasterHelp = new LinkLabel
             {
                 Text = "When do the PNGs matter?",
                 AutoSize = true,
-                // Top as well as Left: this is the last row, so it is the one the layout hands
-                // its leftover height to, and a left-only anchor would float it down the middle
-                // of that and read as belonging to nothing.
-                Anchor = AnchorStyles.Left | AnchorStyles.Top,
-                Padding = new Padding(0, 4, 0, 0)
+                Margin = new Padding(10, 3, 0, 0)
             };
             _rasterHelp.LinkClicked += (s, e) => ShowRasterHelp();
+
+            // At the end of the form rather than the top of the window, because it is the last
+            // thing done to what the form says: a table, a solution, a name and a colour, and
+            // then this. Bottom right is where a window that fills something in puts the button
+            // that sends it.
+            _applyButton = new Button
+            {
+                Text = "Set as table icon",
+                AutoSize = true,
+                AutoSizeMode = AutoSizeMode.GrowAndShrink,
+                Padding = new Padding(8, 1, 8, 1),
+                Margin = new Padding(0)
+            };
+            _applyButton.Click += (s, e) => Apply();
+            _hints.SetToolTip(_applyButton,
+                "Store the chosen icon as a web resource, point the table at it, and publish");
 
             _troubleLabel = new Label
             {
@@ -383,7 +476,7 @@ namespace Icons
             {
                 Dock = DockStyle.Fill,
                 ColumnCount = 2,
-                RowCount = 12,
+                RowCount = 10,
                 Padding = new Padding(8, 6, 8, 6),
                 AutoScroll = true
             };
@@ -393,21 +486,34 @@ namespace Icons
             AddRow(form, 0, "Find table", _tableFilterBox);
             AddRow(form, 1, "", _unsetOnlyBox);
             AddRow(form, 2, "", _hideLockedBox);
-            AddRow(form, 3, "Table", _tableBox);
+            AddRow(form, 3, _loadButton, "Table", _tableBox);
             AddNoteRow(form, 4, _lockedLabel);
             AddRow(form, 5, "Solution", _solutionBox);
             AddRow(form, 6, "Web resource", _nameBox);
             AddRow(form, 7, "Colour", _themeColour);
-            AddRow(form, 8, "", _fixedColour);
-            AddRow(form, 9, "", _colourButton);
-            AddRow(form, 10, "", _rasterBox);
-            AddRow(form, 11, "", _rasterHelp);
+            AddRow(form, 8, "", Beside(_fixedColour, _colourButton, last: false));
+            AddRow(form, 9, "", Beside(_rasterBox, _rasterHelp, last: true));
+
+            // Right, because that is the corner a window that fills something in keeps its last
+            // button in, and its own strip below everything else so the red line that says why a
+            // write failed reads above the button that would try it again.
+            var actions = new FlowLayoutPanel
+            {
+                Dock = DockStyle.Bottom,
+                FlowDirection = FlowDirection.RightToLeft,
+                AutoSize = true,
+                AutoSizeMode = AutoSizeMode.GrowAndShrink,
+                WrapContents = false,
+                Padding = new Padding(8, 4, 8, 6)
+            };
+            actions.Controls.Add(_applyButton);
 
             var below = new Panel { Dock = DockStyle.Fill };
             below.Controls.Add(form);
             below.Controls.Add(_troubleLabel);
             below.Controls.Add(_warningLabel);
             below.Controls.Add(_iconLabel);
+            below.Controls.Add(actions);
 
             // The preview above, the form below, and a splitter between them, because how much
             // navigation is worth looking at is not the same question every time: a long site
@@ -440,6 +546,62 @@ namespace Icons
                 }, 0, row);
             }
             form.Controls.Add(control, 1, row);
+        }
+
+        /// <summary>
+        /// A row whose caption has a button in front of it. The button is about the row's own
+        /// control - it is what fills the box beside it - so it goes in the caption column with
+        /// the caption rather than trailing off the end of the row.
+        /// </summary>
+        private static void AddRow(TableLayoutPanel form, int row, Control before, string caption, Control control)
+        {
+            form.RowStyles.Add(new RowStyle(SizeType.Absolute, 28));
+
+            var head = new FlowLayoutPanel
+            {
+                AutoSize = true,
+                AutoSizeMode = AutoSizeMode.GrowAndShrink,
+                WrapContents = false,
+                Margin = new Padding(0),
+                Padding = new Padding(0),
+                Anchor = AnchorStyles.Left
+            };
+            head.Controls.Add(before);
+            head.Controls.Add(new Label
+            {
+                Text = caption,
+                AutoSize = true,
+                Margin = new Padding(0, 5, 6, 0)
+            });
+
+            form.Controls.Add(head, 0, row);
+            form.Controls.Add(control, 1, row);
+        }
+
+        /// <summary>
+        /// Two controls on one row: a toggle and the thing that belongs to it - the colour it
+        /// would use, the paragraph that answers whether to tick it. On rows of their own they
+        /// read as two more settings; side by side they read as the one setting they are.
+        ///
+        /// The last row of the form is the one the layout hands its leftover height to, so what
+        /// sits in it is anchored to the top as well, or it floats down the middle of that
+        /// height and reads as belonging to nothing.
+        /// </summary>
+        private static Control Beside(Control first, Control second, bool last)
+        {
+            var pair = new FlowLayoutPanel
+            {
+                AutoSize = true,
+                AutoSizeMode = AutoSizeMode.GrowAndShrink,
+                WrapContents = false,
+                Margin = new Padding(0),
+                Padding = new Padding(0),
+                Anchor = last ? AnchorStyles.Left | AnchorStyles.Top : AnchorStyles.Left
+            };
+
+            pair.Controls.Add(first);
+            pair.Controls.Add(second);
+            return pair;
         }
 
         /// <summary>

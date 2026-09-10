@@ -131,8 +131,7 @@ namespace Icons.UiHarness
 
                     // Nothing may be writable without a connection and a table.
                     var apply = Descendants(control)
-                        .OfType<ToolStrip>()
-                        .SelectMany(t => t.Items.OfType<ToolStripButton>())
+                        .OfType<Button>()
                         .FirstOrDefault(b => b.Text.StartsWith("Set as"));
 
                     if (apply == null)
@@ -534,13 +533,26 @@ namespace Icons.UiHarness
 
             var failures = 0;
 
+            if (!unsetOnly.Checked)
+            {
+                Console.WriteLine("FAIL: the window should open on the tables with no icon yet, and the box is unticked");
+                failures++;
+            }
+            else
+            {
+                Console.WriteLine("OK: the window opens on the tables with no icon yet");
+            }
+
+            // Everything, to have something to narrow. The box is ticked when the window opens,
+            // so seeing the whole list is the thing that takes a click now.
+            unsetOnly.Checked = false;
             filterBox.Text = "";
             showTables.Invoke(control, null);
             Pump();
 
             if (tableBox.Items.Count != 3)
             {
-                Console.WriteLine("FAIL: unfiltered, all three seeded tables should be offered, not " +
+                Console.WriteLine("FAIL: unticked, all three seeded tables should be offered, not " +
                                   tableBox.Items.Count);
                 failures++;
             }
@@ -750,9 +762,15 @@ namespace Icons.UiHarness
         {
             foreach (var panel in Descendants(root).OfType<TableLayoutPanel>())
             {
-                var label = panel.Controls.OfType<Label>().FirstOrDefault(l => l.Text == caption);
+                var label = Descendants(panel).OfType<Label>().FirstOrDefault(l => l.Text == caption);
                 if (label == null) continue;
-                return panel.GetControlFromPosition(1, panel.GetPositionFromControl(label).Row);
+
+                // A caption that shares its cell with a button is nested one deeper, so the cell
+                // is asked about whatever child of the panel the label is inside.
+                Control cell = label;
+                while (cell.Parent != panel && cell.Parent != null) cell = cell.Parent;
+
+                return panel.GetControlFromPosition(1, panel.GetPositionFromControl(cell).Row);
             }
             return null;
         }

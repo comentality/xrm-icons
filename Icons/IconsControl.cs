@@ -156,8 +156,15 @@ namespace Icons
         private SplitContainer _targetSplit;
         private bool _targetSplitLaid;
 
-        private ToolStripButton _loadButton;
-        private ToolStripButton _applyButton;
+        /// <summary>
+        /// What the buttons with no words on them would have said. A drawing is quicker to find
+        /// than a caption and says nothing at all on its own, so each one still carries its
+        /// sentence - and its accessible name, for the reader that has only that.
+        /// </summary>
+        private readonly ToolTip _hints = new ToolTip();
+
+        private Button _loadButton;
+        private Button _applyButton;
         private ToolStripButton _cancelButton;
         private ToolStripButton _undoButton;
         private ToolStripButton _redoButton;
@@ -381,7 +388,7 @@ namespace Icons
             if (_loadingTables) text = "Loading tables...";
             else if (_loadingSolutions) text = "Loading solutions...";
             else if (_applying) text = _writeStep;
-            else if (_tables.Count == 0) text = _library.Count + " icons. Load tables to choose where one goes.";
+            else if (_tables.Count == 0) text = _library.Count + " icons. Refresh the table list to choose where one goes.";
             else
             {
                 // Say what is on screen against what there is, so a filtered grid never reads
@@ -567,7 +574,7 @@ namespace Icons
                         _solutionBox.Items.Clear();
                         _locations = IconLocations.From(_tables.Select(t => t.CurrentIcon), null);
                         _trouble = "Could not load solutions, and an icon needs one to go in, so nothing " +
-                                   "can be applied until this load works. Press Load tables again: " +
+                                   "can be applied until this load works. Refresh the table list again: " +
                                    args.Error.Message;
                         SyncEnabled();
                         return;
@@ -1574,6 +1581,9 @@ namespace Icons
             {
                 ClearThumbnails();
                 _catalog?.Dispose();
+
+                // A window of its own, which closing this one would otherwise leave behind.
+                _hints.Dispose();
             }
             base.Dispose(disposing);
         }
