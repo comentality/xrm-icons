@@ -455,9 +455,11 @@ namespace Icons.SlowHarness
                     r.Check(!r.Probe.Load.Enabled, "and Load should be dead: a reload mid-write believes half a truth");
                     r.Probe.PressApply();
                 })
-                .At(5600, "count what happened", r =>
+                .At(8200, "count what happened", r =>
                 {
-                    r.Check(r.Service.Log("webresource-find").Count == 1,
+                    // Two lookups for one write: the name the drawing goes under, and the folder
+                    // the attribution page is rebuilt from. A second press must add neither.
+                    r.Check(r.Service.Log("webresource-find").Count == 2,
                         "two presses, one write, and the name was looked up "
                         + r.Service.Log("webresource-find").Count + " times");
                     r.Check(r.Service.Log("publish").Count == 1,
@@ -792,7 +794,7 @@ namespace Icons.SlowHarness
                         + r.Probe.Name.Text + "\"");
                 })
                 .At(5600, "give the next one an icon too", r => r.Probe.PressApply())
-                .At(7200, "and stop at the one that cannot take an icon", r =>
+                .At(8000, "and stop at the one that cannot take an icon", r =>
                 {
                     // What is left in the list is locked against customisation. It is in the
                     // unset-only list honestly - it has no icon and never will - but landing on
@@ -1027,10 +1029,11 @@ namespace Icons.SlowHarness
                     r.Probe.Raster.Checked = true;
                 })
                 .At(2100, "press Apply and confirm", r => r.Probe.PressApply())
-                .At(6500, "count what was written", r =>
+                .At(7000, "count what was written", r =>
                 {
-                    r.Check(r.Service.Log("webresource-find").Count == 4,
-                        "the vector and the three PNGs should each be looked up once, and there were "
+                    r.Check(r.Service.Log("webresource-find").Count == 5,
+                        "the vector, the three PNGs and the attribution page's folder should each "
+                        + "be looked up once, and there were "
                         + r.Service.Log("webresource-find").Count);
                     r.Check(r.Service.Log("publish").Count == 1,
                         "one publish, and there were " + r.Service.Log("publish").Count);

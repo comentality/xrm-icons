@@ -328,7 +328,7 @@ namespace Icons.SlowHarness
             if (condition.AttributeName == "webresourcetype")
             {
                 var type = record.GetAttributeValue<OptionSetValue>("webresourcetype");
-                return type != null && type.Value == Convert.ToInt32(condition.Values[0]);
+                return type != null && condition.Values.Any(v => Convert.ToInt32(v) == type.Value);
             }
 
             if (condition.AttributeName != "name") return true;

@@ -429,14 +429,16 @@ namespace Icons.Logic
             try
             {
                 progress("Reading what is stored in " + AttributionPage.FolderOf(request.WebResourceName));
-                var stored = AttributionPage.Read(ReadIconSvgs(service, request.WebResourceName));
+
+                Entity existingPage;
+                var svgs = ReadFolder(service, request.WebResourceName, name, out existingPage);
 
                 Stop(cancelled);
                 progress("Writing " + name);
 
-                var html = AttributionPage.Build(stored, DateTime.Now);
-                var id = UpsertWebResource(
-                    service, name, AttributionPage.WebResourceTypeHtml,
+                var html = AttributionPage.Build(AttributionPage.Read(svgs), DateTime.Now);
+                var id = StoreWebResource(
+                    service, existingPage, name, AttributionPage.WebResourceTypeHtml,
                     SvgOutput.ToBase64(html), request.SolutionUniqueName, result);
 
                 result.WebResourceIds.Add(id);
@@ -460,31 +462,35 @@ namespace Icons.Logic
         }
 
         /// <summary>
-        /// Every SVG web resource in the same folder as the icon being stored, by name and
-        /// text.
+        /// One read of the folder the icon is going into: every SVG in it, by name and text, and
+        /// the attribution page already there if there is one.
+        ///
+        /// Both in one query rather than two, because on a slow link a round trip is most of the
+        /// wait, and the page is being written into the same folder it is being written from.
         ///
         /// Unpublished, because the icon this apply just wrote is unpublished until the publish
         /// two steps from here - and a page rebuilt from the published view would be a page
         /// missing the very icon it was rebuilt for.
         /// </summary>
-        private static IEnumerable<KeyValuePair<string, string>> ReadIconSvgs(
-            IOrganizationService service, string iconWebResourceName)
+        private static IEnumerable<KeyValuePair<string, string>> ReadFolder(
+            IOrganizationService service, string iconWebResourceName, string pageName, out Entity page)
         {
             var folder = AttributionPage.FolderOf(iconWebResourceName);
 
             var query = new QueryExpression("webresource")
             {
-                ColumnSet = new ColumnSet("name", "content"),
+                ColumnSet = new ColumnSet("webresourceid", "name", "webresourcetype", "ismanaged", "content"),
                 Criteria =
                 {
                     Conditions =
                     {
-                        new ConditionExpression("webresourcetype", ConditionOperator.Equal, WebResourceTypeSvg),
+                        new ConditionExpression("webresourcetype", ConditionOperator.In,
+                            WebResourceTypeSvg, AttributionPage.WebResourceTypeHtml),
                         new ConditionExpression("name", ConditionOperator.BeginsWith, folder)
                     }
                 },
                 // Paged, and the pages followed. A folder with more icons in it than one page
-                // holds is unlikely; a page that quietly credited the first five thousand and
+                // holds is unlikely; a page that quietly credited the first few hundred and
                 // dropped the rest is the one way this can be wrong without anything saying so.
                 Orders = { new OrderExpression("name", OrderType.Ascending) },
                 PageInfo = new PagingInfo { Count = 500, PageNumber = 1 }
@@ -503,12 +509,25 @@ namespace Icons.Logic
                 query.PageInfo.PagingCookie = response.EntityCollection.PagingCookie;
             }
 
+            page = null;
             var found = new List<KeyValuePair<string, string>>();
+
             foreach (var record in records)
             {
                 var name = record.GetAttributeValue<string>("name");
+                if (string.IsNullOrEmpty(name)) continue;
+
+                if (string.Equals(name, pageName, StringComparison.OrdinalIgnoreCase))
+                {
+                    page = record;
+                    continue;
+                }
+
+                var type = record.GetAttributeValue<OptionSetValue>("webresourcetype");
+                if (type == null || type.Value != WebResourceTypeSvg) continue;
+
                 var content = record.GetAttributeValue<string>("content");
-                if (string.IsNullOrEmpty(name) || string.IsNullOrEmpty(content)) continue;
+                if (string.IsNullOrEmpty(content)) continue;
 
                 string svg;
                 try
@@ -541,8 +560,24 @@ namespace Icons.Logic
             string solutionUniqueName,
             IconApplyResult result)
         {
-            var existing = FindWebResource(service, name);
+            return StoreWebResource(
+                service, FindWebResource(service, name), name, type, contentBase64, solutionUniqueName, result);
+        }
 
+        /// <summary>
+        /// The same, for a record already in hand. The attribution page comes back with the
+        /// folder it is written from, so looking it up a second time would be a round trip spent
+        /// asking a question already answered.
+        /// </summary>
+        private static Guid StoreWebResource(
+            IOrganizationService service,
+            Entity existing,
+            string name,
+            int type,
+            string contentBase64,
+            string solutionUniqueName,
+            IconApplyResult result)
+        {
             if (existing != null)
             {
                 var existingType = existing.GetAttributeValue<OptionSetValue>("webresourcetype");
