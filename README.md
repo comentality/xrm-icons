@@ -66,6 +66,12 @@ resources, update table definitions and publish customisations.
   against something in memory, so it asks first, and it lands you back on the table it just put
   back. It never deletes: a web resource this tool wrote stays where it is, with nothing pointing
   at it.
+- **A page beside the icons saying where they came from** — each stored SVG carries a comment
+  naming the set that drew it, its copyright holder, its licence and what was changed on the way
+  in, and every apply rebuilds `ATTRIBUTION.html` in the same folder from those comments. It says
+  what is stored there now rather than what any one session did, so an icon somebody replaced by
+  hand stops being credited the moment it stops being there. For these four families it is a
+  courtesy; for a set whose licence asks for a credit line it is the price of the icon.
 - **The classic PNG icons too, if you want them** — optionally generates and stores the 16×16,
   32×32 and 66×48 images for the older `IconSmallName`, `IconMediumName` and `IconLargeName`
   properties. Off by default, because Microsoft's guidance is to use the vector instead.
@@ -151,7 +157,10 @@ full-canvas backdrop rectangle removed.
 `tools\build-catalog.ps1` regenerates the bundle from newer releases.
 
 All four licences are permissive, so what you store in your environment carries no attribution
-obligation — the notices travel with the bundle so you can check that for yourself.
+obligation — the notices travel with the bundle so you can check that for yourself. The tool
+writes an `ATTRIBUTION.html` beside the icons anyway, listing every icon it has put there with
+its family, author, licence and what was changed; when a set that does ask for a credit line is
+added, that page is where the credit lives.
 
 ## Building it
 

@@ -20,27 +20,37 @@
       customer's org and cost us the line in docs/clean-room.md saying there is none.
       Phosphor's thin, light and duotone weights are left out: beside Fluent they read as a
       different tool rather than a different set.
-- [ ] Generate an attribution web resource, and make it mandatory for any icon that asks for one.
-      An HTML web resource beside the icons - `new_/icons/ATTRIBUTION.html`, in whatever folder
-      the environment keeps them - listing every icon this tool has written there: the name it is
-      stored under, the family, the author, the licence, and the link. Regenerated on every apply
-      from what the environment holds, not from what this session remembers, so each SVG has to
-      carry its own provenance in a comment for the page to be rebuilt from; published together
-      with the icon and the table, the way the rest already is. For the four bundled families it
-      is a courtesy. For a set licensed CC BY it is the obligation itself, and applying such an
-      icon without the page must not be offered. That is what would reopen the sources refused
-      so far - codicons, and the free tier of Noun Project - because the objection to both was
-      that the obligation landed on the customer with nothing carrying it, not that it existed.
-      It does not reopen bundling Noun Project: its API forbids distributing icons at all, so the
-      route there is import-your-own-SVG with the page taking the credit line. Two things to
-      settle before building it: whether a page in the solution that nobody opens is attribution
-      "reasonable to the medium" in the licence's words, and the sentence in docs/clean-room.md
-      and the README saying nothing stored carries an obligation, which stops being true the day
-      the first attributed icon ships and has to say instead that the page is where it lives.
+- [x] Generate an attribution web resource, and make it mandatory for any icon that asks for one.
+      `new_/icons/ATTRIBUTION.html`, in whatever folder the environment keeps its icons, listing
+      every icon this tool has written there: the name it is stored under, the set, the copyright
+      holder, the licence, the link, and what was done to the drawing. Each stored SVG carries its
+      own provenance in a comment, and the page is rebuilt from those on every apply and published
+      with the icon and the table - so it says what is in that folder now rather than what any one
+      session remembers, and an icon somebody replaced by hand stops being credited the moment it
+      stops being there. An icon carrying no comment is left out rather than guessed at.
+      Both postures are built. For the four families bundled today the page is a courtesy, so a
+      page that will not write does not cost the table its icon - the status line says the page
+      could not be written and the apply goes on. `IconLicence.RequiresNotice` is the other one:
+      it stops the apply before the table is touched, leaving the drawing stored with nothing
+      pointing at it. Nothing bundled today sets it, and a test says so, so the licence table and
+      the page's own claims are checked against `ABOUT.txt` rather than trusted to stay in step.
+      The two things to settle first were settled on 10 September 2026. A page nobody opens is
+      attribution "reasonable to the medium": CC BY 4.0 s3(a)(2) allows attribution in any
+      reasonable manner for the medium and names a link to a resource holding the information as
+      its own example, and a web resource has a URI. And the sentence in docs/clean-room.md and the
+      README saying nothing stored carries an obligation stays true - no CC BY set ships, only the
+      machinery - so both were added to rather than retracted: the page is named as where a credit
+      line would live.
+- [ ] Bundle a set whose licence asks for a credit line, now that there is somewhere for one to
+      live. This is what the page was for. It reopens the sources refused so far - codicons, and
+      the free tier of Noun Project - because the objection to both was that the obligation landed
+      on the customer with nothing carrying it, not that it existed. It does not reopen bundling
+      Noun Project: its API forbids distributing icons at all, so the route there is
+      import-your-own-SVG with the page taking the credit line.
       What it unlocks is exactly the licences whose whole demand is a credit line: CC BY in any
       version, and the sets under it - Font Awesome Free's icons, codicons, Noun Project's
       free tier by import. CC BY 4.0 also asks that changes be indicated, and recolouring and
-      the dropped class are changes, so the page says what was done to each. It does not unlock
+      the dropped class are changes, which the page already says of each icon. It does not unlock
       terms that ask for more: share-alike, which the recoloured copy would inherit; a licence
       that forbids redistribution, which is Noun Project's API and Flaticon; or a copyleft set
       inside an MIT DLL. The test for a candidate set is whether a notice is all it wants.

@@ -46,6 +46,13 @@ Worth recording, because "we made different choices" is the substance of the cla
   ask for their notice to travel with the software, which is what `ABOUT.txt` in the bundle is.
   A set that asked for more than that is a set this tool does not bundle: Microsoft's own
   codicons are CC-BY-4.0, and were measured and left out for that among other reasons (TODO.md).
+- **Where a credit line would live.** Since the attribution page, that last sentence is about
+  what is bundled rather than about what could be. Every icon written into an org carries its own
+  provenance and the apply rebuilds `ATTRIBUTION.html` beside the icons from it, so a set whose
+  whole demand is a notice now has somewhere to put one. Nothing shipping today asks for that —
+  `IconLicence.RequiresNotice` is false for all four families and a test says so — but the day a
+  CC BY set is bundled, the obligation lands on that page rather than on the customer, and the
+  page is the price of the icon: it must not be applied without one.
 - **Colour.** The default is `fill="currentColor"` so the app themes the icon, following
   Microsoft's own guidance for table icons, rather than baking a colour in.
 - **Rendering.** No SVG library: the path grammar is parsed and rasterised in
