@@ -1139,9 +1139,18 @@ namespace Icons
             // a second time.
             var change = _undoable.Peek();
 
+            // Applying twice to one table reuses the name, so the second undo is not about
+            // where the table points - it is about what is inside the thing it points at, and
+            // saying "goes back to" the name it already carries would read as doing nothing.
+            var samePlace = !string.IsNullOrEmpty(change.PreviousVector) &&
+                            string.Equals(change.PreviousVector, change.Request.WebResourceName,
+                                          StringComparison.OrdinalIgnoreCase);
+
             var back = string.IsNullOrEmpty(change.PreviousVector)
                 ? change.TableDisplayName + " had no icon before this, and goes back to having none."
-                : change.TableDisplayName + " goes back to " + change.PreviousVector + ".";
+                : samePlace
+                    ? change.TableDisplayName + " keeps pointing at " + change.PreviousVector + "."
+                    : change.TableDisplayName + " goes back to " + change.PreviousVector + ".";
 
             var drawings = change.Overwritten == null || change.Overwritten.Count == 0
                 ? "The web resource that was written stays where it is - nothing here deletes one."

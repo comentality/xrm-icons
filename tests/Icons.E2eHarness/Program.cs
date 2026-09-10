@@ -424,14 +424,19 @@ namespace Icons.E2eHarness
                 },
                 new Step
                 {
-                    Label = "the platform takes an icon off when the value is null",
+                    Label = "an icon can be taken off a table entirely",
                     Do = r =>
                     {
                         // The one path the window cannot reach here: undo puts back whatever the
                         // table held, and this fixture always held something. A table that had no
-                        // icon when it was applied to has to end up with none again, and whether
-                        // null in IconVectorName means that is the platform's answer rather than
-                        // this tool's - so it is asked of the platform, once, directly.
+                        // icon when it was applied to has to end up with none again.
+                        //
+                        // Which is not the property being set to null. Null is read as "this one
+                        // is not part of the update" and the icon stays exactly where it was;
+                        // an empty string is what clears it, and an empty string is what Revert
+                        // writes for nothing. That is the platform's answer rather than this
+                        // tool's, so it is asked of the platform, once, directly, on every run -
+                        // the day it changes, this line is the one that says so.
                         IconApplier.Revert(client, new IconRevertRequest
                         {
                             TableLogicalName = Org.TableLogicalName,
