@@ -5,7 +5,7 @@ the package page, so it has to stand on its own.
 
 ## Unreleased
 
-- **The tables you can pick from are listed in the open, instead of hiding behind a dropdown you had to click.** The box above the list narrows it and the list is the answer — two halves of one errand, and the half that was the answer was the half you could not see. How many tables are left to do now reads without a click, the arrow keys walk them, and Enter or Down out of the *Find table* box lands you in the list — the same handoff the icon search has always made into the grid. Pointing at a table no longer wipes what you typed, so *Only tables with no icon yet* stays a working list you go down rather than one you keep retyping your way back into.
+- **The tables you can pick from are listed in the open, instead of hiding behind a dropdown you had to click.** The box above the list narrows it and the list is the answer — two halves of one errand, and the half that was the answer was the half you could not see. How many tables are left to do now reads without a click, the arrow keys walk them, and Enter or Down out of the *Find table* box lands you in the list — the same handoff the icon search has always made into the grid. What you typed stays in the box when you pick, so *Only tables with no icon yet* reads as the working list it is: one you go down, rather than something to keep retyping your way back into.
 
   ![The table list, open under the box that narrows it](https://raw.githubusercontent.com/comentality/xrm-icons/main/docs/images/release/table-list.png)
 
