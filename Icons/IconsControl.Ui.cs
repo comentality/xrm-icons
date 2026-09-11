@@ -362,6 +362,7 @@ namespace Icons
 
             _tableFilterBox = new TextBox { Dock = DockStyle.Fill };
             _tableFilterBox.TextChanged += (s, e) => ShowTables();
+            _tableFilterBox.KeyDown += TableFilter_KeyDown;
 
             // The common errand is "which of these has nobody given an icon yet", and the
             // answer is already in hand: the load reads IconVectorName with everything else,
@@ -394,7 +395,12 @@ namespace Icons
             };
             _hideLockedBox.CheckedChanged += (s, e) => ShowTables();
 
-            _tableBox = new ComboBox { Dock = DockStyle.Fill, DropDownStyle = ComboBoxStyle.DropDownList };
+            // A list, not a dropdown. The box above it narrows and this one points, which are
+            // two halves of one errand rather than two settings - and a dropdown hides the half
+            // that is the answer. Open, how much is left to do is readable without a click, the
+            // arrow keys walk it, and the filter survives being pointed at, which is what lets
+            // the unset-only list be worked down one table at a time.
+            _tableBox = new ListBox { Dock = DockStyle.Fill, IntegralHeight = false };
             _tableBox.SelectedIndexChanged += Table_SelectedIndexChanged;
 
             // Beside the list it fills, rather than a caption at the top of the window. Reading
@@ -525,7 +531,11 @@ namespace Icons
             AddRow(form, 0, "Find table", _tableFilterBox);
             AddRow(form, 1, "", _unsetOnlyBox);
             AddRow(form, 2, "", _hideLockedBox);
-            AddRow(form, 3, _loadButton, "Table", _tableBox);
+            // Seven rows of list, measured in the font it will be drawn in rather than written
+            // down in pixels - see FitForm for why a number here would be right on one machine.
+            // Seven is enough to show a filter narrowed to a handful as a handful, and few
+            // enough that the navigation above it keeps most of the height.
+            AddRow(form, 3, _loadButton, "Table", _tableBox, Font.Height * 7 + 6);
             AddNoteRow(form, 4, _lockedLabel);
             AddRow(form, 5, "Solution", _solutionBox);
             AddRow(form, 6, "Web resource", _nameBox);
@@ -607,9 +617,10 @@ namespace Icons
         /// control - it is what fills the box beside it - so it goes in the caption column with
         /// the caption rather than trailing off the end of the row.
         /// </summary>
-        private static void AddRow(TableLayoutPanel form, int row, Control before, string caption, Control control)
+        private static void AddRow(TableLayoutPanel form, int row, Control before, string caption,
+                                   Control control, int height = 28)
         {
-            form.RowStyles.Add(new RowStyle(SizeType.Absolute, 28));
+            form.RowStyles.Add(new RowStyle(SizeType.Absolute, height));
 
             var head = new FlowLayoutPanel
             {
@@ -618,9 +629,12 @@ namespace Icons
                 WrapContents = false,
                 Margin = new Padding(0),
                 Padding = new Padding(0),
-                Anchor = AnchorStyles.Left
+                // Top, not centred: on a row as tall as a list, a caption floating down the
+                // middle of it has stopped labelling the first thing in the list.
+                Anchor = AnchorStyles.Left | AnchorStyles.Top
             };
             head.Controls.Add(before);
+
             head.Controls.Add(new Label
             {
                 Text = caption,
@@ -845,6 +859,31 @@ namespace Icons
             _grid.Focus();
             if (_grid.SelectedIndices.Count == 0) _grid.SelectedIndices.Add(0);
             _grid.EnsureVisible(_grid.SelectedIndices[0]);
+        }
+
+        /// <summary>
+        /// Enter or Down, out of the filter box and into the list under it. Narrowing and then
+        /// pointing is one errand, and the two controls it takes should not cost a reach for the
+        /// mouse in between. The same handoff the search box makes into the icons.
+        /// </summary>
+        private void TableFilter_KeyDown(object sender, KeyEventArgs e)
+        {
+            if (e.KeyCode != Keys.Enter && e.KeyCode != Keys.Down) return;
+
+            // Enter only, and whether or not there is anywhere to go: a text box on a form with
+            // no accept button beeps at it, and being beeped at for pressing it is not an answer.
+            // Down in a one-line box is already silent, and swallowing it would cost nothing but
+            // would also say nothing.
+            if (e.KeyCode == Keys.Enter)
+            {
+                e.SuppressKeyPress = true;
+                e.Handled = true;
+            }
+
+            if (_tableBox.Items.Count == 0) return;
+
+            _tableBox.Focus();
+            if (_tableBox.SelectedIndex < 0) _tableBox.SelectedIndex = 0;
         }
 
         private void Grid_SelectedIndexChanged(object sender, EventArgs e)

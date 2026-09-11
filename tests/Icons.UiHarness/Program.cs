@@ -388,7 +388,7 @@ namespace Icons.UiHarness
             tablesField.SetValue(control, tables);
             showTables.Invoke(control, null);
 
-            var tableBox = RowControl(control, "Table") as ComboBox;
+            var tableBox = RowControl(control, "Table") as ListBox;
             var filterBox = RowControl(control, "Find table") as TextBox;
             var nameBox = RowControl(control, "Web resource") as TextBox;
             if (tableBox == null || filterBox == null || nameBox == null)
@@ -488,7 +488,7 @@ namespace Icons.UiHarness
             return failures;
         }
 
-        private static int IndexOfTable(ComboBox tableBox, string logicalName)
+        private static int IndexOfTable(ListBox tableBox, string logicalName)
         {
             var index = tableBox.Items.Cast<object>().ToList()
                 .FindIndex(i => i.ToString().Contains("(" + logicalName + ")"));
@@ -522,7 +522,7 @@ namespace Icons.UiHarness
             tables.Add(SeededTable(itemType, "contract", "Contract", "new_/icons/contract.svg"));
             tablesField.SetValue(control, tables);
 
-            var tableBox = RowControl(control, "Table") as ComboBox;
+            var tableBox = RowControl(control, "Table") as ListBox;
             var filterBox = RowControl(control, "Find table") as TextBox;
             var unsetOnly = Descendants(control)
                 .OfType<CheckBox>()
@@ -634,7 +634,7 @@ namespace Icons.UiHarness
             tables.Add(SeededTable(itemType, "solution", "Solution", null, false));
             tablesField.SetValue(control, tables);
 
-            var tableBox = RowControl(control, "Table") as ComboBox;
+            var tableBox = RowControl(control, "Table") as ListBox;
             var filterBox = RowControl(control, "Find table") as TextBox;
             var hideLocked = Descendants(control)
                 .OfType<CheckBox>()
@@ -744,7 +744,7 @@ namespace Icons.UiHarness
             Console.WriteLine("OK: the PNG checkbox comes with a link to what the PNGs are for");
             return 0;
         }
-        private static string Listed(ComboBox box)
+        private static string Listed(ListBox box)
         {
             return box.Items.Count == 0
                 ? "nothing"

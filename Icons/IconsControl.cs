@@ -190,7 +190,7 @@ namespace Icons
         private ComboBox _styleBox;
         private CheckBox _familyToggle;
         private ListView _grid;
-        private ComboBox _tableBox;
+        private ListBox _tableBox;
         private TextBox _tableFilterBox;
         private CheckBox _unsetOnlyBox;
         private ComboBox _solutionBox;
@@ -737,8 +737,8 @@ namespace Icons
                 if (index >= 0) _tableBox.SelectedIndex = index;
             }
 
-            // A filter typed down to a single table has already named it, and opening the list
-            // to click the only row in it is a click for nothing. Only when something was typed:
+            // A filter typed down to a single table has already named it, and reaching for the
+            // one row left to say so is a click for nothing. Only when something was typed:
             // a list of one because the unset-only list is nearly finished is not somebody
             // pointing at a table.
             if (_tableBox.SelectedIndex < 0 && filter.Length > 0 && _tableBox.Items.Count == 1)
@@ -1138,7 +1138,7 @@ namespace Icons
 
                     // And the list on screen disagrees with the list in memory unless it is
                     // rebuilt: a table just given an icon has no business still being offered
-                    // under "only tables with no icon yet". It drops out of the combo, which is
+                    // under "only tables with no icon yet". It drops out of the list, which is
                     // the point - that one is done.
                     var wasAt = _tableBox.SelectedIndex;
                     ShowTables();
