@@ -118,13 +118,16 @@ namespace Icons
         /// </summary>
         private void FitForm()
         {
+            RefitSplit();
+
             if (!_targetSplitLaid || _targetSplitDragged || _layingTargetSplit) return;
 
+            // Only what is inside the splitter's lower pane. The button's strip and the red
+            // line are docked to the target pane outside it, so they have already been taken
+            // off _targetSplit.Height by the time this asks what room there is.
             var needed = _form.Height
                          + _iconLabel.Height
-                         + Math.Max(_formActions.Height, _formActions.PreferredSize.Height)
-                         + (_warningLabel.Visible ? _warningLabel.Height : 0)
-                         + (_troubleLabel.Visible ? _troubleLabel.Height : 0);
+                         + (_warningLabel.Visible ? _warningLabel.Height : 0);
 
             var room = _targetSplit.Height - _targetSplit.SplitterWidth;
             var distance = Math.Min(room - _targetSplit.Panel2MinSize, room - needed);
@@ -134,6 +137,44 @@ namespace Icons
 
             _layingTargetSplit = true;
             try { _targetSplit.SplitterDistance = distance; }
+            finally { _layingTargetSplit = false; }
+        }
+
+        /// <summary>
+        /// Puts the lower pane back inside the splitter on the resizes where WinForms leaves it
+        /// hanging over the edge.
+        ///
+        /// A SplitContainer fixed on Panel2 answers a change of height by moving the splitter
+        /// and leaving Panel2 the height it had. Once the splitter is down on Panel1MinSize
+        /// there is nothing left to move, and from there the container goes on shrinking while
+        /// the panel does not: its foot ends up below the window, taking whatever is docked
+        /// there with it. Growing back does not undo it either - the panel is still the size it
+        /// was, so it stays too big until the window is tall enough to hold it again.
+        ///
+        /// The distance setter re-measures both panels, but only when the value it is given is
+        /// not the one already set - so the way to ask for a re-measure is to change it, one
+        /// pixel out and back. The setter clamps what it is given to the two minimums, which is
+        /// what does the work: the panel comes back inside the pane and the preview above gives
+        /// up the height, down to the form's own minimum.
+        ///
+        /// This runs even when the splitter has been dragged. Where the form sits is somebody's
+        /// answer to a question; hanging off the bottom of the window is not an answer.
+        /// </summary>
+        private void RefitSplit()
+        {
+            if (_targetSplit == null || _layingTargetSplit) return;
+
+            var fits = _targetSplit.Height - _targetSplit.SplitterDistance - _targetSplit.SplitterWidth;
+            if (_targetSplit.Panel2.Height == fits) return;
+
+            var distance = _targetSplit.SplitterDistance;
+
+            _layingTargetSplit = true;
+            try
+            {
+                _targetSplit.SplitterDistance = distance + 1;
+                _targetSplit.SplitterDistance = distance;
+            }
             finally { _layingTargetSplit = false; }
         }
 
@@ -572,6 +613,16 @@ namespace Icons
             // Right, because that is the corner a window that fills something in keeps its last
             // button in, and its own strip below everything else so the red line that says why a
             // write failed reads above the button that would try it again.
+            //
+            // It is docked to the target pane itself rather than to the form's side of the
+            // splitter, and that is load-bearing rather than tidy. A SplitContainer fixed on
+            // Panel2 stops shrinking Panel2 once the splitter has been pushed down to
+            // Panel1MinSize: from there the panel keeps the height it had and simply hangs off
+            // the bottom of the window, and anything docked to its foot goes with it. On a
+            // 1080p screen with the solution line showing, that starts at a target pane of
+            // about 580 - a restored-down XrmToolBox - and the button went under the status
+            // bar. Out here it is the last strip of the pane at any height, and what runs short
+            // is the form, which scrolls.
             var actions = new FlowLayoutPanel
             {
                 Dock = DockStyle.Bottom,
@@ -582,14 +633,15 @@ namespace Icons
                 Padding = new Padding(8, 4, 8, 6)
             };
             actions.Controls.Add(_applyButton);
-            _formActions = actions;
 
+            // The two lines that are about the form - which icon is chosen, and what is worth
+            // saying about the choice - stay with the form and come out of its height. The two
+            // that are about the write - the red line and the button - do not: see the note on
+            // the strip above.
             var below = new Panel { Dock = DockStyle.Fill };
             below.Controls.Add(_formHost);
-            below.Controls.Add(_troubleLabel);
             below.Controls.Add(_warningLabel);
             below.Controls.Add(_iconLabel);
-            below.Controls.Add(actions);
 
             // The preview above, the form below, and a splitter between them, because how much
             // navigation is worth looking at is not the same question every time: a long site
@@ -611,8 +663,13 @@ namespace Icons
             // distance, this one only by a hand on the splitter.
             _targetSplit.SplitterMoving += (s, e) => _targetSplitDragged = true;
 
+            // Fill first and the strips after it: WinForms docks the last control in the
+            // collection against the edge first, so the button owns the foot of the pane, the
+            // red line sits directly above it, and the splitter gets what is left.
             var pane = new Panel { Dock = DockStyle.Fill };
             pane.Controls.Add(_targetSplit);
+            pane.Controls.Add(_troubleLabel);
+            pane.Controls.Add(actions);
             return pane;
         }
 

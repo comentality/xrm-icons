@@ -193,11 +193,10 @@ namespace Icons
         private bool _targetSplitDragged;
         private bool _layingTargetSplit;
 
-        /// <summary>The form itself, its scrolling host, and the strip under it - measured
-        /// together to work out how much height the lower pane is asking for.</summary>
+        /// <summary>The form itself and its scrolling host - measured together to work out how
+        /// much height the lower pane is asking for.</summary>
         private TableLayoutPanel _form;
         private Panel _formHost;
-        private FlowLayoutPanel _formActions;
 
         /// <summary>
         /// What the buttons with no words on them would have said. A drawing is quicker to find
