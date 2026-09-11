@@ -5,6 +5,12 @@ the package page, so it has to stand on its own.
 
 ## Unreleased
 
+- **Set as table icon stays in the window when XrmToolBox is not maximised, instead of sliding under the status bar.** The form sits in the lower half of a splitter fixed on that half, and a splitter fixed on one panel answers a shrinking window by moving the splitter rather than the panel — so once the splitter is down against the preview's minimum there is nothing left to move, the window goes on shrinking, the panel does not, and its foot leaves the window with the button on it. Growing the window back did not undo it either. It took a pane under about 580 pixels to see, which a maximised 1080p window never is, and the *choose a solution* line — the one an environment with no preferred solution opens on — is what pushed it over the edge. The button and the red line that says why a write failed now dock to the pane itself rather than inside the splitter, so they are the last two strips of the pane at any height and what runs short is the form, which scrolls.
+
+  ![Set as table icon, before and after](https://raw.githubusercontent.com/comentality/xrm-icons/main/docs/images/release/apply-button-stays.png)
+
+- The UI harness sweeps the window's height down and back up with the solution line showing, and fails if the apply button or the form pane ever leaves the window. Every height above the break was fine, so the single-size shot it took before would have gone on passing.
+
 - **About now says which build you are running and where the tool lives, instead of only who drew the icons.** It was a message box of licence text with nothing in it about the tool itself - no version, so nobody reporting a bug could say what they had, and no way back to the project. It is a window now: the name, the description and the tile are read out of the plugin's own metadata, which is where XrmToolBox reads them, so the box cannot end up calling the tool something the tools list does not; the version and the commit come out of the assembly the build stamped.
 
   ![The name, the build and the links](https://raw.githubusercontent.com/comentality/xrm-icons/main/docs/images/release/about-identity.png)

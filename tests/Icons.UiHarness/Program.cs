@@ -166,6 +166,7 @@ namespace Icons.UiHarness
                     failures += CheckRasterHelpOffered(control);
                     failures += CheckFamiliesAreShownAndFiltered(control, form, outputDir);
                     failures += CheckFormSurvivesTheNarrowestPane(control, form, outputDir);
+                    failures += CheckApplyStaysInTheWindowAsItShrinks(control, form, outputDir);
 
                     form.Close();
                     Pump();
@@ -922,6 +923,117 @@ namespace Icons.UiHarness
             Shoot(form, outputDir, "11-narrow-pane");
 
             body.SplitterDistance = was;
+            Pump();
+            return failures;
+        }
+
+        /// <summary>
+        /// The button that writes the icon stays in the window at every height the window can
+        /// be, and so does the form pane it sits under.
+        ///
+        /// Written for a bug that only a sweep finds. A SplitContainer fixed on Panel2 answers
+        /// a change of height by moving the splitter and leaving Panel2 the height it had; once
+        /// the splitter is down on Panel1MinSize there is nothing left to move, so the container
+        /// goes on shrinking and the panel does not. Its foot leaves the window, taking whatever
+        /// is docked there with it, and growing the window back does not undo it. Every height
+        /// above about 580 is fine - which is every height a maximised window has - so the one
+        /// shot this harness took would have gone on passing while a restored-down XrmToolBox
+        /// hid the button under its status bar.
+        ///
+        /// The solution line is showing throughout, because that is the tallest the form gets
+        /// before a table is chosen, and it is what an environment with no preferred solution
+        /// opens on - which is how this was found.
+        /// </summary>
+        private static int CheckApplyStaysInTheWindowAsItShrinks(IconsControl control, Form form, string outputDir)
+        {
+            const BindingFlags Private = BindingFlags.Instance | BindingFlags.NonPublic;
+            var split = typeof(IconsControl).GetField("_targetSplit", Private)?.GetValue(control) as SplitContainer;
+            var button = typeof(IconsControl).GetField("_applyButton", Private)?.GetValue(control) as Control;
+            var solutionsField = typeof(IconsControl).GetField("_solutions", Private);
+            var solutionType = typeof(IconsControl).GetNestedType("SolutionItem", BindingFlags.NonPublic);
+            var syncEnabled = typeof(IconsControl).GetMethod("SyncEnabled", Private);
+
+            if (split == null || button == null || solutionsField == null ||
+                solutionType == null || syncEnabled == null)
+            {
+                Console.WriteLine("FAIL: the splitter, the apply button and the solution plumbing " +
+                                  "are not all where the harness expects them");
+                return 1;
+            }
+
+            // Solutions offered and none of them chosen, which is what puts the concern line
+            // above the form and makes it as tall as it gets.
+            var solutions = (IList)Activator.CreateInstance(typeof(List<>).MakeGenericType(solutionType));
+            var solution = Activator.CreateInstance(solutionType, true);
+            solutionType.GetField("Id").SetValue(solution, Guid.NewGuid());
+            solutionType.GetField("UniqueName").SetValue(solution, "contoso");
+            solutionType.GetField("FriendlyName").SetValue(solution, "Contoso");
+            solutionType.GetField("Prefix").SetValue(solution, "new");
+            solutions.Add(solution);
+            solutionsField.SetValue(control, solutions);
+
+            var solutionBox = RowControl(control, "Solution") as ComboBox;
+            if (solutionBox == null)
+            {
+                Console.WriteLine("FAIL: no solution box to leave unchosen");
+                return 1;
+            }
+            solutionBox.Items.Add(solution);
+            solutionBox.SelectedIndex = -1;
+            syncEnabled.Invoke(control, null);
+            Pump();
+
+            var wasHeight = form.Height;
+            var failures = 0;
+            var worstButton = 0;
+            var worstPane = 0;
+            var shot = false;
+
+            // Down and back up, because the panel keeps the height it was left with: a sweep
+            // that only shrinks would miss a window that never recovers.
+            var heights = new List<int>();
+            for (var h = wasHeight; h >= 360; h -= 20) heights.Add(h);
+            for (var h = 360; h <= wasHeight; h += 20) heights.Add(h);
+
+            foreach (var height in heights)
+            {
+                form.Height = height;
+                Pump();
+
+                // The button, in the control's own coordinates. Docked where it is, its foot
+                // should be the foot of the pane less the strip's own padding - never past it.
+                var bottom = control.PointToClient(button.Parent.PointToScreen(new Point(0, button.Bottom))).Y;
+                var over = bottom - control.Height;
+                if (over > 0 && over > worstButton)
+                {
+                    worstButton = over;
+                    if (!shot) { Shoot(form, outputDir, "12-apply-off-the-bottom"); shot = true; }
+                }
+
+                // And the lower pane inside the splitter that holds it.
+                var fits = split.Height - split.SplitterDistance - split.SplitterWidth;
+                var hangs = split.Panel2.Height - fits;
+                if (hangs > worstPane) worstPane = hangs;
+            }
+
+            if (worstButton > 0)
+            {
+                Console.WriteLine("FAIL: 'Set as table icon' leaves the window as it shrinks - " +
+                                  "by " + worstButton + " pixels at its worst");
+                failures++;
+            }
+
+            if (worstPane > 0)
+            {
+                Console.WriteLine("FAIL: the form pane hangs out of its splitter as the window " +
+                                  "shrinks - by " + worstPane + " pixels at its worst");
+                failures++;
+            }
+
+            if (failures == 0)
+                Console.WriteLine("OK: the apply button and the form pane stay in the window at every height");
+
+            form.Height = wasHeight;
             Pump();
             return failures;
         }
