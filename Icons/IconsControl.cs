@@ -157,6 +157,20 @@ namespace Icons
         private bool _targetSplitLaid;
 
         /// <summary>
+        /// Set once somebody drags the splitter between the preview and the form. From then on
+        /// the height of the form pane is their answer and not ours, so nothing below re-lays it.
+        /// The programmatic set raises the same event, hence the flag that says which is which.
+        /// </summary>
+        private bool _targetSplitDragged;
+        private bool _layingTargetSplit;
+
+        /// <summary>The form itself, its scrolling host, and the strip under it - measured
+        /// together to work out how much height the lower pane is asking for.</summary>
+        private TableLayoutPanel _form;
+        private Panel _formHost;
+        private FlowLayoutPanel _formActions;
+
+        /// <summary>
         /// What the buttons with no words on them would have said. A drawing is quicker to find
         /// than a caption and says nothing at all on its own, so each one still carries its
         /// sentence - and its accessible name, for the reader that has only that.
@@ -356,12 +370,15 @@ namespace Icons
 
             _warningLabel.Text = text;
             _warningLabel.Visible = text.Length > 0;
-            if (text.Length == 0) return;
+            if (text.Length == 0) { FitForm(); return; }
 
             var room = Math.Max(80, _warningLabel.Width - _warningLabel.Padding.Horizontal);
             var needed = TextRenderer.MeasureText(
                 text, _warningLabel.Font, new Size(room, 0), TextFormatFlags.WordBreak);
             _warningLabel.Height = Math.Max(46, needed.Height + _warningLabel.Padding.Vertical + 4);
+
+            // This line comes out of the form's room, so the pane is asked to grow by as much.
+            FitForm();
         }
 
         /// <summary>
@@ -405,6 +422,7 @@ namespace Icons
 
             _troubleLabel.Text = _trouble ?? "";
             _troubleLabel.Visible = _trouble != null;
+            FitForm();
         }
 
         // ===== tables and solutions =====

@@ -5,6 +5,10 @@ the package page, so it has to stand on its own.
 
 ## Unreleased
 
+- **The form on the right takes the height it actually needs, so the pane holding it no longer grows a pair of scroll bars.** The height it was given was a number written down once, and the form is taller than that number the moment the chosen table is locked, the warning line has something to say, or your machine draws at a different size. One row too many put a scroll bar down the side, the bar took the width the widest row was using, a second bar appeared along the foot, and that took back more height than the first bar was about. The splitter above the form now gives way instead, the widest row drops its link onto a second line rather than off the edge, and the form only ever scrolls downwards — once you drag that splitter yourself, the height is your answer and nothing moves it.
+
+  ![The form pane, before and after](https://raw.githubusercontent.com/comentality/xrm-icons/main/docs/images/release/no-scroll-bars.png)
+
 - **Reading the environment is a refresh button beside the table list it fills, rather than a caption in the toolbar.** Nothing but that button puts tables in that box, so it belongs beside the box rather than at the top of a window with everything else. The arrow is drawn out of the library the tool is built to browse, at the moment it opens, rather than kept as a resource of its own.
 
   ![The refresh beside the table list](https://raw.githubusercontent.com/comentality/xrm-icons/main/docs/images/release/refresh-table.png)
@@ -39,7 +43,7 @@ the package page, so it has to stand on its own.
 
 - Two faults only a live preview made visible went with it. The chosen row is filled in as it is painted rather than when the navigation arrived, so picking a different icon changes what is drawn — before, the row kept whatever had been chosen when the window opened. And *Follow the app theme* no longer sends the light theme's #242424 into a dark navigation and calls the result a preview: no colour is passed at all, and the theme on show resolves `currentColor` itself.
 
-- The slow-connection harness gained the app read as a fourth thing that can be slow or fail, and a scenario saying it must cost the preview only. The window harness photographs the preview in place, on both themes, and checks that a locked table is hidden and then explained.
+- The slow-connection harness gained the app read as a fourth thing that can be slow or fail, and a scenario saying it must cost the preview only. The window harness photographs the preview in place, on both themes, and checks that a locked table is hidden and then explained. It also measures the form pane for scroll bars at three moments — on opening, with the locked note showing, and with the pane dragged as narrow as it goes — because a bar down the side and a bar along the foot each cause the other, and neither is visible in a screenshot anybody thought to take.
 
 ## v1.0.0 — 10 September 2026
 

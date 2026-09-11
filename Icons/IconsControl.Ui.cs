@@ -70,7 +70,9 @@ namespace Icons
 
         /// <summary>
         /// Gives the two panes their proportions once there is enough width to hold them, and
-        /// then leaves the splitter alone so a drag is not undone by the next resize.
+        /// then leaves the splitter between them alone so a drag is not undone by the next
+        /// resize. The splitter inside the target pane is kept on the form's height instead -
+        /// see <see cref="FitForm"/> - until somebody drags that one too.
         /// </summary>
         private void LaySplitter()
         {
@@ -89,19 +91,50 @@ namespace Icons
                 _splitterLaid = true;
             }
 
-            // The form's own height, so it opens whole and the preview takes what is over. Nine
-            // rows of it, the line that names the chosen icon above them, and the strip with the
-            // apply button under them.
-            const int formHeight = 325;
             const int previewMinimum = 120;
+            const int formMinimum = 200;
 
-            if (!_targetSplitLaid && _targetSplit.Height >= formHeight + previewMinimum + _targetSplit.SplitterWidth)
+            if (!_targetSplitLaid && _targetSplit.Height >= formMinimum + previewMinimum + _targetSplit.SplitterWidth)
             {
                 _targetSplit.Panel1MinSize = previewMinimum;
-                _targetSplit.Panel2MinSize = 200;
-                _targetSplit.SplitterDistance = _targetSplit.Height - formHeight;
+                _targetSplit.Panel2MinSize = formMinimum;
                 _targetSplitLaid = true;
             }
+
+            FitForm();
+        }
+
+        /// <summary>
+        /// Gives the lower pane the height the form is actually asking for, so it opens whole and
+        /// the preview takes what is over.
+        ///
+        /// Asking beats a constant: the form is ten rows at one font and ten rows at another, it
+        /// grows a line when the chosen table is locked, and the warning and trouble lines come
+        /// and go above and below it. A number written here would be right on the machine it was
+        /// measured on and a scroll bar everywhere else.
+        ///
+        /// Once the splitter has been dragged this does nothing. How much navigation is worth
+        /// looking at is a question somebody has then answered, and the form scrolls instead.
+        /// </summary>
+        private void FitForm()
+        {
+            if (!_targetSplitLaid || _targetSplitDragged || _layingTargetSplit) return;
+
+            var needed = _form.Height
+                         + _iconLabel.Height
+                         + Math.Max(_formActions.Height, _formActions.PreferredSize.Height)
+                         + (_warningLabel.Visible ? _warningLabel.Height : 0)
+                         + (_troubleLabel.Visible ? _troubleLabel.Height : 0);
+
+            var room = _targetSplit.Height - _targetSplit.SplitterWidth;
+            var distance = Math.Min(room - _targetSplit.Panel2MinSize, room - needed);
+            if (distance < _targetSplit.Panel1MinSize) distance = _targetSplit.Panel1MinSize;
+            if (distance > room - _targetSplit.Panel2MinSize) return;
+            if (_targetSplit.SplitterDistance == distance) return;
+
+            _layingTargetSplit = true;
+            try { _targetSplit.SplitterDistance = distance; }
+            finally { _layingTargetSplit = false; }
         }
 
         private ToolStrip BuildToolbar()
@@ -472,13 +505,19 @@ namespace Icons
                 Padding = new Padding(8, 4, 8, 4)
             };
 
+            // Sized to its rows and docked to the top of a host that scrolls, rather than filling
+            // a host and scrolling itself. A form that scrolls itself is as wide as its widest row
+            // wants to be, so a pane one scroll bar too narrow grows a second bar along the foot,
+            // which takes another line of height, which lengthens the first bar. Docked to the
+            // top it is exactly as wide as there is room for and only ever scrolls downwards.
             var form = new TableLayoutPanel
             {
-                Dock = DockStyle.Fill,
+                Dock = DockStyle.Top,
+                AutoSize = true,
+                AutoSizeMode = AutoSizeMode.GrowAndShrink,
                 ColumnCount = 2,
                 RowCount = 10,
-                Padding = new Padding(8, 6, 8, 6),
-                AutoScroll = true
+                Padding = new Padding(8, 6, 8, 6)
             };
             form.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 86));
             form.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
@@ -492,7 +531,13 @@ namespace Icons
             AddRow(form, 6, "Web resource", _nameBox);
             AddRow(form, 7, "Colour", _themeColour);
             AddRow(form, 8, "", Beside(_fixedColour, _colourButton, last: false));
-            AddRow(form, 9, "", Beside(_rasterBox, _rasterHelp, last: true));
+            AddWrappingRow(form, 9, Beside(_rasterBox, _rasterHelp, last: true, wrap: true));
+
+            _form = form;
+            _form.SizeChanged += (s, e) => FitForm();
+
+            _formHost = new Panel { Dock = DockStyle.Fill, AutoScroll = true };
+            _formHost.Controls.Add(form);
 
             // Right, because that is the corner a window that fills something in keeps its last
             // button in, and its own strip below everything else so the red line that says why a
@@ -507,9 +552,10 @@ namespace Icons
                 Padding = new Padding(8, 4, 8, 6)
             };
             actions.Controls.Add(_applyButton);
+            _formActions = actions;
 
             var below = new Panel { Dock = DockStyle.Fill };
-            below.Controls.Add(form);
+            below.Controls.Add(_formHost);
             below.Controls.Add(_troubleLabel);
             below.Controls.Add(_warningLabel);
             below.Controls.Add(_iconLabel);
@@ -522,10 +568,18 @@ namespace Icons
             {
                 Dock = DockStyle.Fill,
                 Orientation = Orientation.Horizontal,
-                SplitterWidth = 6
+                SplitterWidth = 6,
+
+                // Growing the window lengthens the navigation above and leaves the form the
+                // height it was given, which is the height it asked for.
+                FixedPanel = FixedPanel.Panel2
             };
             _targetSplit.Panel1.Controls.Add(_context);
             _targetSplit.Panel2.Controls.Add(below);
+
+            // SplitterMoving and not SplitterMoved: the second is raised by every set of the
+            // distance, this one only by a hand on the splitter.
+            _targetSplit.SplitterMoving += (s, e) => _targetSplitDragged = true;
 
             var pane = new Panel { Dock = DockStyle.Fill };
             pane.Controls.Add(_targetSplit);
@@ -586,22 +640,38 @@ namespace Icons
         /// The last row of the form is the one the layout hands its leftover height to, so what
         /// sits in it is anchored to the top as well, or it floats down the middle of that
         /// height and reads as belonging to nothing.
+        ///
+        /// A wrapping pair is the widest thing in the form - a tickbox and the question it
+        /// answers - and it is allowed to drop the second onto a line of its own when the pane is
+        /// narrow, which is what keeps the form inside its own width at any width.
         /// </summary>
-        private static Control Beside(Control first, Control second, bool last)
+        private static Control Beside(Control first, Control second, bool last, bool wrap = false)
         {
             var pair = new FlowLayoutPanel
             {
                 AutoSize = true,
                 AutoSizeMode = AutoSizeMode.GrowAndShrink,
-                WrapContents = false,
+                WrapContents = wrap,
                 Margin = new Padding(0),
                 Padding = new Padding(0),
-                Anchor = last ? AnchorStyles.Left | AnchorStyles.Top : AnchorStyles.Left
+                Anchor = wrap
+                    ? AnchorStyles.Left | AnchorStyles.Top | AnchorStyles.Right
+                    : last ? AnchorStyles.Left | AnchorStyles.Top : AnchorStyles.Left
             };
 
             pair.Controls.Add(first);
             pair.Controls.Add(second);
             return pair;
+        }
+
+        /// <summary>
+        /// A row that takes the height of what is in it, for the one row that is allowed to
+        /// become two lines when there is not the width for one.
+        /// </summary>
+        private static void AddWrappingRow(TableLayoutPanel form, int row, Control control)
+        {
+            form.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+            form.Controls.Add(control, 1, row);
         }
 
         /// <summary>

@@ -45,6 +45,8 @@ namespace Icons.UiHarness
 
                     Shoot(form, outputDir, "01-opened");
 
+                    failures += NoScrollBars(control, "on opening");
+
                     var search = Find<TextBox>(control, "search");
                     if (search == null)
                     {
@@ -155,6 +157,7 @@ namespace Icons.UiHarness
                     failures += CheckLockedTablesAreHiddenAndExplained(control, form, outputDir);
                     failures += CheckRasterHelpOffered(control);
                     failures += CheckFamiliesAreShownAndFiltered(control, form, outputDir);
+                    failures += CheckFormSurvivesTheNarrowestPane(control, form, outputDir);
 
                     form.Close();
                     Pump();
@@ -697,6 +700,10 @@ namespace Icons.UiHarness
 
             Shoot(form, outputDir, "09-locked-table");
 
+            // The note is an extra line in a form that had none, which is where the pane first
+            // ran out of room, so this is the moment to look.
+            failures += NoScrollBars(control, "with the locked note showing");
+
             tableBox.SelectedIndex = IndexOfTable(tableBox, "contact");
             Pump();
 
@@ -788,6 +795,76 @@ namespace Icons.UiHarness
 
             if (label == null || label.Text.StartsWith("No icon")) return null;
             return label.Text;
+        }
+
+        /// <summary>
+        /// The form dragged as narrow as it is allowed to go. This is the width at which the
+        /// widest row - a tickbox and the question that answers it - has to give way, and if it
+        /// does not, the pane grows a scroll bar along its foot and the two bars start feeding
+        /// each other.
+        /// </summary>
+        private static int CheckFormSurvivesTheNarrowestPane(IconsControl control, Form form, string outputDir)
+        {
+            const BindingFlags Private = BindingFlags.Instance | BindingFlags.NonPublic;
+            var body = typeof(IconsControl).GetField("_body", Private)?.GetValue(control) as SplitContainer;
+
+            if (body == null)
+            {
+                Console.WriteLine("FAIL: no body splitter to narrow");
+                return 1;
+            }
+
+            var was = body.SplitterDistance;
+            body.SplitterDistance = body.Width - body.Panel2MinSize - body.SplitterWidth;
+            Pump();
+
+            var failures = NoScrollBars(control, "with the pane dragged to its narrowest");
+            Shoot(form, outputDir, "11-narrow-pane");
+
+            body.SplitterDistance = was;
+            Pump();
+            return failures;
+        }
+
+        /// <summary>
+        /// The form pane scrolls downwards when it truly has to and never sideways, and it does
+        /// not have to while there is height above it to take: the splitter gives way first.
+        ///
+        /// Worth a check of its own because the two bars feed each other. A form that is one row
+        /// too tall grows a bar down the side, the bar takes 17 pixels of width, the widest row
+        /// no longer fits, a bar appears along the foot, and that takes back the height the first
+        /// one was about.
+        /// </summary>
+        private static int NoScrollBars(IconsControl control, string where)
+        {
+            const BindingFlags Private = BindingFlags.Instance | BindingFlags.NonPublic;
+            var host = typeof(IconsControl).GetField("_formHost", Private)?.GetValue(control) as Panel;
+            var form = typeof(IconsControl).GetField("_form", Private)?.GetValue(control) as Control;
+
+            if (host == null || form == null)
+            {
+                Console.WriteLine("FAIL: no form and host to measure " + where);
+                return 1;
+            }
+
+            var failures = 0;
+
+            if (host.HorizontalScroll.Visible)
+            {
+                Console.WriteLine("FAIL: the form pane has a scroll bar along the foot " + where +
+                                  " - " + form.Width + " wide in " + host.ClientSize.Width);
+                failures++;
+            }
+
+            if (host.VerticalScroll.Visible)
+            {
+                Console.WriteLine("FAIL: the form pane has a scroll bar down the side " + where +
+                                  " - " + form.Height + " tall in " + host.ClientSize.Height);
+                failures++;
+            }
+
+            if (failures == 0) Console.WriteLine("OK: the form stands whole " + where);
+            return failures;
         }
 
         private static T Find<T>(Control root, string hint) where T : Control
