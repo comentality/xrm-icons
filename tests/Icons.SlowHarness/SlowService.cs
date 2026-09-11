@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
 using System.ServiceModel;
+using System.Text;
 using System.Threading;
 using Microsoft.Crm.Sdk.Messages;
 using Microsoft.Xrm.Sdk;
@@ -84,6 +85,22 @@ namespace Icons.SlowHarness
                 flavour, flavour + " Customisations", flavour.Substring(0, 3).ToLowerInvariant());
 
             return service;
+        }
+
+        /// <summary>
+        /// A web resource this org already holds, drawing and all. What a table's icon property
+        /// points at has to be readable for the window to say which library icon it is, so a
+        /// scenario about that has to put one here.
+        /// </summary>
+        public Guid AddWebResource(string name, string svg, int type = 11)
+        {
+            var row = new Entity("webresource", Guid.NewGuid());
+            row["name"] = name;
+            row["webresourcetype"] = new OptionSetValue(type);
+            row["content"] = Convert.ToBase64String(new UTF8Encoding(false).GetBytes(svg));
+            row["ismanaged"] = false;
+            lock (_lock) _webResources[row.Id] = row;
+            return row.Id;
         }
 
         /// <summary>
@@ -287,6 +304,12 @@ namespace Icons.SlowHarness
             if (q.EntityName == "appmodulecomponent")
                 return Answer(Begin("app-components"), () => new EntityCollection());
 
+            // What this environment already keeps under those names, read at the end of a
+            // load so the window can say which library icon a table is carrying.
+            if (q.EntityName == "webresource")
+                return Answer(Begin("stored-icons"),
+                    () => new EntityCollection(FindWebResources(q.Criteria.Conditions)));
+
             if (q.EntityName != "solution")
                 throw new NotSupportedException("The tool does not query " + q.EntityName + " this way.");
 
@@ -346,6 +369,10 @@ namespace Icons.SlowHarness
 
             var name = record.GetAttributeValue<string>("name") ?? "";
             var wanted = condition.Values[0] as string ?? "";
+
+            if (condition.Operator == ConditionOperator.In)
+                return condition.Values.Any(v =>
+                    string.Equals(v as string, name, StringComparison.OrdinalIgnoreCase));
 
             return condition.Operator == ConditionOperator.BeginsWith
                 ? name.StartsWith(wanted, StringComparison.OrdinalIgnoreCase)

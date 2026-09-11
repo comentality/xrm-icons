@@ -1,7 +1,10 @@
 using System;
 using System.Collections.Generic;
+using System.Drawing;
 using System.Linq;
 using System.Windows.Forms;
+using Icons.Catalog;
+using Icons.Logic;
 
 namespace Icons.SlowHarness
 {
@@ -58,6 +61,7 @@ namespace Icons.SlowHarness
                 PrefixMismatchWarned(),
                 CatchAllNotPreselected(),
                 PreferredSolutionWins(),
+                CarryingAnIcon(),
             };
         }
 
@@ -205,6 +209,68 @@ namespace Icons.SlowHarness
         /// rest of the suite even a fast worker can be slow to get out of bed, and a flaky
         /// setup beat reads exactly like a finding.
         /// </summary>
+        /// <summary>
+        /// A table that already has one of these icons on it. The window should say which one,
+        /// and put it in the grid - but only once the drawing behind the web resource has been
+        /// read, which is the last thing a load does and the thing nothing waits on.
+        ///
+        /// So there are two answers here and both are right: the name of the web resource while
+        /// that is all the window knows, and the icon once it knows the icon. What it must never
+        /// do is guess in between.
+        /// </summary>
+        private static Scenario CarryingAnIcon()
+        {
+            string stored;
+            string described;
+
+            using (var catalog = IconCatalog.Load())
+            {
+                var folder = catalog.Icons.First(i => i.Family == IconFamily.Lucide && i.Name == "folder");
+                described = folder.ToString();
+                stored = SvgOutput.Build(catalog.ReadSvg(folder), IconColourMode.Theme, Color.Black,
+                                         null, IconProvenance.For(folder));
+            }
+
+            return new Scenario
+            {
+                Name = "carrying-an-icon",
+                Why = "a table that already has one of these icons should be told which one, once that is known",
+                Wire = s =>
+                {
+                    s.Tables.Add(SlowService.Table("contoso_settled", "Contoso Settled",
+                        icon: "con_/icons/contoso_settled.svg"));
+                    s.AddWebResource("con_/icons/contoso_settled.svg", stored);
+                    s.Latency = Slow("stored-icons", 2500);
+                }
+            }
+                .At(200, "press Load", r => r.Probe.PressLoad())
+                .At(1200, "pick the table that already has one", r =>
+                {
+                    // A table with an icon is not in the list the window opens on, which is the
+                    // list of the ones without.
+                    r.Probe.UnsetOnly.Checked = false;
+                    r.Probe.PickTable("contoso_settled");
+
+                    r.Check((r.Probe.Carrying ?? "").IndexOf("con_/icons/contoso_settled.svg",
+                                StringComparison.Ordinal) >= 0,
+                        "until the drawing is read the window may only name the web resource, and it says \""
+                        + (r.Probe.Carrying ?? "nothing") + "\"");
+                    r.Check((r.Probe.Carrying ?? "").IndexOf("Lucide", StringComparison.Ordinal) < 0,
+                        "and must not name an icon it has not read");
+                })
+                .At(6500, "the drawing lands", r =>
+                {
+                    r.Check((r.Probe.Carrying ?? "").IndexOf(described, StringComparison.Ordinal) >= 0,
+                        "now it should say which library icon that is - \"" + described
+                        + "\" - and it says \"" + (r.Probe.Carrying ?? "nothing") + "\"");
+                    r.Check(r.Probe.SelectedIcon == "folder",
+                        "and the grid should be on it, but it is on \"" + (r.Probe.SelectedIcon ?? "nothing") + "\"");
+                    r.Check(r.Service.Log("stored-icons").Count == 1,
+                        "read in one query for the whole environment, and there were "
+                        + r.Service.Log("stored-icons").Count);
+                });
+        }
+
         private static Scenario OpenOnATable(Scenario scenario)
         {
             return scenario

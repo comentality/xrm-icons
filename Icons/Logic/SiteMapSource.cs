@@ -95,51 +95,12 @@ namespace Icons.Logic
         }
 
         /// <summary>
-        /// The SVG behind each of those web resource names, by name. Asked for in one query
-        /// rather than one each, and a name that comes back with nothing usable is simply
-        /// absent from the answer - the caller draws what it has.
+        /// The SVG behind each of those web resource names, by name. One question with one
+        /// answer, wherever it is asked from - see <see cref="StoredIcons"/>.
         /// </summary>
         public static Dictionary<string, string> Icons(IOrganizationService service, IEnumerable<string> names)
         {
-            if (service == null) throw new ArgumentNullException(nameof(service));
-
-            var found = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
-
-            var wanted = (names ?? Enumerable.Empty<string>())
-                .Where(n => !string.IsNullOrWhiteSpace(n))
-                .Distinct(StringComparer.OrdinalIgnoreCase)
-                .ToArray();
-
-            if (wanted.Length == 0) return found;
-
-            var records = service.RetrieveMultiple(new QueryExpression("webresource")
-            {
-                ColumnSet = new ColumnSet("name", "content"),
-                Criteria = new FilterExpression
-                {
-                    Conditions = { new ConditionExpression("name", ConditionOperator.In, wanted.Cast<object>().ToArray()) }
-                },
-                TopCount = 500
-            });
-
-            foreach (var record in records.Entities)
-            {
-                var name = record.GetAttributeValue<string>("name");
-                var content = record.GetAttributeValue<string>("content");
-                if (string.IsNullOrEmpty(name) || string.IsNullOrEmpty(content)) continue;
-
-                try
-                {
-                    found[name] = Encoding.UTF8.GetString(Convert.FromBase64String(content));
-                }
-                catch (FormatException)
-                {
-                    // Not base64, so not an SVG this can draw. Nothing to say about it that the
-                    // caller could act on, and an icon missing from a preview is not an error.
-                }
-            }
-
-            return found;
+            return StoredIcons.Read(service, names);
         }
 
         /// <summary>

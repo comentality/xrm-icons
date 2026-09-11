@@ -35,7 +35,8 @@ if (-not $NoBuild) {
     if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 }
 
-$arguments = @("`"$OutputDir`"") + $Scenario
+# Filtered, because an unbound -Scenario is a null that Start-Process refuses rather than ignores.
+$arguments = @("`"$OutputDir`"") + @($Scenario | Where-Object { $_ })
 
 # Out of process with a timeout: a scenario that deadlocks the message loop - which a dialog
 # nobody answers would - should fail the run rather than hang it. The budget is the whole

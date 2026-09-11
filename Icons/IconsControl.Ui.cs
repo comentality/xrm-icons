@@ -430,6 +430,24 @@ namespace Icons
                 Padding = new Padding(0, 1, 0, 5)
             };
 
+            // What the table is carrying now, under the box it was chosen in, beside the line
+            // that says when it cannot carry anything. Grey rather than red: this is a fact
+            // about the table, not a complaint about it. The link is how somebody gets to that
+            // icon in the library when the filters or the search are not showing it - a click,
+            // because re-searching the grid under somebody who is using it is not the tool's
+            // to do unasked.
+            _currentLabel = new LinkLabel
+            {
+                Dock = DockStyle.Fill,
+                AutoSize = true,
+                Visible = false,
+                LinkArea = new LinkArea(0, 0),
+                LinkBehavior = LinkBehavior.HoverUnderline,
+                ForeColor = SystemColors.GrayText,
+                Padding = new Padding(0, 1, 0, 5)
+            };
+            _currentLabel.LinkClicked += (s, e) => ShowCurrentIconInLibrary();
+
             _solutionBox = new ComboBox { Dock = DockStyle.Fill, DropDownStyle = ComboBoxStyle.DropDownList };
             _solutionBox.SelectedIndexChanged += (s, e) => { SuggestName(); SyncEnabled(); };
 
@@ -522,7 +540,7 @@ namespace Icons
                 AutoSize = true,
                 AutoSizeMode = AutoSizeMode.GrowAndShrink,
                 ColumnCount = 2,
-                RowCount = 10,
+                RowCount = 11,
                 Padding = new Padding(8, 6, 8, 6)
             };
             form.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 86));
@@ -537,11 +555,12 @@ namespace Icons
             // enough that the navigation above it keeps most of the height.
             AddRow(form, 3, _loadButton, "Table", _tableBox, Font.Height * 7 + 6);
             AddNoteRow(form, 4, _lockedLabel);
-            AddRow(form, 5, "Solution", _solutionBox);
-            AddRow(form, 6, "Web resource", _nameBox);
-            AddRow(form, 7, "Colour", _themeColour);
-            AddRow(form, 8, "", Beside(_fixedColour, _colourButton, last: false));
-            AddWrappingRow(form, 9, Beside(_rasterBox, _rasterHelp, last: true, wrap: true));
+            AddNoteRow(form, 5, _currentLabel);
+            AddRow(form, 6, "Solution", _solutionBox);
+            AddRow(form, 7, "Web resource", _nameBox);
+            AddRow(form, 8, "Colour", _themeColour);
+            AddRow(form, 9, "", Beside(_fixedColour, _colourButton, last: false));
+            AddWrappingRow(form, 10, Beside(_rasterBox, _rasterHelp, last: true, wrap: true));
 
             _form = form;
             _form.SizeChanged += (s, e) => FitForm();
@@ -888,6 +907,11 @@ namespace Icons
 
         private void Grid_SelectedIndexChanged(object sender, EventArgs e)
         {
+            // Somebody has picked an icon, so the grid is theirs from here and the window stops
+            // moving it for them. Not while the tool is the one moving it: that selection is
+            // still an offer rather than a choice.
+            if (!_choosingCurrent) _chosenFor = null;
+
             if (_grid.SelectedIndices.Count == 0) { SelectIcon(null); return; }
 
             var index = _grid.SelectedIndices[0];
@@ -899,9 +923,15 @@ namespace Icons
             SuggestName();
 
             var table = _tableBox.SelectedItem as TableItem;
+
+            // Asked before the seed writes into the search box, since what makes the box the
+            // tool's is what is in it now.
+            var mine = TheLibraryIsMineToMove();
+
             SeedSearch(table);
 
             ShowLocked(table);
+            ShowCurrentIcon(table, mine);
 
             SyncEnabled();
         }

@@ -142,7 +142,7 @@ namespace Icons
         // ===== reading from the environment =====
 
         /// <summary>
-        /// The last link of the load chain. The preview is always on screen now, so the app
+        /// The preview's own link of the load chain. It is always on screen now, so the app
         /// list is read for it rather than waiting for a window to be opened - one query, at
         /// the end of a load that has already made two, and the only thing that turns the
         /// stand-in into this environment's own navigation.
@@ -173,15 +173,77 @@ namespace Icons
                     {
                         _context.ShowBusy("");
                         ShowStandIn("Could not read this environment's apps. Showing a stand-in.");
-                        return;
+                    }
+                    else
+                    {
+                        _apps = (IReadOnlyList<AppNavigation>)args.Result;
+                        _context.ShowBusy("");
+                        _context.ShowApps(_apps);
+                        ShowStandIn(_apps.Count == 0
+                            ? "This environment has no app with a navigation. Showing a stand-in."
+                            : "A stand-in navigation. Choose an app to see the real one.");
                     }
 
-                    _apps = (IReadOnlyList<AppNavigation>)args.Result;
-                    _context.ShowBusy("");
-                    _context.ShowApps(_apps);
-                    ShowStandIn(_apps.Count == 0
-                        ? "This environment has no app with a navigation. Showing a stand-in."
-                        : "A stand-in navigation. Choose an app to see the real one.");
+                    // Last of all, and after the preview either way: an app list that will not
+                    // come back must cost the preview and nothing else.
+                    ReadStoredIcons();
+                }
+            });
+        }
+
+        /// <summary>
+        /// The last link of the chain, and the one nothing at all waits on: the drawings behind
+        /// the icons this environment already has, which is what lets the window say which
+        /// library icon a table is already carrying.
+        ///
+        /// It goes last because it is a courtesy. The tables, the solutions, the suggested name
+        /// and the preview are what somebody is waiting for, and on a slow link a round trip
+        /// spent here ahead of any of them is a round trip spent making them late. A failure
+        /// costs only the sentence: the window goes back to naming the web resource, which is
+        /// what it knew before.
+        ///
+        /// Only the icons this environment's own publishers named. Microsoft's first-party
+        /// solutions carry hundreds, none of them drawn by a family this tool bundles, and
+        /// reading them would be megabytes spent to say nothing about them.
+        /// </summary>
+        private void ReadStoredIcons()
+        {
+            _stored.Clear();
+
+            if (Service == null) return;
+
+            var ours = _tables.Select(t => t.CurrentIcon).Where(_locations.Reusable).ToList();
+            if (ours.Count == 0) return;
+
+            var generation = _generation;
+            var catalog = _catalog;
+
+            WorkAsync(new WorkAsyncInfo
+            {
+                Message = "Reading the icons this environment already has...",
+                Work = (worker, args) =>
+                {
+                    // Fingerprinting the whole bundle is half a second - measured in
+                    // IdentityTests - and this worker is out anyway. Done here, the drawing is
+                    // never the reason an answer about an icon is late.
+                    catalog?.Index();
+                    args.Result = StoredIcons.Read(Service, ours);
+                },
+                PostWorkCallBack = args =>
+                {
+                    if (IsDisposed || generation != _generation) return;
+
+                    // Nothing was disabled for this and nothing is claimed by it, so there is
+                    // no flag to put back and nothing to say: the window simply goes on naming
+                    // the web resource rather than the icon.
+                    if (args.Error != null) return;
+
+                    foreach (var icon in (Dictionary<string, string>)args.Result)
+                        _stored[icon.Key] = icon.Value;
+
+                    // A table can already be chosen by now - the list was on screen two links
+                    // ago - and until this landed there was nothing to say about what it holds.
+                    ShowCurrentIcon(_tableBox.SelectedItem as TableItem, TheLibraryIsMineToMove());
                 }
             });
         }

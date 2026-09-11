@@ -71,6 +71,24 @@ namespace Icons.SlowHarness
             }
         }
 
+        /// <summary>The icon in hand, by its name in its family, or null when there is none.</summary>
+        public string SelectedIcon
+        {
+            get
+            {
+                var icon = Field<object>("_selectedIcon");
+                return icon == null ? null : (string)icon.GetType().GetProperty("Name").GetValue(icon, null);
+            }
+        }
+        /// <summary>What the window says the chosen table is already carrying, or null when it says nothing.</summary>
+        public string Carrying
+        {
+            get
+            {
+                var label = Field<LinkLabel>("_currentLabel");
+                return label.Visible && label.Text.Length > 0 ? label.Text : null;
+            }
+        }
         public ListBox Tables { get { return Field<ListBox>("_tableBox"); } }
         public TextBox TableFilter { get { return Field<TextBox>("_tableFilterBox"); } }
         public CheckBox UnsetOnly { get { return Field<CheckBox>("_unsetOnlyBox"); } }

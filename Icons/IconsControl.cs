@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Drawing;
 using System.Linq;
+using System.Text;
 using System.Windows.Forms;
 using Icons.Catalog;
 using Icons.Logic;
@@ -63,6 +64,17 @@ namespace Icons
 
             /// <summary>The whole write again, for doing it a second time.</summary>
             public IconApplyRequest Request;
+        }
+
+        /// <summary>
+        /// What the solutions load comes back with: the solutions, and the convention read off
+        /// the icons this environment already has, which needs the publisher prefixes that
+        /// only this load knows.
+        /// </summary>
+        private sealed class SolutionLoad
+        {
+            public List<SolutionItem> Solutions;
+            public IconLocations Locations;
         }
 
         private sealed class SolutionItem
@@ -219,6 +231,27 @@ namespace Icons
         private string _iconConcern;
         private string _nameConcern;
         private string _solutionConcern;
+
+        /// <summary>
+        /// The drawing behind each web resource name this environment keeps an icon under,
+        /// read with the tables. Only the ones under this environment's own publisher prefixes:
+        /// Microsoft's hundreds are neither ours to recognise nor worth the bytes.
+        /// </summary>
+        private readonly Dictionary<string, string> _stored =
+            new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+
+        /// <summary>What the chosen table is already carrying, once it has been worked out.</summary>
+        private IconIdentity _currentIdentity;
+
+        /// <summary>The table whose own icon the window put in the grid, so it knows the choice is its.</summary>
+        private string _chosenFor;
+
+        /// <summary>Set while the window is moving the grid selection itself.</summary>
+        private bool _choosingCurrent;
+
+        /// <summary>Set while several filters are being moved at once, so the grid is ranked once.</summary>
+        private bool _refiltering;
+
         private RadioButton _themeColour;
         private RadioButton _fixedColour;
         private Button _colourButton;
@@ -226,6 +259,7 @@ namespace Icons
         private LinkLabel _rasterHelp;
         private CheckBox _hideLockedBox;
         private Label _lockedLabel;
+        private LinkLabel _currentLabel;
         private Label _iconLabel;
         private Label _warningLabel;
         private Label _troubleLabel;
@@ -397,6 +431,138 @@ namespace Icons
             _lockedLabel.Visible = locked;
         }
 
+        /// <summary>
+        /// Which library icon the chosen table is already carrying, said under the box it was
+        /// chosen in - and put in the grid when the grid is the window's to move.
+        ///
+        /// There are four things this can know, and they are worth telling apart. It can name
+        /// the icon. It can have read the drawing and found it is none of the bundled ones,
+        /// which is a hand-drawn icon or one from a set this tool does not carry. It can have
+        /// the name of a web resource it never read, which is every icon under somebody else's
+        /// publisher prefix - Microsoft's own, mostly. Or the table has no icon, and there is
+        /// nothing to say.
+        /// </summary>
+        private void ShowCurrentIcon(TableItem table, bool mine)
+        {
+            _currentIdentity = null;
+            _currentLabel.Text = "";
+            _currentLabel.LinkArea = new LinkArea(0, 0);
+            _currentLabel.Visible = false;
+
+            var name = (table?.CurrentIcon ?? "").Trim();
+            if (name.Length == 0) return;
+
+            string svg;
+            var read = _stored.TryGetValue(name, out svg);
+            _currentIdentity = read ? IconIdentifier.Identify(svg, _catalog) : null;
+
+            // Offered rather than chosen: the grid moves only while nobody has taken it over,
+            // and the offer is withdrawn the moment somebody picks something themselves.
+            if (mine && _currentIdentity?.Entry != null && Choose(_currentIdentity.Entry))
+                _chosenFor = table.LogicalName;
+
+            string said;
+            if (_currentIdentity != null) said = "Carrying " + _currentIdentity.Described + ".";
+            else if (read) said = "Carrying " + name + ", which is none of the bundled icons.";
+            else said = "Carrying " + name + ".";
+
+            // The link is only worth offering when there is somewhere to go: an icon in the
+            // bundle, not already the one in hand.
+            var goable = _currentIdentity?.Entry != null && !ReferenceEquals(_currentIdentity.Entry, _selectedIcon);
+            var link = goable ? "  Show it in the library" : "";
+
+            _currentLabel.Text = said + link;
+            _currentLabel.LinkArea = goable ? new LinkArea(said.Length + 2, link.Length - 2) : new LinkArea(0, 0);
+            _currentLabel.Visible = true;
+        }
+
+        /// <summary>
+        /// Puts the grid on one icon, if that icon is among the ones the filters and the search
+        /// are showing. False when it is not: finding it would mean changing what is on screen,
+        /// which is a thing to be asked for rather than done.
+        /// </summary>
+        private bool Choose(IconEntry icon)
+        {
+            var index = IndexOf(_shown, icon);
+            if (index < 0) return false;
+            if (_grid.SelectedIndices.Count == 1 && _grid.SelectedIndices[0] == index) return true;
+
+            _choosingCurrent = true;
+            try
+            {
+                _grid.SelectedIndices.Clear();
+                _grid.SelectedIndices.Add(index);
+                _grid.EnsureVisible(index);
+            }
+            finally
+            {
+                _choosingCurrent = false;
+            }
+
+            return true;
+        }
+
+        /// <summary>
+        /// Goes to the icon the table is carrying, widening whatever was hiding it: its own
+        /// family, both weights, and its own name in the search box.
+        ///
+        /// Only ever from the link, never by itself. The search it writes counts as the
+        /// window's own, so the next table seeds its search normally rather than finding the
+        /// box occupied for the rest of the session.
+        /// </summary>
+        private void ShowCurrentIconInLibrary()
+        {
+            var icon = _currentIdentity?.Entry;
+            if (icon == null) return;
+
+            _refiltering = true;
+            try
+            {
+                _familyBox.SelectedItem = icon.Family;
+                _styleBox.SelectedIndex = 0;
+                _seededSearch = icon.Name.Replace('_', ' ').Replace('-', ' ');
+                _seededFor = (_tableBox.SelectedItem as TableItem)?.LogicalName;
+                _searchBox.Text = _seededSearch;
+            }
+            finally
+            {
+                _refiltering = false;
+            }
+
+            ApplyFilter();
+
+            // The search is the icon's own name, so it is in the grid - but a name that ranks
+            // below the fold of nothing would leave the link doing nothing, and an empty box
+            // shows the whole library, where it certainly is.
+            if (!Choose(icon))
+            {
+                _searchBox.Text = "";
+                _seededSearch = "";
+                Choose(icon);
+            }
+
+            _chosenFor = (_tableBox.SelectedItem as TableItem)?.LogicalName;
+            ShowCurrentIcon(_tableBox.SelectedItem as TableItem, false);
+            _grid.Focus();
+        }
+
+        /// <summary>
+        /// Whether the library is still the window's to move: the search box holds what the
+        /// window last put there, and the icon in hand is one the window offered rather than
+        /// one somebody picked.
+        ///
+        /// An empty box is nobody's until it is certain nobody is using it, whoever emptied it:
+        /// a table whose name seeds nothing leaves an empty seed behind, and matching that
+        /// against an empty box would claim the library somebody is browsing by hand.
+        /// </summary>
+        private bool TheLibraryIsMineToMove()
+        {
+            var current = (_searchBox.Text ?? "").Trim();
+            if (current.Length > 0) return current == _seededSearch;
+
+            return _selectedIcon == null || _chosenFor != null;
+        }
+
         private void UpdateStatus()
         {
             if (IsDisposed) return;
@@ -517,6 +683,10 @@ namespace Icons
             _loadingSolutions = true;
             SyncEnabled();
 
+            // Read here rather than in the worker: the list belongs to the UI thread, and the
+            // worker only needs the names out of it.
+            var icons = _tables.Select(t => t.CurrentIcon).ToList();
+
             WorkAsync(new WorkAsyncInfo
             {
                 Message = "Loading solutions...",
@@ -571,7 +741,13 @@ namespace Icons
                     // reads as the answer, with the catch-alls kept below it for the org that
                     // really does write through one. Ordering is stable, so within each group the
                     // query's own by-name order survives.
-                    args.Result = solutions.OrderBy(Rank).ToList();
+                    var ordered = solutions.OrderBy(Rank).ToList();
+
+                    args.Result = new SolutionLoad
+                    {
+                        Solutions = ordered,
+                        Locations = IconLocations.From(icons, ordered.Select(x => x.Prefix))
+                    };
                 },
                 PostWorkCallBack = args =>
                 {
@@ -598,13 +774,14 @@ namespace Icons
                         return;
                     }
 
-                    _solutions = (List<SolutionItem>)args.Result;
+                    var loaded = (SolutionLoad)args.Result;
+                    _solutions = loaded.Solutions;
 
                     // Before the box is filled, because selecting a row in it suggests a name and
                     // the suggestion is only as good as what has been learned by then.
-                    _locations = IconLocations.From(
-                        _tables.Select(t => t.CurrentIcon),
-                        _solutions.Select(s => s.Prefix));
+                    _locations = loaded.Locations;
+
+                    _stored.Clear();
 
                     _solutionBox.BeginUpdate();
                     _solutionBox.Items.Clear();
@@ -819,12 +996,7 @@ namespace Icons
             if (table == null || _catalog == null) return;
             if (_seededFor == table.LogicalName) return;
 
-            // An empty box is nobody's until it is certain nobody is using it, whoever emptied
-            // it: a table whose name seeds nothing leaves an empty seed behind, and matching
-            // that against an empty box would claim the library somebody is browsing by hand.
-            var current = (_searchBox.Text ?? "").Trim();
-            var ours = current.Length == 0 ? _selectedIcon == null : current == _seededSearch;
-            if (!ours) return;
+            if (!TheLibraryIsMineToMove()) return;
 
             // A table whose name the library has no answer for empties the box rather than
             // leaving the last table's search standing over a grid that is not about it. Asked
@@ -860,7 +1032,7 @@ namespace Icons
 
         private void ApplyFilter()
         {
-            if (_catalog == null) return;
+            if (_catalog == null || _refiltering) return;
 
             var wanted = Narrowed();
 
@@ -1127,8 +1299,11 @@ namespace Icons
                         Request = request
                     });
 
-                    // The list in memory now disagrees with the org unless this is written back.
+                    // The list in memory now disagrees with the org unless this is written back,
+                    // and so does what the window believes is stored under that name - which is
+                    // what it will say the table is carrying the next time it is chosen.
                     table.CurrentIcon = name;
+                    _stored[name] = request.Svg;
                     if (request.IncludeRasterIcons)
                     {
                         table.CurrentSmall = RasterIcons.NameFor(name, IconSlot.Small);
@@ -1284,6 +1459,10 @@ namespace Icons
                     _undoable.Pop();
                     _redoable.Push(change);
 
+                    // The drawings that were written over are back, so what the window believes
+                    // is stored under those names has to go back with them.
+                    Restored(change.Overwritten);
+
                     SettleOn(change.TableLogicalName, change.PreviousVector,
                              change.PreviousSmall, change.PreviousMedium, change.PreviousLarge,
                              change.Request.IncludeRasterIcons);
@@ -1387,6 +1566,8 @@ namespace Icons
                         Request = request
                     });
 
+                    _stored[request.WebResourceName] = request.Svg;
+
                     SettleOn(change.TableLogicalName,
                              request.WebResourceName,
                              RasterIcons.NameFor(request.WebResourceName, IconSlot.Small),
@@ -1399,6 +1580,34 @@ namespace Icons
                     SyncEnabled();
                 }
             });
+        }
+
+        /// <summary>
+        /// Puts back what the window believes is stored under each name an undo has just
+        /// restored. A resource that held nothing before is forgotten rather than remembered
+        /// as empty: the next load is what decides what is there now.
+        /// </summary>
+        private void Restored(IEnumerable<OverwrittenResource> overwritten)
+        {
+            foreach (var resource in overwritten ?? Enumerable.Empty<OverwrittenResource>())
+            {
+                if (string.IsNullOrEmpty(resource?.Name)) continue;
+
+                if (string.IsNullOrEmpty(resource.ContentBase64))
+                {
+                    _stored.Remove(resource.Name);
+                    continue;
+                }
+
+                try
+                {
+                    _stored[resource.Name] = Encoding.UTF8.GetString(Convert.FromBase64String(resource.ContentBase64));
+                }
+                catch (FormatException)
+                {
+                    _stored.Remove(resource.Name);
+                }
+            }
         }
 
         /// <summary>
@@ -1468,6 +1677,12 @@ namespace Icons
             _suggestedFor = null;
             // The search a table of the old org seeded is not this org's table's search either.
             _seededFor = null;
+            // And the drawings read out of the old org say nothing about what this one keeps
+            // under the same names.
+            _stored.Clear();
+            _currentIdentity = null;
+            _chosenFor = null;
+            if (_currentLabel != null) { _currentLabel.Text = ""; _currentLabel.Visible = false; }
             // The preview is showing the last org's apps, and its icons around ours.
             ResetContext();
             _tableBox.Items.Clear();
