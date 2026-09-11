@@ -5,6 +5,10 @@ the package page, so it has to stand on its own.
 
 ## Unreleased
 
+- **The preview is a piece of an app torn off and laid on the tool, rather than a rectangle of it that stops where the pane stops.** A square edge said nothing about where the app ended and this window began, so the blank bars beside the navigation read as the tool's own furniture instead of somebody else's page. It now has a torn right edge, a torn foot and a shadow under it. The scroll bar went with the square edge — a rectangular Windows control floating beside a torn one reads as a bug — and nothing was lost by it: the ragged foot is why the rows stop, the wheel takes you down them, and the row you are choosing for is still scrolled to, now stopping above the tear rather than into it.
+
+  ![The torn preview, on both themes](https://raw.githubusercontent.com/comentality/xrm-icons/main/docs/images/release/torn-preview.png)
+
 - **The tables you can pick from are listed in the open, instead of hiding behind a dropdown you had to click.** The box above the list narrows it and the list is the answer — two halves of one errand, and the half that was the answer was the half you could not see. How many tables are left to do now reads without a click, the arrow keys walk them, and Enter or Down out of the *Find table* box lands you in the list — the same handoff the icon search has always made into the grid. What you typed stays in the box when you pick, so *Only tables with no icon yet* reads as the working list it is: one you go down, rather than something to keep retyping your way back into.
 
   ![The table list, open under the box that narrows it](https://raw.githubusercontent.com/comentality/xrm-icons/main/docs/images/release/table-list.png)
