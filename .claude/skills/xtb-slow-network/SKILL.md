@@ -5,12 +5,20 @@ bench lives, and how to run it. Read the global skill first; nothing there is re
 
 ## The control
 
-`IconsControl` in `Icons\IconsControl.cs` (state and callbacks) and `Icons\IconsControl.Ui.cs`
-(layout and event wiring). Three `WorkAsync` calls:
+`IconsControl` in `Icons\IconsControl.cs` (state and callbacks), `Icons\IconsControl.Ui.cs`
+(layout and event wiring) and `Icons\IconsControl.Context.cs` (the preview). The load is a
+chain of four `WorkAsync` calls, each started by the one before, plus the apply:
 
 - **LoadTables** — one `RetrieveAllEntitiesRequest`, then chains LoadSolutions on success.
 - **LoadSolutions** — one `RetrieveMultiple` over `solution` joined to `publisher`. Failure is
   non-fatal: the tool falls back to the default solution and must say so.
+- **ReadApps** — one `RetrieveMultiple` over `appmodule` for the preview. Failure costs the
+  preview its navigation and nothing else, and the link after it runs either way.
+- **ReadStoredIcons** — one `RetrieveMultiple` over `webresource`, an `In` over the icons named
+  under this environment's own publisher prefixes, plus half a second of fingerprinting the
+  bundle. Last because nothing waits on it: it only decides whether the window can say which
+  library icon a table is carrying. Failure says nothing and puts nothing back, because it
+  claimed nothing.
 - **Apply** — the only cancelable one. Hands off to `IconApplier.Apply`: five round trips
   without raster icons (find, create-or-update, table-read, table-update, publish), eleven
   with them (a find and a write per raster slot), a cancellation check between each.
@@ -38,7 +46,9 @@ past the desktop edge; `ICONS_HARNESS_ONSCREEN=1` puts them in front to watch.
   `solutions` (the joined query, including the `p.customizationprefix` aliased value),
   `webresource-find` (RetrieveUnpublishedMultiple), `webresource-create` (CreateRequest),
   `webresource-update` (Update), `table-read` (RetrieveEntity), `table-update` (UpdateEntity),
-  `publish` (PublishXml). Script latency and failures per call:
+  `publish` (PublishXml), `apps` and `app-components` (the preview's queries), `stored-icons`
+  (the batch of web resources read at the end of a load - seed one with `AddWebResource`).
+  Script latency and failures per call:
   `s.Latency = call => call.Label == "tables" && call.Nth == 1 ? 2500 : 20`.
 - `Bench.cs` — Scenario/Beat/Run, the dialog sweeper, QuietForm, Capture. The sweeper answers
   the `Set table icon` confirm with its OK button and closes everything else; WM_CLOSE on an

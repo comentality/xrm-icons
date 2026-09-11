@@ -50,6 +50,15 @@ resources, update table definitions and publish customisations.
   errand; the full one is a click away, for when you have come to change an icon that is already
   there. A table leaves the narrowed list the moment you give it an icon, so it stays a working
   list rather than something to re-read.
+- **Names the icon a table already has** — picking a table that is not empty says which of the
+  bundled icons it is carrying, under the box you picked it in, and puts the library on that
+  icon so you can see what it is beside what it could be. Three things can say which one it is,
+  and the first that can is believed: the comment this tool writes into every icon it stores,
+  then the drawing itself matched shape for shape against all 18,637, then the CSS class Lucide
+  and Tabler ship theirs with. So an icon somebody pasted in by hand is recognised as surely as
+  one this tool wrote. Nothing is guessed: an icon that is none of the bundled ones is called
+  none of them rather than the nearest thing, and an icon under another publisher's prefix is
+  named as the web resource it is, because those are not read at all.
 - **Guesses where your icons live** — the same load reads where every icon this environment
   already has is stored, so the name it suggests follows your convention rather than this tool's.
   A table that already has an icon of yours is offered that exact name, so applying updates it
