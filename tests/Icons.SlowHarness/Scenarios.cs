@@ -62,6 +62,7 @@ namespace Icons.SlowHarness
                 CatchAllNotPreselected(),
                 PreferredSolutionWins(),
                 CarryingAnIcon(),
+                OfferSurvivesAFilter(),
             };
         }
 
@@ -222,6 +223,8 @@ namespace Icons.SlowHarness
         {
             string stored;
             string described;
+            string hidden;
+            string hiddenDescribed;
 
             using (var catalog = IconCatalog.Load())
             {
@@ -229,6 +232,13 @@ namespace Icons.SlowHarness
                 described = folder.ToString();
                 stored = SvgOutput.Build(catalog.ReadSvg(folder), IconColourMode.Theme, Color.Black,
                                          null, IconProvenance.For(folder));
+
+                // A solid one, which the library opens filtered out of: the window can name it
+                // but must not go to it behind the filter that is hiding it.
+                var solid = catalog.Icons.First(i => i.Style == IconStyle.Filled && i.Name == "folder");
+                hiddenDescribed = solid.ToString();
+                hidden = SvgOutput.Build(catalog.ReadSvg(solid), IconColourMode.Theme, Color.Black,
+                                         null, IconProvenance.For(solid));
             }
 
             return new Scenario
@@ -240,6 +250,11 @@ namespace Icons.SlowHarness
                     s.Tables.Add(SlowService.Table("contoso_settled", "Contoso Settled",
                         icon: "con_/icons/contoso_settled.svg"));
                     s.AddWebResource("con_/icons/contoso_settled.svg", stored);
+
+                    s.Tables.Add(SlowService.Table("contoso_solid", "Contoso Solid",
+                        icon: "con_/icons/contoso_solid.svg"));
+                    s.AddWebResource("con_/icons/contoso_solid.svg", hidden);
+
                     s.Latency = Slow("stored-icons", 2500);
                 }
             }
@@ -268,6 +283,88 @@ namespace Icons.SlowHarness
                     r.Check(r.Service.Log("stored-icons").Count == 1,
                         "read in one query for the whole environment, and there were "
                         + r.Service.Log("stored-icons").Count);
+                })
+                .At(7000, "pick the one whose icon the filters are hiding", r =>
+                {
+                    r.Probe.PickTable("contoso_solid");
+
+                    r.Check((r.Probe.Carrying ?? "").IndexOf(hiddenDescribed, StringComparison.Ordinal) >= 0,
+                        "it should still be named - \"" + hiddenDescribed + "\" - and it says \""
+                        + (r.Probe.Carrying ?? "nothing") + "\"");
+                    r.Check(r.Probe.SelectedIcon != "folder" || r.Probe.SelectedWeight != "filled",
+                        "but the window must not go behind the weight filter to reach it");
+                    r.Check((r.Probe.Carrying ?? "").IndexOf("Show it in the library",
+                                StringComparison.Ordinal) >= 0,
+                        "it should offer to go there instead, and it says \""
+                        + (r.Probe.Carrying ?? "nothing") + "\"");
+                })
+                .At(7400, "follow the link", r =>
+                {
+                    r.Probe.FollowCarryingLink();
+
+                    r.Check(r.Probe.SelectedIcon == "folder" && r.Probe.SelectedWeight == "filled",
+                        "which should put the grid on the solid folder, and it is on \""
+                        + (r.Probe.SelectedIcon ?? "nothing") + " " + (r.Probe.SelectedWeight ?? "") + "\"");
+                    r.Check((r.Probe.Carrying ?? "").IndexOf("Show it in the library",
+                                StringComparison.Ordinal) < 0,
+                        "and there is nowhere left to offer to go, but it says \""
+                        + (r.Probe.Carrying ?? "nothing") + "\"");
+                });
+        }
+
+        /// <summary>
+        /// An icon the window put in the grid itself is an offer, not a choice, and moving a
+        /// filter does not turn one into the other.
+        ///
+        /// This is about what happens to the *next* table. The window only seeds a search and
+        /// only goes to an icon while the library is still its own to move, and an icon in hand
+        /// that nobody picked is part of that. Re-ranking the grid clears and re-adds the
+        /// selection, which looks exactly like somebody choosing - and a window that believed
+        /// it would stop seeding, and stop saying anything useful, for the rest of the session.
+        /// </summary>
+        private static Scenario OfferSurvivesAFilter()
+        {
+            string stored;
+
+            using (var catalog = IconCatalog.Load())
+            {
+                var folder = catalog.Icons.First(i => i.Family == IconFamily.Lucide && i.Name == "folder");
+                stored = SvgOutput.Build(catalog.ReadSvg(folder), IconColourMode.Theme, Color.Black,
+                                         null, IconProvenance.For(folder));
+            }
+
+            return new Scenario
+            {
+                Name = "offer-survives-a-filter",
+                Why = "an icon the window offered is still its offer after a filter moves, so the next table still seeds",
+                Wire = s =>
+                {
+                    // A name the library can say nothing about, so the search box is left empty
+                    // and the only thing making the grid the window's is the icon it offered.
+                    s.Tables.Add(SlowService.Table("contoso_settled", "Contoso Settled",
+                        icon: "con_/icons/contoso_settled.svg"));
+                    s.AddWebResource("con_/icons/contoso_settled.svg", stored);
+                }
+            }
+                .At(200, "press Load", r => r.Probe.PressLoad())
+                .At(2000, "pick the table that already has one", r =>
+                {
+                    r.Probe.UnsetOnly.Checked = false;
+                    r.Probe.PickTable("contoso_settled");
+
+                    r.Check(r.Probe.SelectedIcon == "folder",
+                        "the window should have offered the icon it is carrying, and the grid is on \""
+                        + (r.Probe.SelectedIcon ?? "nothing") + "\"");
+                    r.Check(r.Probe.Search.Text.Length == 0,
+                        "with nothing in the search box, since that table name says nothing to the library");
+                })
+                .At(2300, "widen the weight filter", r => r.Probe.Weight.SelectedIndex = 0)
+                .At(2600, "pick a table the library does know a word for", r =>
+                {
+                    r.Probe.PickTable("contoso_account");
+
+                    r.Check(r.Probe.Search.Text.IndexOf("account", StringComparison.OrdinalIgnoreCase) >= 0,
+                        "which should still seed its search, and the box holds \"" + r.Probe.Search.Text + "\"");
                 });
         }
 

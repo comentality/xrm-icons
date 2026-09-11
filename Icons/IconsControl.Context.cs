@@ -208,8 +208,6 @@ namespace Icons
         /// </summary>
         private void ReadStoredIcons()
         {
-            _stored.Clear();
-
             if (Service == null) return;
 
             var ours = _tables.Select(t => t.CurrentIcon).Where(_locations.Reusable).ToList();

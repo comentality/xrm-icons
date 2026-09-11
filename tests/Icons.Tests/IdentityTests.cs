@@ -75,10 +75,24 @@ namespace Icons.Tests
         [Test]
         public void Few_drawings_are_shared_by_two_names()
         {
-            var shared = _catalog.Icons.Count(i => _catalog.Drawn(IconFingerprint.Of(_catalog.ReadSvg(i))) == null);
+            var shared = 0;
+            var wrong = new List<string>();
+
+            foreach (var icon in _catalog.Icons)
+            {
+                var found = _catalog.Drawn(IconFingerprint.Of(_catalog.ReadSvg(icon)));
+
+                if (found == null) shared++;
+                else if (!ReferenceEquals(found, icon)) wrong.Add(icon.EntryPath + " read as " + found.EntryPath);
+            }
 
             TestContext.Out.WriteLine(shared + " of " + _catalog.Icons.Count
                                       + " icons are a drawing more than one name shares.");
+
+            // The index answering with the wrong icon is the failure that matters, and this is
+            // the only place every one of the bundle's drawings is looked up: the icons stored
+            // with a provenance comment never reach the drawing at all.
+            Assert.That(wrong, Is.Empty, "the drawing index gave the wrong icon for these");
 
             Assert.That(shared, Is.LessThan(_catalog.Icons.Count / 10),
                 "too many icons share a drawing for silence to be the right answer");

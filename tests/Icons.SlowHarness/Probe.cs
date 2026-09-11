@@ -80,6 +80,26 @@ namespace Icons.SlowHarness
                 return icon == null ? null : (string)icon.GetType().GetProperty("Name").GetValue(icon, null);
             }
         }
+        /// <summary>The weight of the icon in hand, in its family's own word for it.</summary>
+        public string SelectedWeight
+        {
+            get
+            {
+                var icon = Field<object>("_selectedIcon");
+                return icon == null ? null : (string)icon.GetType().GetProperty("Weight").GetValue(icon, null);
+            }
+        }
+
+        /// <summary>Clicks the link in the line saying what the table is carrying.</summary>
+        public void FollowCarryingLink()
+        {
+            var label = Field<LinkLabel>("_currentLabel");
+            if (label.Links.Count == 0 || label.LinkArea.Length == 0) return;
+
+            typeof(LinkLabel)
+                .GetMethod("OnLinkClicked", BindingFlags.Instance | BindingFlags.NonPublic)
+                .Invoke(label, new object[] { new LinkLabelLinkClickedEventArgs(label.Links[0]) });
+        }
         /// <summary>What the window says the chosen table is already carrying, or null when it says nothing.</summary>
         public string Carrying
         {
@@ -97,6 +117,8 @@ namespace Icons.SlowHarness
         public ComboBox Solutions { get { return Field<ComboBox>("_solutionBox"); } }
         public TextBox Name { get { return Field<TextBox>("_nameBox"); } }
         public TextBox Search { get { return Field<TextBox>("_searchBox"); } }
+        public ComboBox Family { get { return Field<ComboBox>("_familyBox"); } }
+        public ComboBox Weight { get { return Field<ComboBox>("_styleBox"); } }
         public ListView Grid { get { return Field<ListView>("_grid"); } }
 
         /// <summary>What the in-context preview is saying about the navigation it is drawing.</summary>

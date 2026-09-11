@@ -605,6 +605,11 @@ namespace Icons
 
             var generation = ++_generation;
             _loadingTables = true;
+
+            // What was read last time is about to be out of date, and the last link of this
+            // load is what refills it. Cleared here rather than there, so a load whose preview
+            // link is skipped cannot leave the previous load's drawings standing.
+            _stored.Clear();
             _trouble = null;
             _outcome = null;
             _outcomeSteps = null;
@@ -1042,27 +1047,43 @@ namespace Icons
 
             _shown = IconSearch.Rank(wanted, _searchBox.Text);
 
-            _grid.SelectedIndices.Clear();
-            _grid.VirtualListSize = _shown.Count;
-
-            // Follow the icon to wherever it landed in the new ranking. Without this the
-            // highlighted cell and the preview drift apart the moment somebody chooses an icon
-            // and then keeps typing: index 4 of the old order is a different icon in the new one.
-            var index = IndexOf(_shown, keep);
-            if (index >= 0)
+            // Every move of the selection below is this window's own, made to keep the same
+            // icon under the highlight through a re-ranking. None of them is somebody choosing
+            // an icon, so none of them may take the grid off the window - an icon the window
+            // offered is still the window's offer after a filter has moved.
+            _choosingCurrent = true;
+            try
             {
-                _selectedIcon = keep;
-                _grid.SelectedIndices.Add(index);
-                _grid.EnsureVisible(index);
+                _grid.SelectedIndices.Clear();
+                _grid.VirtualListSize = _shown.Count;
+
+                // Follow the icon to wherever it landed in the new ranking. Without this the
+                // highlighted cell and the preview drift apart the moment somebody chooses an
+                // icon and then keeps typing: index 4 of the old order is a different icon in
+                // the new one.
+                var index = IndexOf(_shown, keep);
+                if (index >= 0)
+                {
+                    _selectedIcon = keep;
+                    _grid.SelectedIndices.Add(index);
+                    _grid.EnsureVisible(index);
+                }
+                else
+                {
+                    SelectIcon(null);
+
+                    // The offer went with it: there is no icon in hand to have been offered.
+                    _chosenFor = null;
+
+                    // Nothing carried over, so this is a different list - and the scroll
+                    // position from the last one is row forty of it. The best matches are at
+                    // the top and that is where a new search should be looking.
+                    if (_shown.Count > 0) _grid.EnsureVisible(0);
+                }
             }
-            else
+            finally
             {
-                SelectIcon(null);
-
-                // Nothing carried over, so this is a different list - and the scroll position
-                // from the last one is row forty of it. The best matches are at the top and
-                // that is where a new search should be looking.
-                if (_shown.Count > 0) _grid.EnsureVisible(0);
+                _choosingCurrent = false;
             }
 
             _grid.Invalidate();
