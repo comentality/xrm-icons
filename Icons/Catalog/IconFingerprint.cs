@@ -31,7 +31,7 @@ namespace Icons.Catalog
         /// canonicaliser wrote: change anything below that changes the string being hashed, and
         /// change this with it, and every older index simply stops being found.
         /// </summary>
-        public const string Version = "1";
+        public const string Version = "2";
 
         /// <summary>
         /// Tabler opens every icon with an invisible full-canvas rectangle, there to give the
@@ -98,7 +98,8 @@ namespace Icons.Catalog
                 if (element.Name.LocalName == "path" && IsBackdrop(element)) continue;
 
                 var geometry = string.Join(" ",
-                    wanted.Select(a => a + "=" + Flatten(element.Attribute(a)?.Value)));
+                    wanted.Select(a => a + "=" + Flatten(element.Attribute(a)?.Value)))
+                    + " fill:" + Painted(element, "fill") + " stroke:" + Painted(element, "stroke");
 
                 shapes++;
                 canonical.Append('\n').Append(element.Name.LocalName).Append(' ').Append(geometry);
@@ -121,6 +122,27 @@ namespace Icons.Catalog
                 Array.Resize(ref hash, Bytes);
                 return Convert.ToBase64String(hash);
             }
+        }
+
+        /// <summary>
+        /// Whether this shape is painted, and not what colour.
+        ///
+        /// Two icons can be the same path data and different drawings: Tabler's percentage-0
+        /// and percentage-100 are one circle, hollow and solid, and its five transform-point
+        /// icons say which corner is meant by filling that one square. Whether a shape is
+        /// painted is the drawing; which colour it is painted is not, so a stored icon that
+        /// somebody has recoloured by hand still matches the one it came from.
+        ///
+        /// Only the shapes are asked. The root's fill and stroke are what storing an icon
+        /// rewrites - see SvgOutput.Build, which touches the root and nothing else - so those
+        /// have to stay out of it or nothing this tool ever wrote would be recognised.
+        /// </summary>
+        private static string Painted(XElement shape, string attribute)
+        {
+            var value = Flatten(shape.Attribute(attribute)?.Value);
+
+            if (value.Length == 0) return "-";
+            return string.Equals(value, "none", StringComparison.OrdinalIgnoreCase) ? "no" : "yes";
         }
 
         /// <summary>Whether this path is the invisible full-canvas rectangle, and not a drawing.</summary>

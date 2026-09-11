@@ -5,6 +5,7 @@ using System.Drawing;
 using System.IO;
 using System.IO.Compression;
 using System.Linq;
+using System.Text.RegularExpressions;
 using System.Text;
 using Icons.Catalog;
 using Icons.Logic;
@@ -115,6 +116,53 @@ namespace Icons.Tests
         }
 
         /// <summary>
+        /// Two icons that are not the same file must never come out as the same drawing.
+        ///
+        /// This is the one that says the canonicaliser is not throwing away something that
+        /// matters. It caught exactly that: fill was dropped everywhere, so Tabler's
+        /// percentage-0 and percentage-100 - one circle, hollow and solid - were one drawing,
+        /// and so were the five transform-point icons, which say which corner is meant by
+        /// filling that one square.
+        ///
+        /// The other way round is fine and expected: 348 pairs of bundled icons really are the
+        /// same file under two names, which is upstream keeping an old name working.
+        /// </summary>
+        [Test]
+        public void Two_icons_that_differ_are_never_one_drawing()
+        {
+            var byDrawing = new Dictionary<string, List<IconEntry>>(StringComparer.Ordinal);
+            var source = new Dictionary<string, string>(StringComparer.Ordinal);
+
+            foreach (var icon in _catalog.Icons)
+            {
+                var svg = _catalog.ReadSvg(icon);
+                source[icon.EntryPath] = Regex.Replace(svg, @"\s+", " ").Trim();
+
+                var print = IconFingerprint.Of(svg);
+                if (print == null) continue;
+
+                List<IconEntry> sharing;
+                if (!byDrawing.TryGetValue(print, out sharing))
+                    byDrawing[print] = sharing = new List<IconEntry>();
+
+                sharing.Add(icon);
+            }
+
+            var flattened = new List<string>();
+
+            foreach (var sharing in byDrawing.Values.Where(g => g.Count > 1))
+            {
+                var texts = sharing.Select(i => source[i.EntryPath]).Distinct(StringComparer.Ordinal).Count();
+                if (texts > 1)
+                    flattened.Add(string.Join(" = ", sharing.Select(i => i.EntryPath)));
+            }
+
+            Assert.That(flattened, Is.Empty,
+                "these icons are different files that the fingerprint cannot tell apart, so "
+                + "something the drawing depends on is being left out of it");
+        }
+
+        /// <summary>
         /// The bundled index against a fresh fingerprinting of the bundle, icon for icon.
         ///
         /// This is the drift detector. The index is written by index-catalog.ps1 through the
@@ -166,7 +214,7 @@ namespace Icons.Tests
                 "this only tests the bundled index if the bundled index is what was used");
             Assert.That(wrong, Is.Empty,
                 "the bundled index disagrees with the drawings; run tools\\index-catalog.ps1");
-            // 692 on this bundle, measured. The bound is close to it on purpose: a fingerprint
+            // 685 on this bundle, measured. The bound is close to it on purpose: a fingerprint
             // is 96 bits of a digest rather than the whole of it, and the only way a truncation
             // that started colliding would show is here, as drawings that are not really the
             // same one going quiet. Upstream adding a handful of aliases moves this by a
