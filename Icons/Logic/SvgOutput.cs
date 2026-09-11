@@ -93,6 +93,33 @@ namespace Icons.Logic
             else
                 root.SetAttributeValue("fill", ink);
 
+            // A shape inside the drawing can follow the ink too. Tabler says which corner a
+            // transform-point icon means, and which of the percentages it is, by filling that
+            // one shape with currentColor - and Lucide fills a few of its own the same way. The
+            // root is the only thing the rest of this method touches, so a fixed colour used to
+            // stop at the outline: a brand-coloured ring round a disc still painted by the
+            // theme, which in dark mode is the wrong colour rather than merely another one.
+            //
+            // Only currentColor, and only when a colour was asked for. A shape painting a
+            // colour of its own means it - that is the case Inspect warns about - and following
+            // the theme is already the answer in the other mode.
+            var followers = 0;
+            if (mode == IconColourMode.Fixed)
+            {
+                foreach (var element in root.Descendants())
+                {
+                    foreach (var name in new[] { "fill", "stroke" })
+                    {
+                        var paint = element.Attribute(name);
+                        if (paint == null) continue;
+                        if (!string.Equals(paint.Value.Trim(), "currentColor", StringComparison.OrdinalIgnoreCase)) continue;
+
+                        paint.Value = ink;
+                        followers++;
+                    }
+                }
+            }
+
             if (sizePixels.HasValue)
             {
                 var size = sizePixels.Value.ToString(CultureInfo.InvariantCulture);
@@ -106,7 +133,7 @@ namespace Icons.Logic
             if (provenance != null)
             {
                 var written = provenance.Copy();
-                written.Changes.Add(Provenance.ColourChange(stroked, ink));
+                written.Changes.Add(Provenance.ColourChange(stroked, ink, followers));
                 if (sizePixels.HasValue) written.Changes.Add(Provenance.SizeChange(sizePixels.Value));
 
                 root.AddFirst(new XComment(Provenance.Comment(written)));

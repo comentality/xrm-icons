@@ -1,6 +1,8 @@
 using System;
+using System.Collections.Generic;
 using System.Drawing;
 using System.Linq;
+using Icons.Catalog;
 using System.Text;
 using System.Xml.Linq;
 using Icons.Logic;
@@ -150,6 +152,118 @@ namespace Icons.Tests
 
             Assert.That(bytes[0], Is.EqualTo((byte)'<'));
             Assert.That(new UTF8Encoding(false).GetString(bytes), Is.EqualTo(Plain));
+        }
+    
+        /// <summary>
+        /// A fixed colour has to reach the whole drawing, not just its outline.
+        ///
+        /// Tabler says which corner a transform-point icon means, and which of the percentages
+        /// it is, by filling one shape with currentColor; Lucide does the same in a few of its
+        /// own. Setting the colour on the root and stopping there left those shapes following
+        /// the theme - a brand-coloured ring round a black disc, and a white one in dark mode.
+        /// Nobody asked for a two-tone icon.
+        /// </summary>
+        [Test]
+        public void A_fixed_colour_reaches_every_shape_that_followed_the_theme()
+        {
+            using (var catalog = IconCatalog.Load())
+            {
+                var brand = Color.FromArgb(0xC0, 0x10, 0x20);
+                var left = new List<string>();
+
+                foreach (var icon in catalog.Icons)
+                {
+                    var stored = SvgOutput.Build(catalog.ReadSvg(icon), IconColourMode.Fixed, brand);
+
+                    if (stored.IndexOf("currentColor", StringComparison.OrdinalIgnoreCase) >= 0)
+                        left.Add(icon.EntryPath);
+                }
+
+                Assert.That(left, Is.Empty,
+                    "these were stored in a fixed colour with shapes still following the theme");
+            }
+        }
+
+        /// <summary>
+        /// And the other mode leaves them alone, because following the theme is the answer
+        /// there. An icon whose shapes were pinned to one colour by the theme setting would be
+        /// the same bug facing the other way.
+        /// </summary>
+        [Test]
+        public void The_theme_colour_leaves_the_shapes_following_it()
+        {
+            using (var catalog = IconCatalog.Load())
+            {
+                var icon = catalog.Icons.First(i => i.Family == IconFamily.Tabler
+                                                    && i.Name == "percentage-100" && i.Weight == "outline");
+
+                var stored = SvgOutput.Build(catalog.ReadSvg(icon), IconColourMode.Theme, Color.Black);
+
+                Assert.That(Shapes(stored).Count(p => p == "currentColor"), Is.EqualTo(1),
+                    "the filled disc should still be following the theme");
+            }
+        }
+
+        /// <summary>
+        /// A shape painting a colour of its own means it. That is the case the window warns
+        /// about rather than fixes, and recolouring it here would be the tool overruling the
+        /// drawing instead of the user.
+        /// </summary>
+        [Test]
+        public void A_shape_with_a_colour_of_its_own_keeps_it()
+        {
+            var svg = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 24 24\" fill=\"currentColor\">" +
+                      "<path d=\"M0 0h8v24H0z\" fill=\"#E40303\"/>" +
+                      "<path d=\"M8 0h8v24H8z\" fill=\"currentColor\"/></svg>";
+
+            var stored = SvgOutput.Build(svg, IconColourMode.Fixed, Color.FromArgb(0xC0, 0x10, 0x20));
+
+            Assert.That(Shapes(stored), Is.EqualTo(new[] { "#E40303", "#C01020" }));
+        }
+
+        /// <summary>
+        /// Nothing in the bundle strokes a shape with currentColor today, but an upstream
+        /// release could, and the rule is about the paint rather than which attribute carries
+        /// it.
+        /// </summary>
+        [Test]
+        public void A_shape_stroking_with_the_theme_is_recoloured_too()
+        {
+            var svg = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\">" +
+                      "<path d=\"M3 3h18v18H3z\" stroke=\"currentColor\"/></svg>";
+
+            var stored = SvgOutput.Build(svg, IconColourMode.Fixed, Color.FromArgb(0xC0, 0x10, 0x20));
+
+            Assert.That(stored, Does.Not.Contain("currentColor"));
+            Assert.That(stored, Does.Contain("stroke=\"#C01020\""));
+        }
+
+        /// <summary>
+        /// The attribution page says what was done to the drawing, so it has to count the
+        /// shapes that were repainted with the outline rather than claim only the one change.
+        /// </summary>
+        [Test]
+        public void The_record_says_the_shapes_were_repainted_too()
+        {
+            using (var catalog = IconCatalog.Load())
+            {
+                var icon = catalog.Icons.First(i => i.Family == IconFamily.Tabler
+                                                    && i.Name == "percentage-100" && i.Weight == "outline");
+
+                var stored = SvgOutput.Build(catalog.ReadSvg(icon), IconColourMode.Fixed,
+                                             Color.FromArgb(0xC0, 0x10, 0x20), null, IconProvenance.For(icon));
+
+                Assert.That(Provenance.Find(stored).Changes,
+                    Has.Some.Contains("the stroke was set to #C01020, and so was the one shape inside it that followed the theme"));
+            }
+        }
+
+        /// <summary>Every fill and stroke on a shape inside the drawing, in document order.</summary>
+        private static IEnumerable<string> Shapes(string svg)
+        {
+            return XDocument.Parse(svg).Root.Descendants()
+                .SelectMany(e => new[] { e.Attribute("fill")?.Value, e.Attribute("stroke")?.Value })
+                .Where(v => v != null);
         }
     }
 }
