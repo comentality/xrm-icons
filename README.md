@@ -93,9 +93,12 @@ resources, update table definitions and publish customisations.
 2. Connecting reads the environment's tables and its unmanaged solutions by itself — half a
    second against a real environment, which is not worth a click. The refresh button beside the
    table list is there for reading them again after somebody has changed something.
-3. Pick the table, and the unmanaged solution new web resources go into. The list starts on the
+3. Pick the table, and the unmanaged solution new web resources go into. The tables are listed in
+   the open rather than behind a dropdown: type into *Find table* to narrow them, then press Enter
+   or Down to move into the list, where the arrow keys walk it. The list starts on the
    tables with no icon yet; untick *Only tables with no icon yet* for all of them. Type enough of a table's
-   name to leave one and that one is chosen. The solution is required:
+   name to leave one and that one is chosen, and what you typed stays put when you pick — so the
+   narrowed list holds still while you work down it. The solution is required:
    without one they would land in the default solution, where nothing you ship can see them. The
    solution you set as your preferred one in the maker portal is chosen for you and is the row the
    list opens on. If you have not set one, nothing is chosen and the tool says so: alphabetical

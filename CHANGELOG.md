@@ -5,6 +5,10 @@ the package page, so it has to stand on its own.
 
 ## Unreleased
 
+- **The tables you can pick from are listed in the open, instead of hiding behind a dropdown you had to click.** The box above the list narrows it and the list is the answer — two halves of one errand, and the half that was the answer was the half you could not see. How many tables are left to do now reads without a click, the arrow keys walk them, and Enter or Down out of the *Find table* box lands you in the list — the same handoff the icon search has always made into the grid. Pointing at a table no longer wipes what you typed, so *Only tables with no icon yet* stays a working list you go down rather than one you keep retyping your way back into.
+
+  ![The table list, open under the box that narrows it](https://raw.githubusercontent.com/comentality/xrm-icons/main/docs/images/release/table-list.png)
+
 - **The form on the right takes the height it actually needs, so the pane holding it no longer grows a pair of scroll bars.** The height it was given was a number written down once, and the form is taller than that number the moment the chosen table is locked, the warning line has something to say, or your machine draws at a different size. One row too many put a scroll bar down the side, the bar took the width the widest row was using, a second bar appeared along the foot, and that took back more height than the first bar was about. The splitter above the form now gives way instead, the widest row drops its link onto a second line rather than off the edge, and the form only ever scrolls downwards — once you drag that splitter yourself, the height is your answer and nothing moves it.
 
   ![The form pane, before and after](https://raw.githubusercontent.com/comentality/xrm-icons/main/docs/images/release/no-scroll-bars.png)
