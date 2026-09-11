@@ -20,6 +20,8 @@
   <ItemGroup>
     <!-- The About box's version parsing and diagnostics line are checked by the tests. -->
     <InternalsVisibleTo Include="Icons.Tests" />
+    <!-- And the harness opens the About box without a modal loop, to photograph it. -->
+    <InternalsVisibleTo Include="Icons.UiHarness" />
   </ItemGroup>
 
   <ItemGroup>

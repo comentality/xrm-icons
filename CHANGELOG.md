@@ -5,6 +5,24 @@ the package page, so it has to stand on its own.
 
 ## Unreleased
 
+- **About now says which build you are running and where the tool lives, instead of only who drew the icons.** It was a message box of licence text with nothing in it about the tool itself - no version, so nobody reporting a bug could say what they had, and no way back to the project. It is a window now: the name, the description and the tile are read out of the plugin's own metadata, which is where XrmToolBox reads them, so the box cannot end up calling the tool something the tools list does not; the version and the commit come out of the assembly the build stamped.
+
+  ![The name, the build and the links](https://raw.githubusercontent.com/comentality/xrm-icons/main/docs/images/release/about-identity.png)
+
+- **Tell us it is wrong from inside the tool: one button opens mail to feedback@comentality.com with your versions already in it.** Copy diagnostics puts the same four lines on the clipboard for a machine with no mail client set up. They are four lines about software - tool, XrmToolBox, .NET, Windows - and nothing about your environment: no organisation url, no user, no environment id, because a diagnostics block gets pasted into mail by people who have not read it yet.
+
+  ![Something wrong, or missing?](https://raw.githubusercontent.com/comentality/xrm-icons/main/docs/images/release/about-feedback.png)
+
+- **The icon licences fold out of the same window rather than being the whole of it.** All four sets, their versions, their copyright holders and what the bundle did to each drawing, in a box you can select and copy out of - and the window gives the height back when you fold them away. It is the part of the box that is about this tool rather than about tools in general, which is what makes the rest of it worth sharing with the other four.
+
+  ![Icon licences and credits, open](https://raw.githubusercontent.com/comentality/xrm-icons/main/docs/images/release/about-licences.png)
+
+- `Icons\About\` holds the two files - `ToolAbout` and `AboutBox` - meant to be copied verbatim into Document X-Ray, Events2Code, Plugin Step Codegen and Ribbon. Their namespace is deliberately not this tool's. A tool supplies three strings: its page slug, its repository, and its notices if it has any.
+
+- `IHelpPlugin` and `IAboutPlugin` on the control, which is where the twelve installed tools that implement them put them. XrmToolBox's own Help menu gets a *Help for Icons* entry pointing at the tool's page.
+
+- The UI harness photographs the About box folded and unfolded, and fails if opening the licences does not make the window taller, changes its width, or leaves the notices empty.
+
 - **A table that already has an icon is told which one it is, and the library goes to it.** It used to say only the name of the web resource, which is named for the table and so says nothing about whether it is a building or a briefcase. Three things can answer, and the first that can is believed: the provenance comment this tool writes into every icon it stores, then the drawing itself matched against all 18,637 bundled ones — shape for shape, and hollow or solid, because Tabler says which corner a transform-point icon means by filling that one square, then the CSS class Lucide and Tabler ship theirs with — so an icon somebody pasted in from those sites by hand is recognised as surely as one this tool wrote. Nothing is guessed. An icon that is none of the bundled ones is called none of them rather than the nearest thing; a drawing two names share is left unnamed rather than given one of them; and an icon under somebody else's publisher prefix is still named as the web resource it is, because those are never read. The drawings are read on the last link of the load, behind everything anybody is waiting for, and a read that fails costs only the sentence.
 
   ![The icon a table is carrying, named and gone to](https://raw.githubusercontent.com/comentality/xrm-icons/main/docs/images/release/carrying-an-icon.png)

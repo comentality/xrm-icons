@@ -8,6 +8,8 @@ using System.Linq;
 using System.Reflection;
 using System.Runtime.InteropServices;
 using System.Windows.Forms;
+using Comentality.Xtb.About;
+using Icons.Catalog;
 using Icons.Ui;
 
 namespace Icons.UiHarness
@@ -34,6 +36,11 @@ namespace Icons.UiHarness
             Directory.CreateDirectory(outputDir);
 
             var failures = 0;
+
+            // The About box is its own window, so it is photographed on its own rather than
+            // through the control. Both states: folded, which is what opens, and unfolded, which
+            // is the whole reason the licences did not go into a second window.
+            failures += ShootAboutBox(outputDir);
 
             try
             {
@@ -978,6 +985,85 @@ namespace Icons.UiHarness
                 yield return child;
                 foreach (var grandchild in Descendants(child)) yield return grandchild;
             }
+        }
+
+        /// <summary>
+        /// Opens the About box without a modal loop and photographs it folded and unfolded. A
+        /// window that grows when you open the licences is a claim that can be measured, so it
+        /// is: the unfolded shot has to be taller than the folded one and no wider.
+        /// </summary>
+        private static int ShootAboutBox(string outputDir)
+        {
+            var about = ToolAbout.FromPlugin(
+                typeof(IconsPlugin), "icons", "https://github.com/comentality/xrm-icons");
+
+            about.Notices = IconCatalog.Load().About;
+            about.NoticesCaption = "Icon licences and credits";
+
+            var failures = 0;
+
+            using (var box = new AboutBox(about))
+            {
+                box.StartPosition = FormStartPosition.Manual;
+                box.Location = new Point(40, 40);
+                box.Show();
+                Pump();
+
+                var folded = box.Size;
+                Shoot(box, outputDir, "10-about-folded");
+
+                var disclosure = Descendants(box).OfType<LinkLabel>()
+                    .FirstOrDefault(l => l.Text.IndexOf("licences", StringComparison.OrdinalIgnoreCase) >= 0);
+
+                if (disclosure == null)
+                {
+                    Console.WriteLine("FAIL: the About box offers no way to open the licences");
+                    return failures + 1;
+                }
+
+                Click(disclosure);
+                Pump();
+
+                var unfolded = box.Size;
+                Shoot(box, outputDir, "11-about-unfolded");
+
+                if (unfolded.Height <= folded.Height)
+                {
+                    Console.WriteLine("FAIL: opening the licences did not grow the window - " +
+                                      folded.Height + " then " + unfolded.Height);
+                    failures++;
+                }
+
+                if (unfolded.Width != folded.Width)
+                {
+                    Console.WriteLine("FAIL: opening the licences changed the width - " +
+                                      folded.Width + " then " + unfolded.Width);
+                    failures++;
+                }
+
+                var notices = Descendants(box).OfType<TextBox>().FirstOrDefault();
+                if (notices == null || !notices.Visible || notices.Text.Length == 0)
+                {
+                    Console.WriteLine("FAIL: the licences are not showing after the click");
+                    failures++;
+                }
+
+                box.Close();
+            }
+
+            return failures;
+        }
+
+        /// <summary>
+        /// Clicks a LinkLabel the way a mouse does, without a mouse. LinkLabel raises its click
+        /// from a protected method and offers nothing public that does the same.
+        /// </summary>
+        private static void Click(LinkLabel link)
+        {
+            var raise = typeof(LinkLabel).GetMethod("OnLinkClicked",
+                BindingFlags.Instance | BindingFlags.NonPublic);
+
+            raise.Invoke(link, new object[] { new LinkLabelLinkClickedEventArgs(link.Links[0]) });
         }
 
         private static void Pump()

@@ -24,14 +24,23 @@ namespace Comentality.Xtb.About
         /// <summary>The content column, in logical pixels. Everything else is laid out around it.</summary>
         private const int ContentWidth = 452;
 
+        /// <summary>The air between the body and the window, on every side.</summary>
+        private const int Margin_ = 12;
+
         private const string Folded = "▶";
         private const string Unfolded = "▼";
 
         private readonly ToolAbout _about;
+        private Control _body;
         private LinkLabel _disclosure;
         private TextBox _notices;
+        private Panel _noticesPane;
 
-        private AboutBox(ToolAbout about)
+        /// <summary>
+        /// Internal rather than private so the UI harness can open the box without a modal loop
+        /// and photograph it. <see cref="Show"/> is how the tool opens it.
+        /// </summary>
+        internal AboutBox(ToolAbout about)
         {
             _about = about;
 
@@ -48,11 +57,10 @@ namespace Comentality.Xtb.About
             ShowIcon = false;
             StartPosition = FormStartPosition.CenterParent;
             BackColor = SystemColors.Control;
-            Padding = new Padding(12);
-            AutoSize = true;
-            AutoSizeMode = AutoSizeMode.GrowAndShrink;
 
-            Controls.Add(BuildBody());
+            _body = BuildBody();
+            Controls.Add(_body);
+            Fit();
         }
 
         /// <summary>Opens the box over its owner and waits.</summary>
@@ -66,6 +74,14 @@ namespace Comentality.Xtb.About
             }
         }
 
+        /// <summary>
+        /// One column of a fixed width, and rows as tall as what is in them.
+        ///
+        /// The width has to be stated somewhere: a stack of auto-sizing panels inside an
+        /// auto-sizing form has nothing to resolve against, and settles at whatever the form
+        /// happened to open at, with every line of text wrapped to one word. An absolute column
+        /// is that statement, and everything below it wraps to what it is given.
+        /// </summary>
         private Control BuildBody()
         {
             var rows = new TableLayoutPanel
@@ -73,54 +89,73 @@ namespace Comentality.Xtb.About
                 ColumnCount = 1,
                 AutoSize = true,
                 AutoSizeMode = AutoSizeMode.GrowAndShrink,
-                Dock = DockStyle.Top
+                Location = new Point(Margin_, Margin_)
             };
 
-            rows.Controls.Add(BuildIdentity());
-            rows.Controls.Add(Rule());
-            rows.Controls.Add(BuildFeedback());
+            rows.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, ContentWidth));
+
+            Row(rows, BuildIdentity());
+            Row(rows, Rule());
+            Row(rows, BuildFeedback());
 
             if (!string.IsNullOrWhiteSpace(_about.Notices))
             {
-                rows.Controls.Add(Rule());
-                rows.Controls.Add(BuildDisclosure());
-                rows.Controls.Add(BuildNotices());
+                Row(rows, Rule());
+                Row(rows, BuildDisclosure());
+                Row(rows, BuildNotices());
             }
 
-            rows.Controls.Add(BuildFooter());
+            Row(rows, BuildFooter());
 
             return rows;
+        }
+
+        /// <summary>Adds one control as a row of its own, as tall as it asks to be.</summary>
+        private static void Row(TableLayoutPanel rows, Control control)
+        {
+            rows.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+            rows.Controls.Add(control, 0, rows.RowStyles.Count - 1);
         }
 
         /// <summary>The logo, the name, the build, the description and the three links.</summary>
         private Control BuildIdentity()
         {
+            var logoWidth = _about.Logo == null ? 0 : 56;
+            var textWidth = ContentWidth - logoWidth;
+
             var identity = new TableLayoutPanel
             {
                 ColumnCount = 2,
+                RowCount = 1,
                 AutoSize = true,
                 AutoSizeMode = AutoSizeMode.GrowAndShrink,
+                Dock = DockStyle.Fill,
                 Margin = new Padding(0)
             };
 
-            var logoWidth = _about.Logo == null ? 0 : 56;
+            identity.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, logoWidth));
+            identity.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, textWidth));
+            identity.RowStyles.Add(new RowStyle(SizeType.AutoSize));
 
-            identity.Controls.Add(new PictureBox
+            if (_about.Logo != null)
             {
-                Image = _about.Logo,
-                Size = new Size(48, 48),
-                SizeMode = PictureBoxSizeMode.Zoom,
-                Margin = new Padding(0, 2, 8, 0),
-                Visible = _about.Logo != null
-            }, 0, 0);
+                identity.Controls.Add(new PictureBox
+                {
+                    Image = _about.Logo,
+                    Size = new Size(48, 48),
+                    SizeMode = PictureBoxSizeMode.Zoom,
+                    Margin = new Padding(0, 2, 8, 0)
+                }, 0, 0);
+            }
 
             var text = new FlowLayoutPanel
             {
                 FlowDirection = FlowDirection.TopDown,
                 AutoSize = true,
                 AutoSizeMode = AutoSizeMode.GrowAndShrink,
-                Margin = new Padding(0),
-                Width = ContentWidth - logoWidth
+                WrapContents = false,
+                Dock = DockStyle.Fill,
+                Margin = new Padding(0)
             };
 
             text.Controls.Add(new Label
@@ -128,6 +163,7 @@ namespace Comentality.Xtb.About
                 Text = _about.Name,
                 Font = new Font(Font.FontFamily, Font.Size + 4.5f, FontStyle.Regular),
                 AutoSize = true,
+                MaximumSize = new Size(textWidth, 0),
                 Margin = new Padding(0, 0, 0, 1)
             });
 
@@ -136,6 +172,7 @@ namespace Comentality.Xtb.About
                 Text = _about.Version,
                 ForeColor = SystemColors.GrayText,
                 AutoSize = true,
+                MaximumSize = new Size(textWidth, 0),
                 Margin = new Padding(0, 0, 0, 6)
             });
 
@@ -145,37 +182,37 @@ namespace Comentality.Xtb.About
                 {
                     Text = _about.Description,
                     AutoSize = true,
-                    MaximumSize = new Size(ContentWidth - logoWidth, 0),
+                    MaximumSize = new Size(textWidth, 0),
                     Margin = new Padding(0, 0, 0, 8)
                 });
             }
 
-            text.Controls.Add(BuildLinks());
+            text.Controls.Add(BuildLinks(textWidth));
 
             identity.Controls.Add(text, 1, 0);
             return identity;
         }
 
-        private Control BuildLinks()
+        private Control BuildLinks(int width)
         {
             var links = new FlowLayoutPanel
             {
                 FlowDirection = FlowDirection.LeftToRight,
                 AutoSize = true,
                 AutoSizeMode = AutoSizeMode.GrowAndShrink,
-                Margin = new Padding(0),
                 WrapContents = true,
-                MaximumSize = new Size(ContentWidth - (_about.Logo == null ? 0 : 56), 0)
+                MaximumSize = new Size(width, 0),
+                Margin = new Padding(0)
             };
 
             // The site reads as the address it is, because that is what somebody types into a
             // browser on the machine next to this one. The other two are named for what they do.
-            links.Controls.Add(Link(_about.PageUrl.Replace("https://", ""), _about.PageUrl));
+            links.Controls.Add(Link(Bare(_about.PageUrl), _about.PageUrl));
 
             if (_about.RepositoryUrl != null)
             {
                 links.Controls.Add(Dot());
-                links.Controls.Add(Link("What's new", _about.ReleaseNotesUrl));
+                links.Controls.Add(Link("What is new", _about.ReleaseNotesUrl));
                 links.Controls.Add(Dot());
                 links.Controls.Add(Link("Source", _about.RepositoryUrl));
             }
@@ -190,9 +227,9 @@ namespace Comentality.Xtb.About
                 Text = "Something wrong, or missing?",
                 AutoSize = true,
                 AutoSizeMode = AutoSizeMode.GrowAndShrink,
-                Width = ContentWidth,
+                Dock = DockStyle.Fill,
                 Margin = new Padding(0, 2, 0, 0),
-                Padding = new Padding(10, 4, 10, 10)
+                Padding = new Padding(10, 6, 10, 10)
             };
 
             var inside = new FlowLayoutPanel
@@ -200,7 +237,8 @@ namespace Comentality.Xtb.About
                 FlowDirection = FlowDirection.TopDown,
                 AutoSize = true,
                 AutoSizeMode = AutoSizeMode.GrowAndShrink,
-                Dock = DockStyle.Top,
+                WrapContents = false,
+                Dock = DockStyle.Fill,
                 Margin = new Padding(0)
             };
 
@@ -219,6 +257,7 @@ namespace Comentality.Xtb.About
                 FlowDirection = FlowDirection.LeftToRight,
                 AutoSize = true,
                 AutoSizeMode = AutoSizeMode.GrowAndShrink,
+                WrapContents = false,
                 Margin = new Padding(0)
             };
 
@@ -227,7 +266,7 @@ namespace Comentality.Xtb.About
                 Text = "Write to " + ToolAbout.FeedbackAddress,
                 AutoSize = true,
                 AutoSizeMode = AutoSizeMode.GrowAndShrink,
-                Padding = new Padding(8, 2, 8, 2),
+                Padding = new Padding(10, 3, 10, 3),
                 Margin = new Padding(0, 0, 8, 0)
             };
             write.Click += (s, e) => Write();
@@ -237,7 +276,7 @@ namespace Comentality.Xtb.About
                 Text = "Copy diagnostics",
                 AutoSize = true,
                 AutoSizeMode = AutoSizeMode.GrowAndShrink,
-                Padding = new Padding(8, 2, 8, 2),
+                Padding = new Padding(10, 3, 10, 3),
                 Margin = new Padding(0)
             };
             copy.Click += (s, e) => CopyDiagnostics();
@@ -260,6 +299,10 @@ namespace Comentality.Xtb.About
             return _disclosure;
         }
 
+        /// <summary>
+        /// The notices, in a panel of their own so that the row they sit in has a height to take
+        /// from something - a multiline text box does not ask for one.
+        /// </summary>
         private Control BuildNotices()
         {
             _notices = new TextBox
@@ -271,12 +314,19 @@ namespace Comentality.Xtb.About
                 ScrollBars = ScrollBars.Vertical,
                 BackColor = SystemColors.Window,
                 Font = new Font(FontFamily.GenericMonospace, Font.Size - 0.5f),
-                Size = new Size(ContentWidth, 170),
+                Dock = DockStyle.Fill
+            };
+
+            _noticesPane = new Panel
+            {
+                Height = 180,
+                Dock = DockStyle.Fill,
                 Margin = new Padding(0, 6, 0, 0),
                 Visible = false
             };
 
-            return _notices;
+            _noticesPane.Controls.Add(_notices);
+            return _noticesPane;
         }
 
         private Control BuildFooter()
@@ -286,7 +336,8 @@ namespace Comentality.Xtb.About
                 FlowDirection = FlowDirection.RightToLeft,
                 AutoSize = true,
                 AutoSizeMode = AutoSizeMode.GrowAndShrink,
-                Width = ContentWidth,
+                WrapContents = false,
+                Dock = DockStyle.Fill,
                 Margin = new Padding(0, 10, 0, 0)
             };
 
@@ -294,7 +345,7 @@ namespace Comentality.Xtb.About
             {
                 Text = "OK",
                 DialogResult = DialogResult.OK,
-                Size = new Size(80, 25),
+                Size = new Size(84, 26),
                 Margin = new Padding(0)
             };
 
@@ -305,18 +356,35 @@ namespace Comentality.Xtb.About
         }
 
         /// <summary>
+        /// Gives the window the size of what is in it.
+        ///
+        /// Done here rather than by <c>AutoSize</c>: the body states its own width in an absolute
+        /// column, and a form auto-sizing around a docked panel asks the panel how wide it should
+        /// be while the panel is being told how wide the form is.
+        /// </summary>
+        private void Fit()
+        {
+            var body = _body.PreferredSize;
+            ClientSize = new Size(body.Width + (Margin_ * 2), body.Height + (Margin_ * 2));
+        }
+
+        /// <summary>
         /// Shows the notices, or puts them away. The window is sized by what is in it, so this is
         /// all it takes - except at the bottom of a screen, where growing downwards would put the
         /// OK button somewhere nobody can click.
         /// </summary>
         private void Toggle()
         {
-            var showing = !_notices.Visible;
-            _notices.Visible = showing;
+            var showing = !_noticesPane.Visible;
+            _noticesPane.Visible = showing;
             _disclosure.Text = (showing ? Unfolded : Folded) + "  " + _about.NoticesCaption;
+
+            Fit();
 
             if (!showing) return;
 
+            // Opened near the foot of a screen, the window would otherwise grow past it and take
+            // the OK button with it.
             var screen = Screen.FromControl(this).WorkingArea;
             if (Bottom > screen.Bottom)
             {
@@ -407,6 +475,14 @@ namespace Comentality.Xtb.About
             }
         }
 
+        /// <summary>The address as somebody would say it out loud, with the scheme left off.</summary>
+        private static string Bare(string url)
+        {
+            return url.StartsWith("https://", StringComparison.OrdinalIgnoreCase)
+                ? url.Substring("https://".Length)
+                : url;
+        }
+
         private static Label Dot()
         {
             return new Label
@@ -423,7 +499,7 @@ namespace Comentality.Xtb.About
             return new Panel
             {
                 Height = 1,
-                Width = ContentWidth,
+                Dock = DockStyle.Fill,
                 BackColor = SystemColors.ControlLight,
                 Margin = new Padding(0, 10, 0, 10)
             };

@@ -178,7 +178,7 @@ their authors ship them, bar two things done at bundle time — a `class` attrib
 because Microsoft advises against CSS classes in a table icon, and Tabler's invisible
 full-canvas backdrop rectangle removed.
 
-**About the icons** in the toolbar shows the exact package versions and the licences.
+**About** in the toolbar shows the exact package versions and the licences, under *Icon licences and credits*.
 `tools\build-catalog.ps1` regenerates the bundle from newer releases, and fingerprints
 every icon into the archive as it goes, so recognising the icon a table already has costs a few
 tens of milliseconds rather than half a second of working it out again on every connection.
