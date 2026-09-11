@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.IO;
 using System.IO.Compression;
@@ -23,6 +23,8 @@ namespace Icons.Catalog
         private readonly ZipArchive _archive;
         private readonly Dictionary<string, ZipArchiveEntry> _entries;
         private readonly object _readLock = new object();
+        private readonly object _indexLock = new object();
+        private Dictionary<string, IconEntry> _byDrawing;
 
         private IconCatalog(ZipArchive archive, List<IconEntry> icons, string about)
         {
@@ -131,6 +133,94 @@ namespace Icons.Catalog
             return weight.StartsWith("fill", StringComparison.OrdinalIgnoreCase)
                 ? IconStyle.Filled
                 : IconStyle.Regular;
+        }
+
+        /// <summary>
+        /// The icon in this bundle with that family, weight and name, or null when the bundle
+        /// has no such icon. An icon an older version of this tool stored can name a drawing
+        /// that a later bundle no longer carries, and that is not an error.
+        /// </summary>
+        public IconEntry Find(string family, string weight, string name)
+        {
+            if (string.IsNullOrEmpty(name)) return null;
+
+            return Icons.FirstOrDefault(i =>
+                string.Equals(i.Family.ToString(), family, StringComparison.OrdinalIgnoreCase) &&
+                string.Equals(i.Weight, weight, StringComparison.OrdinalIgnoreCase) &&
+                string.Equals(i.Name, name, StringComparison.OrdinalIgnoreCase));
+        }
+
+        /// <summary>Every weight of one named icon in one family. Empty when there is no such name.</summary>
+        public IReadOnlyList<IconEntry> FindByName(IconFamily family, string name)
+        {
+            if (string.IsNullOrEmpty(name)) return new IconEntry[0];
+
+            return Icons
+                .Where(i => i.Family == family && string.Equals(i.Name, name, StringComparison.OrdinalIgnoreCase))
+                .ToList();
+        }
+
+        /// <summary>Whether the drawings have been indexed yet, and so whether <see cref="Drawn"/> can answer.</summary>
+        public bool Indexed
+        {
+            get { lock (_indexLock) return _byDrawing != null; }
+        }
+
+        /// <summary>
+        /// The bundled icon that is this exact drawing, or null when no bundled icon is - and
+        /// also null when two of them are, or when the index has not been built yet.
+        ///
+        /// Two entries sharing a fingerprint is one drawing shipped under two names rather than
+        /// an error, but this cannot say which of the two somebody stored, and picking one would
+        /// be a coin toss presented as an answer.
+        /// </summary>
+        public IconEntry Drawn(string fingerprint)
+        {
+            if (string.IsNullOrEmpty(fingerprint)) return null;
+
+            lock (_indexLock)
+            {
+                IconEntry found;
+                return _byDrawing != null && _byDrawing.TryGetValue(fingerprint, out found) ? found : null;
+            }
+        }
+
+        /// <summary>
+        /// Reads every icon in the bundle and fingerprints it. Around ten megabytes of SVG, so
+        /// this belongs on a worker: the window is usable without it, and the tier of
+        /// identification it serves simply says nothing until it lands.
+        ///
+        /// Safe to call twice, and safe to call while the grid is drawing thumbnails - the
+        /// archive lock is taken one entry at a time rather than held across the whole pass.
+        /// </summary>
+        public void Index()
+        {
+            lock (_indexLock) if (_byDrawing != null) return;
+
+            var drawings = new Dictionary<string, IconEntry>(StringComparer.Ordinal);
+            var shared = new HashSet<string>(StringComparer.Ordinal);
+
+            foreach (var icon in Icons)
+            {
+                string fingerprint;
+                try
+                {
+                    fingerprint = IconFingerprint.Of(ReadSvg(icon));
+                }
+                catch (IOException)
+                {
+                    continue;
+                }
+
+                if (fingerprint == null) continue;
+
+                if (drawings.ContainsKey(fingerprint)) shared.Add(fingerprint);
+                else drawings[fingerprint] = icon;
+            }
+
+            foreach (var fingerprint in shared) drawings.Remove(fingerprint);
+
+            lock (_indexLock) if (_byDrawing == null) _byDrawing = drawings;
         }
 
         /// <summary>The icon's SVG, exactly as the bundle holds it.</summary>
