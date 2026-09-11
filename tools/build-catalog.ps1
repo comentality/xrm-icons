@@ -430,12 +430,19 @@ otherwise unmodified.
     }
     finally { $zip.Dispose() }
 
+    # --- Index ----------------------------------------------------------------------------
+    # The fingerprint of every icon, worked out once and carried inside the archive, so the
+    # tool does not spend half a second on it per connection. Here rather than left to be
+    # remembered: a bundle without one still works, which is exactly why nobody would notice.
+    & (Join-Path $PSScriptRoot "index-catalog.ps1") -Zip $out
+
     # --- Report ---------------------------------------------------------------------------
     # Counted back out of the finished file rather than off the list that built it, because the
     # question worth answering is what is in the archive.
     $check = [System.IO.Compression.ZipFile]::OpenRead($out)
     try {
-        $svgs = $check.Entries | Where-Object { $_.FullName -ne "ABOUT.txt" }
+        $furniture = @("ABOUT.txt") + @($check.Entries | Where-Object { $_.FullName -like "drawings.v*.tsv" } | ForEach-Object { $_.FullName })
+        $svgs = $check.Entries | Where-Object { $furniture -notcontains $_.FullName }
         $stray = $svgs | Where-Object { $_.FullName -notmatch '^(fluent|phosphor|lucide|tabler)/[a-z]+/[^/]+\.svg$' }
         if ($stray) { throw "Unexpected entries: $(($stray | Select-Object -First 5 -ExpandProperty FullName) -join ', ')" }
 

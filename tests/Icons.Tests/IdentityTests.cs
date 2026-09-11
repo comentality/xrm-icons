@@ -2,7 +2,10 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Drawing;
+using System.IO;
+using System.IO.Compression;
 using System.Linq;
+using System.Text;
 using Icons.Catalog;
 using Icons.Logic;
 using NUnit.Framework;
@@ -23,12 +26,7 @@ namespace Icons.Tests
         {
             _catalog = IconCatalog.Load();
 
-            var clock = Stopwatch.StartNew();
             _catalog.Index();
-            clock.Stop();
-
-            TestContext.Out.WriteLine("Fingerprinting " + _catalog.Icons.Count + " icons took "
-                                      + clock.ElapsedMilliseconds + " ms.");
         }
 
         [OneTimeTearDown]
@@ -44,13 +42,16 @@ namespace Icons.Tests
         }
 
         /// <summary>
-        /// What building the index costs, on a catalogue nobody has indexed yet. It runs on a
-        /// worker while the window is already usable, so this is not a budget - but it is the
-        /// number that decides whether it can stay on a worker or has to be built at bundle
-        /// time, and it should not drift without somebody noticing.
+        /// The index is carried in the bundle rather than worked out here. Fingerprinting all
+        /// 18,637 icons is half a second and about twenty megabytes of garbage, on every
+        /// connection and in every XrmToolBox tab, for an answer that cannot change between
+        /// builds - so tools\index-catalog.ps1 works it out once and puts it in the archive.
+        ///
+        /// The number is printed rather than asserted on: what matters is where the index came
+        /// from, and a millisecond budget on a build agent is a flaky test waiting to happen.
         /// </summary>
         [Test]
-        public void Indexing_the_whole_library_is_worth_doing_at_run_time()
+        public void The_index_comes_out_of_the_bundle()
         {
             using (var fresh = IconCatalog.Load())
             {
@@ -58,44 +59,121 @@ namespace Icons.Tests
                 fresh.Index();
                 clock.Stop();
 
-                TestContext.Out.WriteLine("Fingerprinting " + fresh.Icons.Count + " icons took "
-                                          + clock.ElapsedMilliseconds + " ms.");
+                TestContext.Out.WriteLine("Indexing " + fresh.Icons.Count + " icons took "
+                                          + clock.ElapsedMilliseconds + " ms from the bundle.");
 
-                Assert.That(fresh.Indexed, Is.True);
-                Assert.That(clock.ElapsedMilliseconds, Is.LessThan(30000),
-                    "indexing has got slow enough to be worth moving to bundle time");
+                Assert.That(fresh.IndexOrigin, Is.EqualTo(IconIndexOrigin.Bundled),
+                    "the bundle should carry " + IconCatalog.IndexEntryName
+                    + "; run tools\\index-catalog.ps1");
             }
         }
 
         /// <summary>
-        /// How many of the bundled icons are a drawing that another name shares. Those cannot
-        /// be recognised from the drawing alone, which is the rule working rather than a gap -
-        /// but if the number ever climbs, the rule is costing more than it is worth.
+        /// A bundle carrying no index this build can read is still a working library, at the
+        /// price of the half second. This is what an older tool over a newer bundle sees, and
+        /// what anybody who rebuilds the archive without reindexing it sees.
         /// </summary>
         [Test]
-        public void Few_drawings_are_shared_by_two_names()
+        public void A_bundle_with_no_index_works_it_out()
         {
-            var shared = 0;
-            var wrong = new List<string>();
+            using (var stripped = new MemoryStream(BundleWithout(IconCatalog.IndexEntryName)))
+            using (var catalog = IconCatalog.Load(stripped))
+            {
+                catalog.Index();
+
+                Assert.That(catalog.IndexOrigin, Is.EqualTo(IconIndexOrigin.Computed));
+
+                var icon = catalog.Icons.First(i => i.Family == IconFamily.Lucide && i.Name == "folder");
+                var found = IconIdentifier.Identify(
+                    SvgOutput.Build(catalog.ReadSvg(icon), IconColourMode.Theme, Color.Black, null, null),
+                    catalog);
+
+                Assert.That(found?.Entry, Is.SameAs(icon), "and it identifies by drawing all the same");
+            }
+        }
+
+        /// <summary>
+        /// An index written against some earlier bundle is refused outright rather than half
+        /// believed. This is the way the file actually goes wrong - an archive rebuilt from
+        /// newer upstream releases and not reindexed - and half of an index would mean icons
+        /// that quietly stopped being recognised.
+        /// </summary>
+        [Test]
+        public void An_index_that_does_not_fit_the_bundle_is_refused()
+        {
+            var bundle = BundleWithout(null, index =>
+                index.Replace("lucide/regular/folder.svg", "lucide/regular/folder-that-went.svg"));
+
+            using (var stream = new MemoryStream(bundle))
+            using (var catalog = IconCatalog.Load(stream))
+            {
+                catalog.Index();
+
+                Assert.That(catalog.IndexOrigin, Is.EqualTo(IconIndexOrigin.Computed),
+                    "an index naming an icon the archive does not hold is not this archive's index");
+            }
+        }
+
+        /// <summary>
+        /// The bundled index against a fresh fingerprinting of the bundle, icon for icon.
+        ///
+        /// This is the drift detector. The index is written by index-catalog.ps1 through the
+        /// same canonicaliser that reads it, so the two can only disagree if the archive was
+        /// rebuilt without reindexing or the canonical form changed without its version - and
+        /// either of those is an index that quietly recognises nothing. Here it has to answer
+        /// with the right icon for every one of the 18,637, and with nothing for exactly those
+        /// whose drawing another name shares.
+        /// </summary>
+        [Test]
+        public void The_bundled_index_says_what_the_drawings_say()
+        {
+            var counts = new Dictionary<string, int>(StringComparer.Ordinal);
+            var prints = new Dictionary<string, string>(StringComparer.Ordinal);
 
             foreach (var icon in _catalog.Icons)
             {
-                var found = _catalog.Drawn(IconFingerprint.Of(_catalog.ReadSvg(icon)));
+                var print = IconFingerprint.Of(_catalog.ReadSvg(icon));
+                prints[icon.EntryPath] = print;
+                if (print == null) continue;
 
-                if (found == null) shared++;
-                else if (!ReferenceEquals(found, icon)) wrong.Add(icon.EntryPath + " read as " + found.EntryPath);
+                int seen;
+                counts[print] = counts.TryGetValue(print, out seen) ? seen + 1 : 1;
+            }
+
+            var wrong = new List<string>();
+            var shared = 0;
+
+            foreach (var icon in _catalog.Icons)
+            {
+                var print = prints[icon.EntryPath];
+                var answer = print == null ? null : _catalog.Drawn(print);
+
+                if (print != null && counts[print] > 1)
+                {
+                    shared++;
+                    if (answer != null) wrong.Add(icon.EntryPath + " is a shared drawing but was named " + answer.EntryPath);
+                }
+                else if (!ReferenceEquals(answer, icon))
+                {
+                    wrong.Add(icon.EntryPath + " answered with " + (answer == null ? "nothing" : answer.EntryPath));
+                }
             }
 
             TestContext.Out.WriteLine(shared + " of " + _catalog.Icons.Count
                                       + " icons are a drawing more than one name shares.");
 
-            // The index answering with the wrong icon is the failure that matters, and this is
-            // the only place every one of the bundle's drawings is looked up: the icons stored
-            // with a provenance comment never reach the drawing at all.
-            Assert.That(wrong, Is.Empty, "the drawing index gave the wrong icon for these");
-
-            Assert.That(shared, Is.LessThan(_catalog.Icons.Count / 10),
-                "too many icons share a drawing for silence to be the right answer");
+            Assert.That(_catalog.IndexOrigin, Is.EqualTo(IconIndexOrigin.Bundled),
+                "this only tests the bundled index if the bundled index is what was used");
+            Assert.That(wrong, Is.Empty,
+                "the bundled index disagrees with the drawings; run tools\\index-catalog.ps1");
+            // 692 on this bundle, measured. The bound is close to it on purpose: a fingerprint
+            // is 96 bits of a digest rather than the whole of it, and the only way a truncation
+            // that started colliding would show is here, as drawings that are not really the
+            // same one going quiet. Upstream adding a handful of aliases moves this by a
+            // handful; a truncation gone wrong moves it by hundreds.
+            Assert.That(shared, Is.LessThan(750),
+                "more icons share a drawing than this bundle has ever had - if upstream did not "
+                + "add aliases, the fingerprint is colliding on drawings that differ");
         }
 
         /// <summary>
@@ -249,6 +327,47 @@ namespace Icons.Tests
         {
             var step = Math.Max(1, _catalog.Icons.Count / wanted);
             return _catalog.Icons.Where((i, index) => index % step == 0);
+        }
+
+        /// <summary>
+        /// The bundled archive again, with one entry left out and optionally one rewritten on
+        /// the way through. There is no second library to point a build at, so a test about a
+        /// bundle that is wrong has to make one.
+        /// </summary>
+        private static byte[] BundleWithout(string leaveOut, Func<string, string> rewriteIndex = null)
+        {
+            var source = typeof(IconCatalog).Assembly.GetManifestResourceStream("Icons.Catalog.icons.zip");
+            Assert.That(source, Is.Not.Null, "the library should be embedded in the assembly");
+
+            var made = new MemoryStream();
+
+            using (source)
+            using (var reading = new ZipArchive(source, ZipArchiveMode.Read))
+            using (var writing = new ZipArchive(made, ZipArchiveMode.Create, leaveOpen: true))
+            {
+                foreach (var entry in reading.Entries)
+                {
+                    if (entry.FullName == leaveOut) continue;
+
+                    var copy = writing.CreateEntry(entry.FullName);
+                    using (var from = entry.Open())
+                    using (var to = copy.Open())
+                    {
+                        if (rewriteIndex != null && entry.FullName == IconCatalog.IndexEntryName)
+                        {
+                            using (var reader = new StreamReader(from, Encoding.UTF8))
+                            using (var writer = new StreamWriter(to, new UTF8Encoding(false)))
+                                writer.Write(rewriteIndex(reader.ReadToEnd()));
+                        }
+                        else
+                        {
+                            from.CopyTo(to);
+                        }
+                    }
+                }
+            }
+
+            return made.ToArray();
         }
 
         private static string ReplaceFirst(string text, string find, string replacement)

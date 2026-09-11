@@ -16,6 +16,19 @@ namespace Icons.Catalog
     /// needs its own outbound host — or an API key — is a picker that does not open. The cost
     /// is a fixed catalogue, which the build script can refresh.
     /// </summary>
+    /// <summary>Where a catalogue's drawing index came from.</summary>
+    public enum IconIndexOrigin
+    {
+        /// <summary>There is no index yet.</summary>
+        None,
+
+        /// <summary>Read out of the bundle, which is what a build of the tool normally does.</summary>
+        Bundled,
+
+        /// <summary>Worked out here, because the bundle carried no index this build could use.</summary>
+        Computed
+    }
+
     public sealed class IconCatalog : IDisposable
     {
         private const string ResourceName = "Icons.Catalog.icons.zip";
@@ -25,6 +38,7 @@ namespace Icons.Catalog
         private readonly object _readLock = new object();
         private readonly object _indexLock = new object();
         private Dictionary<string, IconEntry> _byDrawing;
+        private IconIndexOrigin _origin;
 
         private IconCatalog(ZipArchive archive, List<IconEntry> icons, string about)
         {
@@ -42,8 +56,17 @@ namespace Icons.Catalog
 
         public static IconCatalog Load()
         {
-            var assembly = Assembly.GetExecutingAssembly();
-            var stream = assembly.GetManifestResourceStream(ResourceName);
+            return Load(null);
+        }
+
+        /// <summary>
+        /// The library out of some archive other than the bundled one. Only the tests ask for
+        /// this, to read a bundle with something taken out of it - there is no second library
+        /// to point a build of the tool at.
+        /// </summary>
+        public static IconCatalog Load(Stream zip)
+        {
+            var stream = zip ?? Assembly.GetExecutingAssembly().GetManifestResourceStream(ResourceName);
             if (stream == null)
             {
                 throw new InvalidOperationException(
@@ -185,21 +208,89 @@ namespace Icons.Catalog
             }
         }
 
+        /// <summary>Where the drawing index came from, once there is one.</summary>
+        public IconIndexOrigin IndexOrigin
+        {
+            get { lock (_indexLock) return _byDrawing == null ? IconIndexOrigin.None : _origin; }
+        }
+
         /// <summary>
-        /// Reads every icon in the bundle and fingerprints it. Around ten megabytes of SVG, so
-        /// this belongs on a worker: the window is usable without it, and the tier of
-        /// identification it serves simply says nothing until it lands.
+        /// What the index is called inside the archive. The canonical form's version is in the
+        /// name rather than in the file, so a build of the tool whose canonicaliser has moved
+        /// on simply does not find an index and makes its own - one path fewer, and no way to
+        /// read an index written in a form this build does not speak.
+        /// </summary>
+        public static string IndexEntryName
+        {
+            get { return "drawings.v" + IconFingerprint.Version + ".tsv"; }
+        }
+
+        /// <summary>
+        /// Builds the drawing index: the fingerprint of every bundled icon, so an SVG already
+        /// in an environment can be recognised as one of them.
         ///
-        /// Safe to call twice, and safe to call while the grid is drawing thumbnails - the
-        /// archive lock is taken one entry at a time rather than held across the whole pass.
+        /// The pairs come from the file the bundle carries where there is one, and from
+        /// fingerprinting all ten megabytes of SVG where there is not. Those are the same
+        /// answer at different prices - half a second against a few tens of milliseconds - and
+        /// the rule about what to do with them is applied to both in one place below.
+        ///
+        /// Safe to call twice, and safe to call while the grid is drawing thumbnails: the
+        /// archive lock is taken an entry at a time and let go of before anything is parsed,
+        /// rather than held across the whole pass.
         /// </summary>
         public void Index()
         {
             lock (_indexLock) if (_byDrawing != null) return;
 
+            var origin = IconIndexOrigin.Bundled;
+            IEnumerable<KeyValuePair<string, IconEntry>> pairs = FromTheBundledIndex();
+
+            if (pairs == null)
+            {
+                origin = IconIndexOrigin.Computed;
+                pairs = FromTheDrawings();
+            }
+
+            var folded = Fold(pairs);
+
+            lock (_indexLock)
+            {
+                if (_byDrawing != null) return;
+                _byDrawing = folded;
+                _origin = origin;
+            }
+        }
+
+        /// <summary>
+        /// What a fingerprint is allowed to answer with.
+        ///
+        /// A fingerprint two icons share is one drawing shipped under two names rather than an
+        /// error, but nothing can say which of the two somebody stored, so it answers with
+        /// neither. This is the whole of that rule, and both ways of getting the pairs come
+        /// through it - which is why the bundled file is a plain dump and holds no policy of
+        /// its own.
+        /// </summary>
+        private static Dictionary<string, IconEntry> Fold(IEnumerable<KeyValuePair<string, IconEntry>> pairs)
+        {
             var drawings = new Dictionary<string, IconEntry>(StringComparer.Ordinal);
             var shared = new HashSet<string>(StringComparer.Ordinal);
 
+            foreach (var pair in pairs)
+            {
+                if (string.IsNullOrEmpty(pair.Key) || pair.Value == null) continue;
+
+                if (drawings.ContainsKey(pair.Key)) shared.Add(pair.Key);
+                else drawings[pair.Key] = pair.Value;
+            }
+
+            foreach (var fingerprint in shared) drawings.Remove(fingerprint);
+
+            return drawings;
+        }
+
+        /// <summary>Every icon in the archive, read and fingerprinted. The slow way, and the true one.</summary>
+        private IEnumerable<KeyValuePair<string, IconEntry>> FromTheDrawings()
+        {
             foreach (var icon in Icons)
             {
                 string fingerprint;
@@ -212,15 +303,57 @@ namespace Icons.Catalog
                     continue;
                 }
 
-                if (fingerprint == null) continue;
+                yield return new KeyValuePair<string, IconEntry>(fingerprint, icon);
+            }
+        }
 
-                if (drawings.ContainsKey(fingerprint)) shared.Add(fingerprint);
-                else drawings[fingerprint] = icon;
+        /// <summary>
+        /// The same pairs, read out of the file the bundle carries, or null when the archive
+        /// has no index this build can use.
+        ///
+        /// Refused rather than half-believed. Every line has to name an icon this archive
+        /// actually holds and there has to be exactly one line per icon, because the way this
+        /// file goes wrong is a bundle rebuilt without reindexing - an index of the icons that
+        /// used to be there. Refusing costs half a second; believing it costs correctness.
+        /// </summary>
+        private List<KeyValuePair<string, IconEntry>> FromTheBundledIndex()
+        {
+            ZipArchiveEntry entry;
+            if (!_entries.TryGetValue(IndexEntryName, out entry)) return null;
+
+            string text;
+            try
+            {
+                // One entry, read whole and let go of: the archive lock is the grid's too, and
+                // parsing what came out of it is not the archive's business.
+                lock (_readLock)
+                {
+                    using (var reader = new StreamReader(entry.Open(), Encoding.UTF8))
+                        text = reader.ReadToEnd();
+                }
+            }
+            catch (IOException)
+            {
+                return null;
             }
 
-            foreach (var fingerprint in shared) drawings.Remove(fingerprint);
+            var byPath = Icons.ToDictionary(i => i.EntryPath, StringComparer.Ordinal);
+            var pairs = new List<KeyValuePair<string, IconEntry>>(byPath.Count);
 
-            lock (_indexLock) if (_byDrawing == null) _byDrawing = drawings;
+            foreach (var line in text.Split('\n'))
+            {
+                if (line.Length == 0) continue;
+
+                var tab = line.IndexOf('\t');
+                if (tab < 0) return null;
+
+                IconEntry icon;
+                if (!byPath.TryGetValue(line.Substring(tab + 1).TrimEnd('\r'), out icon)) return null;
+
+                pairs.Add(new KeyValuePair<string, IconEntry>(line.Substring(0, tab), icon));
+            }
+
+            return pairs.Count == byPath.Count ? pairs : null;
         }
 
         /// <summary>The icon's SVG, exactly as the bundle holds it.</summary>

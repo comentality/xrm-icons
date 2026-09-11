@@ -15,8 +15,9 @@ chain of four `WorkAsync` calls, each started by the one before, plus the apply:
 - **ReadApps** — one `RetrieveMultiple` over `appmodule` for the preview. Failure costs the
   preview its navigation and nothing else, and the link after it runs either way.
 - **ReadStoredIcons** — one `RetrieveMultiple` over `webresource`, an `In` over the icons named
-  under this environment's own publisher prefixes, plus half a second of fingerprinting the
-  bundle. Last because nothing waits on it: it only decides whether the window can say which
+  under this environment's own publisher prefixes, plus reading the drawing index out of the
+  bundle - a few tens of milliseconds, since index-catalog.ps1 fingerprinted it at bundle
+  time. Last because nothing waits on it: it only decides whether the window can say which
   library icon a table is carrying. Failure says nothing and puts nothing back, because it
   claimed nothing.
 - **Apply** — the only cancelable one. Hands off to `IconApplier.Apply`: five round trips

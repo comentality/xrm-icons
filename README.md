@@ -179,7 +179,9 @@ because Microsoft advises against CSS classes in a table icon, and Tabler's invi
 full-canvas backdrop rectangle removed.
 
 **About the icons** in the toolbar shows the exact package versions and the licences.
-`tools\build-catalog.ps1` regenerates the bundle from newer releases.
+`tools\build-catalog.ps1` regenerates the bundle from newer releases, and fingerprints
+every icon into the archive as it goes, so recognising the icon a table already has costs a few
+tens of milliseconds rather than half a second of working it out again on every connection.
 
 All four licences are permissive, so what you store in your environment carries no attribution
 obligation — the notices travel with the bundle so you can check that for yourself. The tool
@@ -197,6 +199,7 @@ dotnet test tests\Icons.Tests\Icons.Tests.csproj
 .\tests\slow.ps1            # drive it against a Dataverse that answers in seconds, and misbehaves
 .\tests\e2e.ps1             # drive it against a real Dataverse, on a table of its own, and clean up
 .\tools\build-catalog.ps1   # rebuild the icon bundle from all four upstream packages
+.\tools\index-catalog.ps1   # refingerprint that bundle, which build-catalog.ps1 also does
 .\tools\make-tool-icon.ps1  # redraw the tool's own icon, using the tool's own renderer
 ```
 
