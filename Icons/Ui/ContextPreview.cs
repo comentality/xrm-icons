@@ -175,22 +175,66 @@ namespace Icons.Ui
         }
 
         /// <summary>
-        /// The drawing. A scrolling panel of its own so a navigation taller than the pane is
-        /// scrolled rather than cut, which for a long site map is most of them.
+        /// The drawing. A navigation is taller than the pane - the stand-in is 382 css pixels of
+        /// rows in about 236, and a real site map is three or four times that - so it scrolls,
+        /// on the wheel, with no bar.
+        ///
+        /// The bar went because of the shape rather than the other way round: a torn edge with a
+        /// rectangular Windows control floating in the grey beside it reads as a bug. What the
+        /// bar was saying, the tear now says - a ragged foot is why the rows stop - and the row
+        /// being judged is scrolled to anyway, which was the other half of it.
         /// </summary>
         private sealed class Surface : Panel
         {
+            // The tear's own numbers, in css pixels. They are the mock's furniture and not the
+            // app's, like Scenery's bars: nothing here was measured off anything, and nothing
+            // here belongs in NavChrome beside the numbers that were.
+            private const int TearInset = 38;       // where the right edge tears, in from the right
+            private const int TearAmplitude = 9;    // how ragged. +-4 reads as a printing fault, +-16 eats the page
+            private const int TearStep = 16;        // a point every 16px: at this spacing corners read as fibre
+            private const int TearFoot = 22;        // where the bottom edge tears, up from the foot
+            // The foot is the same tear carried round the corner, so it wants the same ratio of
+            // step to amplitude. Stepping further for a shallower wander reads as a wave.
+            private const int TearFootAmplitude = 9;
+            private const int TearFootStep = 20;
+
+            // GDI+ has no blur, so the shadow is three copies of the tear offset under it. The
+            // alphas add up where they overlap, which is what gives the falloff.
+            private static readonly int[] LiftBy = { 1, 2, 3 };
+            private static readonly int[] LiftAlpha = { 0x16, 0x14, 0x10 };
+
             private NavTheme _theme = NavTheme.Light;
+            private IList<NavRow> _rows;
+            private int _offset;
 
             public Surface()
             {
-                AutoScroll = true;
+                AutoScroll = false;
                 DoubleBuffered = true;
                 ResizeRedraw = true;
-                Rows = new List<NavRow>();
+
+                // Clicking it can focus it, for the machines where hovering does not deliver the
+                // wheel. Windows has scrolled whatever is under the pointer since 10, so this is
+                // the fallback and not the path.
+                SetStyle(ControlStyles.Selectable, true);
+
+                _rows = new List<NavRow>();
             }
 
-            public IList<NavRow> Rows { get; set; }
+            /// <summary>
+            /// The rows, and a scroll position that cannot outlive them. A long navigation
+            /// scrolled down and then replaced by a short one would otherwise leave the pane
+            /// showing blank page under a tear.
+            /// </summary>
+            public IList<NavRow> Rows
+            {
+                get { return _rows; }
+                set
+                {
+                    _rows = value ?? new List<NavRow>();
+                    Clamp();
+                }
+            }
             public int Selected { get; set; }
             public SvgImage Chosen { get; set; }
             public string ChosenLabel { get; set; }
@@ -227,20 +271,79 @@ namespace Icons.Ui
                 var top = painter.Top(rows, Selected);
                 var height = painter.RowHeight;
 
-                // The scrollbar only goes as far as this says there is to go, and it is
-                // otherwise worked out while painting - which has not happened yet.
-                AutoScrollMinSize = new Size(painter.Width + Round(120), painter.Height(rows) + Round(16));
+                // In view means in view above the tear. A row in the torn foot has been half
+                // eaten by it, which for the one row the whole preview exists for will not do.
+                var seen = ClientSize.Height - Fold;
+                if (top >= _offset && top + height <= _offset + seen) return;
 
-                var view = -AutoScrollPosition.Y;
-                if (top >= view && top + height <= view + ClientSize.Height) return;
-
-                AutoScrollPosition = new Point(0, Math.Max(0, top - (ClientSize.Height - height) / 2));
+                Offset(top - (seen - height) / 2);
             }
 
             /// <summary>CSS pixels to this screen's pixels, so the drawing is the size the app is.</summary>
             private float PixelScale
             {
                 get { return DeviceDpi / 96f; }
+            }
+
+            /// <summary>How much of the foot the tear has taken, and so is not worth scrolling into.</summary>
+            private int Fold
+            {
+                get { return Round(TearFoot + TearFootAmplitude); }
+            }
+
+            /// <summary>
+            /// How tall the drawing is. NavPainter.Height already carries the mock's own 16px
+            /// margin; the fold is added because the last row has to be able to clear the tear,
+            /// which is a different 16 pixels and not the same one twice.
+            /// </summary>
+            private int Reach
+            {
+                get
+                {
+                    var painter = new NavPainter(_theme, PixelScale);
+                    return Math.Max(0, painter.Height(Rows) + Fold - ClientSize.Height);
+                }
+            }
+
+            private void Offset(int to)
+            {
+                var was = _offset;
+                _offset = Math.Max(0, Math.Min(Reach, to));
+                if (_offset != was) Invalidate();
+            }
+
+            private void Clamp()
+            {
+                if (_offset > Reach) Offset(Reach);
+            }
+
+            protected override void OnMouseWheel(MouseEventArgs e)
+            {
+                base.OnMouseWheel(e);
+
+                var lines = SystemInformation.MouseWheelScrollLines;
+                var by = lines > 0
+                    ? lines * new NavPainter(_theme, PixelScale).RowHeight
+                    : Math.Max(1, ClientSize.Height - Fold);
+
+                Offset(_offset - e.Delta * by / 120);
+
+                // Handled, or the splitter this sits in gets the same turn of the wheel and the
+                // whole tool pane moves under a preview that has just scrolled.
+                var handled = e as HandledMouseEventArgs;
+                if (handled != null) handled.Handled = true;
+            }
+
+            protected override void OnMouseDown(MouseEventArgs e)
+            {
+                base.OnMouseDown(e);
+                Focus();
+            }
+
+            protected override void OnSizeChanged(EventArgs e)
+            {
+                base.OnSizeChanged(e);
+                Clamp();
             }
 
             protected override void OnPaint(PaintEventArgs e)
@@ -263,9 +366,10 @@ namespace Icons.Ui
                     if (RenameChosen && !string.IsNullOrEmpty(ChosenLabel)) rows[Selected].Label = ChosenLabel;
                 }
 
-                // The scroll position, so the navigation moves with the scrollbar.
-                var x = AutoScrollPosition.X;
-                var y = AutoScrollPosition.Y;
+                // How far down the drawing has been wheeled. Negative, because it is where the
+                // top of the drawing now sits rather than how far it has gone.
+                const int x = 0;
+                var y = -_offset;
 
                 painter.Draw(g, x, y, rows, Selected, ChosenFixed ?? _theme.IconColour);
 
@@ -285,7 +389,125 @@ namespace Icons.Ui
 
                 Scenery(g, x + navWidth, y);
 
-                AutoScrollMinSize = new Size(navWidth + Round(120), navHeight + Round(16));
+                Tear(g);
+            }
+
+            /// <summary>
+            /// Takes the drawing off the page: everything outside the torn edge painted back to
+            /// the tool's own colour, and a shadow laid under the piece so it reads as lying on
+            /// the tool rather than as a hole cut through it.
+            ///
+            /// It is done by filling rather than clipping, and that is the whole trick.
+            /// Graphics.SetClip takes a region, a region is whole pixels, and a clipped tear
+            /// comes out a staircase. A path filled with FillMode.Alternate is antialiased like
+            /// anything else.
+            /// </summary>
+            private void Tear(Graphics g)
+            {
+                // A pane too small to hold the tear is left square. Better a rectangle than a
+                // shape that has eaten the thing it was framing.
+                if (ClientSize.Width <= Round(TearInset) * 2 || ClientSize.Height <= Round(TearFoot) * 3) return;
+
+                var was = g.SmoothingMode;
+                g.SmoothingMode = SmoothingMode.AntiAlias;
+
+                using (var keep = TearPath(0, 0))
+                {
+                    using (var mask = new GraphicsPath(FillMode.Alternate))
+                    {
+                        mask.AddRectangle(new Rectangle(-1, -1, ClientSize.Width + 2, ClientSize.Height + 2));
+                        mask.AddPath(keep, false);
+
+                        // BackColor and not a grey of its own: whatever the tool is painted, the
+                        // torn-away part has to be that, or it is not a piece cut out of the
+                        // window - it is a coloured rectangle with a shape in it.
+                        using (var brush = new SolidBrush(BackColor)) g.FillPath(brush, mask);
+                    }
+
+                    for (var i = 0; i < LiftBy.Length; i++)
+                    {
+                        using (var lifted = TearPath(Round(LiftBy[i]), Round(LiftBy[i])))
+                        using (var crescent = new GraphicsPath(FillMode.Alternate))
+                        {
+                            // The shadow minus the piece, so none of it falls on the drawing.
+                            crescent.AddPath(lifted, false);
+                            crescent.AddPath(keep, false);
+
+                            using (var brush = new SolidBrush(Color.FromArgb(LiftAlpha[i], 0, 0, 0)))
+                                g.FillPath(brush, crescent);
+                        }
+                    }
+                }
+
+                g.SmoothingMode = was;
+            }
+
+            /// <summary>
+            /// The torn edge as a closed path: square along the top and the left, ragged down the
+            /// right and along the foot. Offsetting it by a pixel or two is how the shadow under
+            /// it is drawn - the two corners that sit on a square edge stay put, so the shadow
+            /// never shows as a hairline along an edge that was never torn.
+            /// </summary>
+            private GraphicsPath TearPath(int dx, int dy)
+            {
+                var torn = TearPoints();
+                var points = new PointF[torn.Length + 1];
+                points[0] = new PointF(0, 0);
+
+                for (var i = 0; i < torn.Length; i++)
+                {
+                    points[i + 1] = new PointF(
+                        torn[i].X + (i == torn.Length - 1 ? 0 : dx),
+                        torn[i].Y + (i == 0 ? 0 : dy));
+                }
+
+                var path = new GraphicsPath();
+                path.AddPolygon(points);
+                return path;
+            }
+
+            private PointF[] TearPoints()
+            {
+                var rightAxis = ClientSize.Width - Round(TearInset);
+                var footAxis = ClientSize.Height - Round(TearFoot);
+                var amplitude = Round(TearAmplitude);
+                var footAmplitude = Round(TearFootAmplitude);
+                var step = Math.Max(1, Round(TearStep));
+                var footStep = Math.Max(1, Round(TearFootStep));
+
+                var points = new List<PointF>();
+
+                for (var at = 0; at < footAxis; at += step)
+                    points.Add(new PointF(rightAxis + amplitude * Wobble(at / step), at));
+
+                for (var at = rightAxis; at > 0; at -= footStep)
+                    points.Add(new PointF(at, footAxis + footAmplitude * Wobble(2000 + at / footStep)));
+
+                points.Add(new PointF(0, footAxis + footAmplitude * Wobble(1999)));
+                return points.ToArray();
+            }
+
+            /// <summary>
+            /// How far this point of the tear wanders, between -1 and 1. A function of the index
+            /// and nothing else, which is the point: the tear is repainted on every click in the
+            /// grid, and one that reshuffled itself would flicker the whole time somebody was
+            /// choosing an icon.
+            ///
+            /// The index counts from the top of the pane rather than the top of the drawing,
+            /// because the tear is the frame. The rows scroll under it and it does not move -
+            /// the way a torn photograph does not change shape when you look further down it -
+            /// and dragging the splitter lengthens the same tear rather than drawing another.
+            /// </summary>
+            private static float Wobble(int index)
+            {
+                unchecked
+                {
+                    var h = (uint)index * 2654435761u;
+                    h ^= h >> 15;
+                    h *= 2246822519u;
+                    h ^= h >> 13;
+                    return (h & 0xFFFF) / 32767.5f - 1f;
+                }
             }
 
             /// <summary>

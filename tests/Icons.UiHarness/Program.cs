@@ -6,6 +6,7 @@ using System.Drawing.Imaging;
 using System.IO;
 using System.Linq;
 using System.Reflection;
+using System.Runtime.InteropServices;
 using System.Windows.Forms;
 using Icons.Ui;
 
@@ -311,8 +312,95 @@ namespace Icons.UiHarness
             Console.WriteLine("OK: the preview draws on both themes");
 
             failures += CheckChosenRowIsScrolledTo(preview, form, outputDir);
+            failures += CheckTheWheelScrolls(preview);
 
             return failures;
+        }
+
+        /// <summary>
+        /// The preview has no scroll bar - the torn edge is why, and a ragged foot says the rows
+        /// carry on better than a rectangular control floating in the grey beside it did. So the
+        /// wheel is the only way down, and it is worth a check of its own: a real WM_MOUSEWHEEL
+        /// at the pane, rather than a call to the handler, because what has to be true is that
+        /// the message arrives and not that a method exists.
+        /// </summary>
+        private static int CheckTheWheelScrolls(ContextPreview preview)
+        {
+            var surface = preview.Controls.OfType<Panel>().FirstOrDefault(c => c.GetType().Name == "Surface");
+            var field = surface?.GetType().GetField("_offset", BindingFlags.Instance | BindingFlags.NonPublic);
+            if (surface == null || field == null)
+            {
+                Console.WriteLine("FAIL: the preview has no pane to wheel over");
+                return 1;
+            }
+
+            var many = Enumerable.Range(0, 40).Select(i => new NavRow("Table " + i, null)).ToList();
+            preview.ShowNavigation(many, 0, "A stand-in navigation, forty rows of it.", true);
+            Pump();
+
+            var failures = 0;
+            var start = (int)field.GetValue(surface);
+
+            Wheel(surface, -3);
+            Pump();
+
+            var down = (int)field.GetValue(surface);
+            if (down <= start)
+            {
+                Console.WriteLine("FAIL: the wheel does not reach the preview - it sat at " + down
+                                  + " with no bar to drag instead");
+                failures++;
+            }
+            else
+            {
+                Console.WriteLine("OK: the wheel scrolls the preview, " + start + " to " + down);
+            }
+
+            // Past both ends. A pane that can be wheeled off the top shows blank page above the
+            // navigation, and one that can be wheeled off the foot shows it below.
+            Wheel(surface, 40);
+            Pump();
+
+            if ((int)field.GetValue(surface) != 0)
+            {
+                Console.WriteLine("FAIL: wheeling up past the top left the preview at "
+                                  + field.GetValue(surface) + " rather than 0");
+                failures++;
+            }
+
+            Wheel(surface, -200);
+            Pump();
+
+            var bottom = (int)field.GetValue(surface);
+            Wheel(surface, -40);
+            Pump();
+
+            if ((int)field.GetValue(surface) != bottom)
+            {
+                Console.WriteLine("FAIL: the preview keeps scrolling past its last row, " + bottom
+                                  + " to " + field.GetValue(surface));
+                failures++;
+            }
+
+            if (failures == 0) Console.WriteLine("OK: the wheel stops at both ends of the navigation");
+
+            preview.ShowNavigation(new List<NavRow>(), -1, "", false);
+            Pump();
+
+            return failures;
+        }
+
+        private const int WmMouseWheel = 0x020A;
+
+        [DllImport("user32.dll", CharSet = CharSet.Auto)]
+        private static extern IntPtr SendMessage(IntPtr window, int message, IntPtr wParam, IntPtr lParam);
+
+        /// <summary>One turn of the wheel per notch, positive up, as Windows sends it.</summary>
+        private static void Wheel(Control surface, int notches)
+        {
+            var delta = (short)(notches * 120);
+            var wParam = (IntPtr)unchecked((int)(uint)((delta & 0xFFFF) << 16));
+            SendMessage(surface.Handle, WmMouseWheel, wParam, IntPtr.Zero);
         }
 
         /// <summary>
@@ -327,8 +415,13 @@ namespace Icons.UiHarness
         /// </summary>
         private static int CheckChosenRowIsScrolledTo(ContextPreview preview, Form form, string outputDir)
         {
-            var surface = preview.Controls.OfType<ScrollableControl>().FirstOrDefault(c => c.AutoScroll);
-            if (surface == null)
+            // The pane scrolls on the wheel with no bar, so there is no AutoScrollPosition to
+            // read and the offset it keeps instead is private. Reached by reflection rather than
+            // opened up: how far the drawing has been wheeled is nobody's business but the
+            // pane's, and a harness is not a reason to publish it.
+            var surface = preview.Controls.OfType<Panel>().FirstOrDefault(c => c.GetType().Name == "Surface");
+            var offset = surface?.GetType().GetField("_offset", BindingFlags.Instance | BindingFlags.NonPublic);
+            if (surface == null || offset == null)
             {
                 Console.WriteLine("FAIL: the preview has nothing that scrolls, so a long navigation would be cut");
                 return 1;
@@ -341,17 +434,17 @@ namespace Icons.UiHarness
             preview.ShowNavigation(many, 3, "A stand-in navigation, near the top.", true);
             Pump();
 
-            if (surface.AutoScrollPosition.Y != 0)
+            if ((int)offset.GetValue(surface) != 0)
             {
                 Console.WriteLine("FAIL: a row already in view should not move the navigation, and it scrolled to "
-                                  + surface.AutoScrollPosition.Y);
+                                  + offset.GetValue(surface));
                 return 1;
             }
 
             preview.ShowNavigation(many, 34, "A stand-in navigation, near the bottom.", true);
             Pump();
 
-            if (surface.AutoScrollPosition.Y == 0)
+            if ((int)offset.GetValue(surface) == 0)
             {
                 Console.WriteLine("FAIL: row 34 of 40 is below the fold and the navigation did not scroll to it");
                 Shoot(form, outputDir, "10-chosen-row-lost");
