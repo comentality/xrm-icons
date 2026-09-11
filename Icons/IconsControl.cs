@@ -12,12 +12,29 @@ using Microsoft.Xrm.Sdk.Messages;
 using Microsoft.Xrm.Sdk.Metadata;
 using Microsoft.Xrm.Sdk.Query;
 using XrmToolBox.Extensibility;
+using XrmToolBox.Extensibility.Interfaces;
+using Comentality.Xtb.About;
 using Label = System.Windows.Forms.Label;
 
 namespace Icons
 {
-    public partial class IconsControl : PluginControlBase
+    public partial class IconsControl : PluginControlBase, IHelpPlugin, IAboutPlugin
     {
+        /// <summary>
+        /// The page this tool has on the site. XrmToolBox puts it in its own Help menu, as
+        /// "Help for Icons", for whoever looks there rather than at the toolbar.
+        /// </summary>
+        public string HelpUrl
+        {
+            get { return "https://comentality.com/xrm/xtb/icons"; }
+        }
+
+        /// <summary>The host's own way in to the same box the toolbar opens.</summary>
+        public void ShowAboutDialog()
+        {
+            ShowAbout();
+        }
+
         private sealed class TableItem
         {
             public string LogicalName;
@@ -1741,10 +1758,23 @@ namespace Icons
             SyncEnabled();
         }
 
+        /// <summary>
+        /// What this is, where it came from, and how to say it is wrong.
+        ///
+        /// The box is built from the plugin class's own metadata, so the name and description in
+        /// it are the ones XrmToolBox shows in its tools list rather than a second copy that
+        /// could drift from them. What this tool adds is the licences: four icon families travel
+        /// inside the assembly, and the same text that goes into ATTRIBUTION.html goes here.
+        /// </summary>
         private void ShowAbout()
         {
-            var text = _catalog?.About ?? "The icon library is not loaded.";
-            MessageBox.Show(this, text, "About the icons", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            var about = ToolAbout.FromPlugin(
+                typeof(IconsPlugin), "icons", "https://github.com/comentality/xrm-icons");
+
+            about.Notices = _catalog?.About;
+            about.NoticesCaption = "Icon licences and credits";
+
+            AboutBox.Show(this, about);
         }
 
         /// <summary>

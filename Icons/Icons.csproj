@@ -18,6 +18,11 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <!-- The About box's version parsing and diagnostics line are checked by the tests. -->
+    <InternalsVisibleTo Include="Icons.Tests" />
+  </ItemGroup>
+
+  <ItemGroup>
     <PackageReference Include="XrmToolBoxPackage" Version="1.2025.7.71">
       <PrivateAssets>all</PrivateAssets>
     </PackageReference>

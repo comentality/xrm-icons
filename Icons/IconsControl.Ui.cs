@@ -154,10 +154,11 @@ namespace Icons
             };
             _cancelButton.Click += (s, e) => CancelWorker();
 
-            _aboutButton = new ToolStripButton("About the icons")
+            _aboutButton = new ToolStripButton("About")
             {
                 DisplayStyle = ToolStripItemDisplayStyle.Text,
-                Alignment = ToolStripItemAlignment.Right
+                Alignment = ToolStripItemAlignment.Right,
+                ToolTipText = "What this is, which build you have, and where to say it is wrong."
             };
             _aboutButton.Click += (s, e) => ShowAbout();
 
