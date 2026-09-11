@@ -109,9 +109,9 @@ namespace Icons
         /// the preview takes what is over.
         ///
         /// Asking beats a constant: the form is ten rows at one font and ten rows at another, it
-        /// grows a line when the chosen table is locked, and the warning and trouble lines come
-        /// and go above and below it. A number written here would be right on the machine it was
-        /// measured on and a scroll bar everywhere else.
+        /// grows a line when the chosen table is locked, and the warning line above it comes and
+        /// goes. A number written here would be right on the machine it was measured on and a
+        /// scroll bar everywhere else.
         ///
         /// Once the splitter has been dragged this does nothing. How much navigation is worth
         /// looking at is a question somebody has then answered, and the form scrolls instead.
