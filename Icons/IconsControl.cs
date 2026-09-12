@@ -193,6 +193,9 @@ namespace Icons
         private bool _targetSplitDragged;
         private bool _layingTargetSplit;
 
+        /// <summary>Set while a pane re-layout is posted and has not run yet - see SettlePane.</summary>
+        private bool _settlingPane;
+
         /// <summary>The form itself and its scrolling host - measured together to work out how
         /// much height the lower pane is asking for.</summary>
         private TableLayoutPanel _form;

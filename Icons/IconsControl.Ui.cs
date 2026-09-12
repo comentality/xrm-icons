@@ -14,11 +14,29 @@ namespace Icons
     /// </summary>
     public partial class IconsControl
     {
-        private const int ThumbnailSize = 40;
-        private const int CellSize = 76;
+        /// <summary>
+        /// The icon in a grid cell, in pixels of the screen rather than lines of text. A drawing
+        /// does not grow because somebody chose a bigger font; it grows because the screen it is
+        /// drawn on is finer, which is what DeviceDpi answers. <see cref="ApplyMetrics"/> keeps it
+        /// there.
+        /// </summary>
+        private int _thumbnailSize = 40;
 
-        /// <summary>What the family line under a name costs in cell height when it is showing.</summary>
-        private const int FamilyLineHeight = 15;
+        /// <summary>
+        /// What the family line under a name costs in cell height when it is showing. A line of
+        /// text, so it is the font's height and not a number.
+        /// </summary>
+        private int _familyLineHeight = 15;
+
+        /// <summary>The row of boxes that narrows the library, kept because its columns are sized
+        /// to the words in them and have to be re-sized when the font changes.</summary>
+        private TableLayoutPanel _libraryHeader;
+
+        /// <summary>Where the two rows the form has to be told the height of sit among its rows,
+        /// so they can be told again in a new font. Every other row is as tall as what stands
+        /// in it.</summary>
+        private const int TableRow = 3;
+        private const int SolutionRow = 6;
 
         /// <summary>The family filter's first entry, which is not a family.</summary>
         private const string AllFamilies = "All families";
@@ -53,6 +71,7 @@ namespace Icons
             ResumeLayout(false);
             PerformLayout();
 
+            ApplyMetrics();
             LaySplitter();
 
             // The library is inside this assembly, so it opens without a connection and the
@@ -69,6 +88,103 @@ namespace Icons
         }
 
         /// <summary>
+        /// Gives every size that is written in pixels rather than measured the value it has in
+        /// the font the window is actually drawn in.
+        ///
+        /// Nothing asks for this in XrmToolBox as it ships. Its manifest asks for "Per-monitor",
+        /// which is not one of the strings Windows parses - "true", "true/pm", "per monitor" -
+        /// so the process is DPI-unaware and Windows bitmap-stretches the whole window at 150%:
+        /// blurry, but laid out exactly as at 100%. This is for when that stops being true.
+        /// Somebody who ticks "Override high DPI scaling behaviour" on XrmToolBox.exe - the
+        /// standing remedy for a blurry app, and what the reporter of MscrmTools/XrmToolBox#1232
+        /// did - gets a real 144 dpi today, and #1260 would give it to everybody. Then the font
+        /// grows and a row written down as 28 pixels clips the box standing in it.
+        ///
+        /// Two scales, because there are two kinds of size here. What holds text is measured in
+        /// the font - and mostly by the layout itself, which is why there is less to do here than
+        /// there are numbers in this file. What is a drawing is measured against the screen.
+        /// </summary>
+        private void ApplyMetrics()
+        {
+            if (_form == null || _libraryHeader == null) return;
+
+            _form.SuspendLayout();
+            _libraryHeader.SuspendLayout();
+
+            try
+            {
+                _familyLineHeight = Font.Height;
+                _thumbnailSize = (int)Math.Round(40 * DeviceDpi / 96f);
+
+                // Wide enough for the longest thing either box offers, in the font it is drawn
+                // in, rather than the 110 pixels that was wide enough for it in mine.
+                var boxWidth = TextRenderer.MeasureText("Both weights", Font).Width + Font.Height + 24;
+                _libraryHeader.ColumnStyles[3].Width = boxWidth;
+                _libraryHeader.ColumnStyles[5].Width = boxWidth;
+
+                // Seven rows of list - see where the row is added for why seven.
+                _form.RowStyles[TableRow].Height = Font.Height * 7 + 6;
+
+                // The one line above the form, and the air around it.
+                _iconLabel.Height = Font.Height + 7;
+
+                // The solution row is told its height rather than asked for it. A ComboBox is the
+                // one control here that will not be made shorter than it wants to be and will
+                // not say so when asked: a row as tall as what stands in it comes out the height
+                // of the box with no room for its margins, and the box hangs three pixels into
+                // the row below. The two boxes in the filter row are saved from it by the
+                // captions beside them, which are taller.
+                _form.RowStyles[SolutionRow].SizeType = SizeType.Absolute;
+                _form.RowStyles[SolutionRow].Height = Font.Height + 15;
+
+                // Square, and the height of the box it fills. The swatch is a colour rather than
+                // a word, but it sits on a line of them and a line is what it has to match.
+                _loadButton.Size = new Size(Font.Height + 8, Font.Height + 8);
+                _colourButton.Size = new Size(Font.Height * 2 + 10, Font.Height + 7);
+
+                // The cells are the thumbnail plus however many lines of text go under it, so
+                // both halves of that have just changed. The thumbnails already drawn are the
+                // old size.
+                ClearThumbnails();
+                SizeCells();
+            }
+            finally
+            {
+                _libraryHeader.ResumeLayout(false);
+                _form.ResumeLayout(true);
+            }
+        }
+
+        /// <summary>
+        /// The host handing down a different font, which is what a change of DPI looks like from
+        /// in here - and what the UI harness does to stand in for one, since no machine it runs
+        /// on can make XrmToolBox report anything but 96 dpi.
+        /// </summary>
+        protected override void OnFontChanged(EventArgs e)
+        {
+            base.OnFontChanged(e);
+
+            // A font of its own, so it is not carried down with the rest.
+            if (_iconLabel != null)
+            {
+                var replacing = _iconLabel.Font;
+                _iconLabel.Font = new Font(Font, FontStyle.Bold);
+                if (replacing != null) replacing.Dispose();
+            }
+
+            ApplyMetrics();
+
+            // Both splitters' minimums were worked out in the old font and are too small for this
+            // one, so they are worked out again. That does move a splitter somebody may have
+            // dragged - but a window whose text has just changed size is being re-laid anyway,
+            // and leaving the library pane at a width its own filter row no longer fits in is
+            // not honouring their drag, it is clipping it.
+            _splitterLaid = false;
+            _targetSplitLaid = false;
+            LaySplitter();
+        }
+
+        /// <summary>
         /// Gives the two panes their proportions once there is enough width to hold them, and
         /// then leaves the splitter between them alone so a drag is not undone by the next
         /// resize. The splitter inside the target pane is kept on the form's height instead -
@@ -80,19 +196,24 @@ namespace Icons
 
             // The navigation is 200 CSS pixels wide before the page beside it, and this pane is
             // where it lives now, so the target side is wider than it was when it held a form.
-            const int libraryMinimum = 320;
-            const int targetMinimum = 340;
+            //
+            // Each side is asked what it needs and held to the width it was tuned to at 96 dpi,
+            // whichever is more. The numbers alone were right in one font: the filter row and the
+            // form are both as wide as their own words, and in a bigger font they are wider than
+            // any minimum written down here.
+            var libraryMinimum = Math.Max(320, _libraryHeader.PreferredSize.Width);
+            var targetMinimum = Math.Max(340, _form.PreferredSize.Width + 16);
 
             if (!_splitterLaid && _body.Width >= libraryMinimum + targetMinimum + _body.SplitterWidth)
             {
                 _body.Panel1MinSize = libraryMinimum;
                 _body.Panel2MinSize = targetMinimum;
-                _body.SplitterDistance = Math.Max(libraryMinimum, _body.Width - 430);
+                _body.SplitterDistance = Math.Max(libraryMinimum, _body.Width - Math.Max(430, targetMinimum + 90));
                 _splitterLaid = true;
             }
 
-            const int previewMinimum = 120;
-            const int formMinimum = 200;
+            var previewMinimum = Math.Max(120, Font.Height * 8);
+            var formMinimum = Math.Max(200, Font.Height * 13);
 
             if (!_targetSplitLaid && _targetSplit.Height >= formMinimum + previewMinimum + _targetSplit.SplitterWidth)
             {
@@ -122,22 +243,80 @@ namespace Icons
 
             if (!_targetSplitLaid || _targetSplitDragged || _layingTargetSplit) return;
 
+            FitOnce();
+        }
+
+        /// <summary>
+        /// One attempt at giving the form its height. Says whether it moved the splitter.
+        /// </summary>
+        private bool FitOnce()
+        {
             // Only what is inside the splitter's lower pane. The button's strip and the red
             // line are docked to the target pane outside it, so they have already been taken
             // off _targetSplit.Height by the time this asks what room there is.
-            var needed = _form.Height
-                         + _iconLabel.Height
-                         + (_warningLabel.Visible ? _warningLabel.Height : 0);
+            //
+            // What the form is about to be, not what it is: its rows are as tall as what stands
+            // in them, so a change of width settles a layout before the height that follows from
+            // it is in Height. Asked at the width it has, so the row that wraps is measured
+            // wrapped.
+            //
+            // Added up rather than measured as the difference between the pane and the form's
+            // host. The difference is the truer number and it cannot be used: it is wrong by
+            // whatever the pane has not caught up with yet - see SettlePane - so a fit that
+            // trusted it moved the splitter, which changed it, which asked for another fit.
+            var chrome = _iconLabel.Height + (_warningLabel.Visible ? _warningLabel.Height : 0);
+            var needed = _form.GetPreferredSize(new Size(_form.Width, 0)).Height + chrome;
 
             var room = _targetSplit.Height - _targetSplit.SplitterWidth;
             var distance = Math.Min(room - _targetSplit.Panel2MinSize, room - needed);
             if (distance < _targetSplit.Panel1MinSize) distance = _targetSplit.Panel1MinSize;
-            if (distance > room - _targetSplit.Panel2MinSize) return;
-            if (_targetSplit.SplitterDistance == distance) return;
+            if (distance > room - _targetSplit.Panel2MinSize) return false;
+            if (_targetSplit.SplitterDistance == distance) return false;
 
             _layingTargetSplit = true;
-            try { _targetSplit.SplitterDistance = distance; }
+            try
+            {
+                _targetSplit.SplitterDistance = distance;
+            }
             finally { _layingTargetSplit = false; }
+
+            SettlePane();
+
+            return true;
+        }
+
+        /// <summary>
+        /// Makes what is docked in the lower pane catch up with a splitter that has just moved.
+        ///
+        /// The same fixed-Panel2 habit <see cref="RefitSplit"/> is about, one level further in.
+        /// Moving the splitter resizes the pane and leaves the panel's own children the height
+        /// they had: the pane reads 381 and the form's host is still 317, so a form that has
+        /// just been given the room it asked for grows a scroll bar in a host that never heard
+        /// about it. Asking the panel to lay out settles it - but not from in here. Every path
+        /// to this point is already inside a layout, where the request is dropped, so it is
+        /// posted instead and runs when that layout is over.
+        /// </summary>
+        private void SettlePane()
+        {
+            if (!IsHandleCreated || IsDisposed || _settlingPane) return;
+
+            _settlingPane = true;
+
+            BeginInvoke(new Action(() =>
+            {
+                if (IsDisposed || _targetSplit == null) { _settlingPane = false; return; }
+
+                // Under the same flag the splitter's own moves are made, so the layout this
+                // sets off cannot come back round as another fit. Catching up is not new
+                // information; without this the two of them run for as long as you let them.
+                _layingTargetSplit = true;
+                try { _targetSplit.Panel2.PerformLayout(); }
+                finally
+                {
+                    _layingTargetSplit = false;
+                    _settlingPane = false;
+                }
+            }));
         }
 
         /// <summary>
@@ -340,12 +519,17 @@ namespace Icons
             // Two rows: the search on its own, and the three things that narrow what it searches
             // under it. On one row the search box is the only control that can give up width,
             // and with four families to choose between there is not enough of it to give.
+            // Two rows as tall as what stands in them, rather than two rows of 27 and a panel of
+            // 58 that has to be kept equal to them. The two boxes' columns are the one thing here
+            // that cannot be measured out of a control - they hold words that are not in them
+            // yet - so ApplyMetrics gives those a width.
             var header = new TableLayoutPanel
             {
                 Dock = DockStyle.Top,
+                AutoSize = true,
+                AutoSizeMode = AutoSizeMode.GrowAndShrink,
                 ColumnCount = 6,
                 RowCount = 2,
-                Height = 58,
                 Padding = new Padding(6, 3, 6, 3)
             };
             header.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
@@ -354,8 +538,10 @@ namespace Icons
             header.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 110));
             header.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
             header.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 110));
-            header.RowStyles.Add(new RowStyle(SizeType.Absolute, 27));
-            header.RowStyles.Add(new RowStyle(SizeType.Absolute, 27));
+            header.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+            header.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+
+            _libraryHeader = header;
 
             header.Controls.Add(new Label { Text = "Search", AutoSize = true, Anchor = AnchorStyles.Left, Padding = new Padding(0, 4, 6, 0) }, 0, 0);
             header.Controls.Add(_searchBox, 1, 0);
@@ -383,10 +569,18 @@ namespace Icons
             _context = new ContextPreview { Dock = DockStyle.Fill };
             _context.AppChosen += Context_AppChosen;
 
+            // One line, in whatever font it is drawn in - ApplyMetrics gives it the height - and
+            // cut with an ellipsis rather than wrapped when the pane is too narrow for the name.
+            //
+            // Not AutoSize, though the two lines below it are. This line stands between the
+            // splitter and the form, so its height is height the form does not get; a line that
+            // silently becomes two at some widths moves the splitter under FitForm while FitForm
+            // is working out where to put it.
             _iconLabel = new Label
             {
                 Dock = DockStyle.Top,
-                Height = 22,
+                AutoSize = false,
+                AutoEllipsis = true,
                 Text = "No icon chosen",
                 Padding = new Padding(8, 3, 8, 0),
                 Font = new Font(Font, FontStyle.Bold)
@@ -395,8 +589,7 @@ namespace Icons
             _warningLabel = new Label
             {
                 Dock = DockStyle.Top,
-                AutoSize = false,
-                Height = 46,
+                AutoSize = true,
                 Visible = false,
                 ForeColor = Color.FromArgb(0x8A, 0x53, 0x00),
                 Padding = new Padding(8, 2, 8, 4)
@@ -564,8 +757,7 @@ namespace Icons
             _troubleLabel = new Label
             {
                 Dock = DockStyle.Bottom,
-                AutoSize = false,
-                Height = 52,
+                AutoSize = true,
                 Visible = false,
                 ForeColor = Color.FromArgb(0xA4, 0x26, 0x2C),
                 Padding = new Padding(8, 4, 8, 4)
@@ -585,7 +777,10 @@ namespace Icons
                 RowCount = 11,
                 Padding = new Padding(8, 6, 8, 6)
             };
-            form.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 86));
+            // The captions' column is as wide as the longest caption, whatever font that is in.
+            // At 86 pixels "Web resource" wrapped onto three lines in anything bigger than the
+            // font it was measured in.
+            form.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
             form.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
 
             AddRow(form, 0, "Find table", _tableFilterBox);
@@ -675,7 +870,9 @@ namespace Icons
 
         private static void AddRow(TableLayoutPanel form, int row, string caption, Control control)
         {
-            form.RowStyles.Add(new RowStyle(SizeType.Absolute, 28));
+            // As tall as what stands in it. A row written down as 28 pixels is a row that fits a
+            // combo box in one font and clips it in the next one - see ApplyMetrics.
+            form.RowStyles.Add(new RowStyle(SizeType.AutoSize));
             if (caption.Length > 0)
             {
                 form.Controls.Add(new Label
@@ -695,7 +892,7 @@ namespace Icons
         /// the caption rather than trailing off the end of the row.
         /// </summary>
         private static void AddRow(TableLayoutPanel form, int row, Control before, string caption,
-                                   Control control, int height = 28)
+                                   Control control, int height)
         {
             form.RowStyles.Add(new RowStyle(SizeType.Absolute, height));
 
@@ -836,11 +1033,15 @@ namespace Icons
         /// showing the family means handing the control a taller one. Owner drawing does not
         /// get a say in it.
         /// </summary>
-        private static ImageList CellSizer(bool withFamily)
+        private ImageList CellSizer(bool withFamily)
         {
+            // The drawing, the air around it, and the line under the name when it is showing.
+            // The name's own line is added by the control on top of this.
             return new ImageList
             {
-                ImageSize = new Size(CellSize - 12, CellSize - 24 + (withFamily ? FamilyLineHeight : 0))
+                ImageSize = new Size(
+                    _thumbnailSize + 24,
+                    _thumbnailSize + 12 + (withFamily ? _familyLineHeight : 0))
             };
         }
 
@@ -849,6 +1050,12 @@ namespace Icons
         /// this changes how the grid is drawn and nothing about what is in it.
         /// </summary>
         private void ShowFamilyChanged()
+        {
+            SizeCells();
+        }
+
+        /// <summary>Hands the grid a cell the size the drawing and the lines under it now need.</summary>
+        private void SizeCells()
         {
             var replacing = _grid.LargeImageList;
             _grid.LargeImageList = CellSizer(_familyToggle.Checked);
@@ -877,16 +1084,16 @@ namespace Icons
                     e.Graphics.FillRectangle(brush, e.Bounds);
             }
 
-            var thumbnail = Thumbnail(icon, ThumbnailSize, selected ? SystemColors.HighlightText : _colour);
-            var x = e.Bounds.X + (e.Bounds.Width - ThumbnailSize) / 2;
-            e.Graphics.DrawImage(thumbnail, x, e.Bounds.Y + 6, ThumbnailSize, ThumbnailSize);
+            var thumbnail = Thumbnail(icon, _thumbnailSize, selected ? SystemColors.HighlightText : _colour);
+            var x = e.Bounds.X + (e.Bounds.Width - _thumbnailSize) / 2;
+            e.Graphics.DrawImage(thumbnail, x, e.Bounds.Y + 6, _thumbnailSize, _thumbnailSize);
 
             var showFamily = _familyToggle.Checked;
-            var captionHeight = e.Bounds.Height - ThumbnailSize - 10 - (showFamily ? FamilyLineHeight : 0);
+            var captionHeight = e.Bounds.Height - _thumbnailSize - 10 - (showFamily ? _familyLineHeight : 0);
 
             var caption = new Rectangle(
                 e.Bounds.X + 2,
-                e.Bounds.Y + ThumbnailSize + 8,
+                e.Bounds.Y + _thumbnailSize + 8,
                 e.Bounds.Width - 4,
                 captionHeight);
 
@@ -905,7 +1112,7 @@ namespace Icons
             // name rather than part of it. Four families draw a folder and they are all called
             // Folder, so with the toggle on the grid stops being a list of things that look
             // alike for no stated reason.
-            var origin = new Rectangle(caption.X, caption.Bottom, caption.Width, FamilyLineHeight);
+            var origin = new Rectangle(caption.X, caption.Bottom, caption.Width, _familyLineHeight);
 
             TextRenderer.DrawText(
                 e.Graphics,

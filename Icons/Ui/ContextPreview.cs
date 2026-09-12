@@ -62,18 +62,22 @@ namespace Icons.Ui
                 Padding = new Padding(8, 0, 8, 4)
             };
 
+            // As tall as the box and the tickbox in it, rather than 26 pixels in a strip of 30:
+            // those two numbers were the right ones for one font, and the box is a line of text
+            // like everything else here.
             var header = new TableLayoutPanel
             {
                 Dock = DockStyle.Top,
+                AutoSize = true,
+                AutoSizeMode = AutoSizeMode.GrowAndShrink,
                 ColumnCount = 3,
                 RowCount = 1,
-                Height = 30,
                 Padding = new Padding(8, 4, 8, 0)
             };
             header.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
             header.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
             header.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
-            header.RowStyles.Add(new RowStyle(SizeType.Absolute, 26));
+            header.RowStyles.Add(new RowStyle(SizeType.AutoSize));
 
             header.Controls.Add(new Label
             {

@@ -54,6 +54,7 @@ namespace Icons.UiHarness
                     Shoot(form, outputDir, "01-opened");
 
                     failures += NoScrollBars(control, "on opening");
+                    failures += NothingIsClipped(control, "on opening");
 
                     var search = Find<TextBox>(control, "search");
                     if (search == null)
@@ -172,6 +173,8 @@ namespace Icons.UiHarness
                     form.Close();
                     Pump();
                 }
+
+                failures += ShootAtALargerFont(outputDir);
             }
             catch (Exception ex)
             {
@@ -1201,6 +1204,140 @@ namespace Icons.UiHarness
 
             if (failures == 0) Console.WriteLine("OK: the form stands whole " + where);
             return failures;
+        }
+
+        /// <summary>
+        /// The whole window again at a font half again as big, which is the only shape high-DPI
+        /// trouble can reach this tool in.
+        ///
+        /// XrmToolBox is DPI-unaware: its manifest asks for "Per-monitor", which is not one of
+        /// the strings Windows parses, so the process is unaware and Windows bitmap-stretches
+        /// the whole window at 150%. Nothing in here ever sees 144 dpi. What it can see is a
+        /// bigger font - somebody who ticks "Override high DPI scaling behaviour" on
+        /// XrmToolBox.exe, or the day MscrmTools/XrmToolBox#1260 is merged. Then the text grows
+        /// and everything written down in pixels does not.
+        ///
+        /// The font goes on the form before the control is added, which is the order the host
+        /// does it in: a tool is built with the default font and inherits the window's when it
+        /// is parented. Set it afterwards and the one-shot splitter minimums have already been
+        /// laid at the old size, which would be a bug this harness invented rather than found.
+        /// </summary>
+        private static int ShootAtALargerFont(string outputDir)
+        {
+            using (var control = new IconsControl())
+            using (var form = new Form { Width = 1770, Height = 1140, Text = "Icons, at a larger font" })
+            {
+                // The window grows with the font, because on the machine where the font is that
+                // big the window is that big too. A 1180-wide window at a 1.5x font is a
+                // different question - one about a pane too narrow for its rows - and check 11
+                // is the one that asks it.
+                form.Font = new Font(form.Font.FontFamily, form.Font.Size * 1.5f);
+                form.Controls.Add(control);
+                form.Show();
+                Pump();
+
+                Shoot(form, outputDir, "14-larger-font");
+
+                var failures = NoScrollBars(control, "at a font half again as big");
+                failures += NothingIsClipped(control, "at a font half again as big");
+
+                form.Close();
+                Pump();
+                return failures;
+            }
+        }
+
+        /// <summary>
+        /// Everything is given at least the room it says it needs, and stays inside the cell it
+        /// was put in.
+        ///
+        /// Worth a check of its own because nothing else here can see it. The form is docked to
+        /// the top of a pane that scrolls, so a row too short for what stands in it grows no
+        /// scroll bar anywhere: it just draws a combo box with its last two pixels missing, or a
+        /// caption running on under the box beside it. Every other check passes and the
+        /// screenshot looks fine until somebody reads it closely.
+        /// </summary>
+        private static int NothingIsClipped(Control root, string where)
+        {
+            var failures = 0;
+
+            foreach (var control in Descendants(root))
+            {
+                if (!control.Visible || control.Width <= 0 || control.Height <= 0) continue;
+
+                // The ones that hold text and are sized by somebody else. A list is as tall as
+                // it is given on purpose, and the preview draws itself.
+                if (!(control is TextBox || control is ComboBox || control is ButtonBase || control is Label))
+                    continue;
+
+                // Measured at the width it has, so a line that wraps is measured wrapped rather
+                // than as one long line - which would pass on height and fail on width.
+                var wanted = control.GetPreferredSize(new Size(control.Width, 0));
+
+                if (wanted.Height > control.Height + 1)
+                {
+                    Console.WriteLine("FAIL: " + Describe(control) + " needs " + wanted.Height +
+                                      " pixels of height " + where + " and has " + control.Height);
+                    failures++;
+                }
+
+                var cell = Cell(control);
+                if (cell != null && (control.Right > cell.Value.Right + 1 || control.Bottom > cell.Value.Bottom + 1))
+                {
+                    var at = ((TableLayoutPanel)control.Parent).GetCellPosition(control);
+                    Console.WriteLine("FAIL: " + Describe(control) + " runs out of its cell " + where +
+                                      " - row " + at.Row + ", column " + at.Column + " of " +
+                                      Describe(control.Parent) + ", ending at " + control.Right + "," +
+                                      control.Bottom + " where the cell ends at " + cell.Value.Right +
+                                      "," + cell.Value.Bottom);
+                    failures++;
+                }
+            }
+
+            if (failures == 0) Console.WriteLine("OK: nothing is drawn smaller than what it holds " + where);
+            return failures;
+        }
+
+        /// <summary>Where a control's cell is, for the ones laid out in a table.</summary>
+        private static Rectangle? Cell(Control control)
+        {
+            var table = control.Parent as TableLayoutPanel;
+            if (table == null) return null;
+
+            var position = table.GetCellPosition(control);
+            var widths = table.GetColumnWidths();
+            var heights = table.GetRowHeights();
+
+            if (position.Column < 0 || position.Row < 0 ||
+                position.Column >= widths.Length || position.Row >= heights.Length) return null;
+
+            var x = table.DisplayRectangle.X;
+            for (var i = 0; i < position.Column; i++) x += widths[i];
+
+            var y = table.DisplayRectangle.Y;
+            for (var i = 0; i < position.Row; i++) y += heights[i];
+
+            var width = 0;
+            var lastColumn = Math.Min(widths.Length, position.Column + table.GetColumnSpan(control));
+            for (var i = position.Column; i < lastColumn; i++) width += widths[i];
+
+            var height = 0;
+            var lastRow = Math.Min(heights.Length, position.Row + table.GetRowSpan(control));
+            for (var i = position.Row; i < lastRow; i++) height += heights[i];
+
+            return new Rectangle(x, y, width, height);
+        }
+
+        /// <summary>A control named the way somebody reading the failure would name it.</summary>
+        private static string Describe(Control control)
+        {
+            var said = control.Text;
+            if (string.IsNullOrEmpty(said)) said = control.AccessibleName;
+
+            if (string.IsNullOrEmpty(said)) return "an unlabelled " + control.GetType().Name;
+            if (said.Length > 40) said = said.Substring(0, 40) + "...";
+
+            return "the " + control.GetType().Name + " \"" + said + "\"";
         }
 
         private static T Find<T>(Control root, string hint) where T : Control
