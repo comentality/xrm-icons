@@ -167,6 +167,7 @@ namespace Icons.UiHarness
                     failures += CheckFamiliesAreShownAndFiltered(control, form, outputDir);
                     failures += CheckFormSurvivesTheNarrowestPane(control, form, outputDir);
                     failures += CheckApplyStaysInTheWindowAsItShrinks(control, form, outputDir);
+                    failures += CheckChosenRowStaysInViewAsItShrinks(control, form, outputDir);
 
                     form.Close();
                     Pump();
@@ -1034,6 +1035,129 @@ namespace Icons.UiHarness
                 Console.WriteLine("OK: the apply button and the form pane stay in the window at every height");
 
             form.Height = wasHeight;
+            Pump();
+            return failures;
+        }
+
+        /// <summary>
+        /// The row being chosen for stays above the tear at every height the window can be.
+        ///
+        /// The preview scrolls on the wheel and keeps its own offset, and until now that offset
+        /// was only ever reconsidered when a navigation arrived. A pane that loses height loses
+        /// it off the foot, so a row that was in view at one height is under the tear at the
+        /// next - and shrinking XrmToolBox is exactly how the preview pane loses height, because
+        /// the form below it is fitted first and what is over goes here. A single-size shot
+        /// cannot see it; a sweep can.
+        ///
+        /// The second half of the check is that it holds still. A preview that answered every
+        /// pixel of a resize by scrolling would keep the row in view and be unreadable doing it,
+        /// so a height where the row fits without scrolling has to leave the drawing at the top.
+        ///
+        /// Forty rows handed in directly: nothing without a connection produces a navigation
+        /// long enough to have a fold, and the fold is the whole point.
+        /// </summary>
+        private static int CheckChosenRowStaysInViewAsItShrinks(Control control, Form form, string outputDir)
+        {
+            const BindingFlags Private = BindingFlags.Instance | BindingFlags.NonPublic;
+
+            var preview = Descendants(control).OfType<ContextPreview>().FirstOrDefault();
+            var surface = preview?.Controls.OfType<Panel>().FirstOrDefault(c => c.GetType().Name == "Surface");
+            var offsetField = surface?.GetType().GetField("_offset", Private);
+            var foldProperty = surface?.GetType().GetProperty("Fold", Private);
+
+            if (preview == null || surface == null || offsetField == null || foldProperty == null)
+            {
+                Console.WriteLine("FAIL: the preview's pane, the offset it scrolls by or the fold the tear " +
+                                  "takes are not where the harness expects them");
+                return 1;
+            }
+
+            var many = Enumerable.Range(0, 40).Select(i => new NavRow("Table " + i, null)).ToList();
+
+            // The pane's own arithmetic, asked of the same painter it draws with, so a change of
+            // row height or of screen scale moves the check with it.
+            var painter = new NavPainter(NavTheme.Light, surface.DeviceDpi / 96f);
+            var rowHeight = painter.RowHeight;
+
+            var wasHeight = form.Height;
+            var heights = new List<int>();
+            for (var h = wasHeight; h >= 360; h -= 20) heights.Add(h);
+            for (var h = 360; h <= wasHeight; h += 20) heights.Add(h);
+
+            var failures = 0;
+            var shot = false;
+
+            // One row far below the fold, which is what a real site map's chosen row usually is,
+            // and one near the top, which is what must not be scrolled around for no reason.
+            foreach (var selected in new[] { 34, 3 })
+            {
+                var top = painter.Top(many, selected);
+                preview.ShowNavigation(many, selected, "A stand-in navigation, row " + selected + " of forty.", true);
+                Pump();
+
+                var worst = 0;
+                var worstAt = 0;
+                var fidgeted = new List<string>();
+
+                foreach (var height in heights)
+                {
+                    form.Height = height;
+                    Pump();
+
+                    var offset = (int)offsetField.GetValue(surface);
+                    var seen = surface.ClientSize.Height - (int)foldProperty.GetValue(surface, null);
+                    if (seen <= 0) continue;
+
+                    // A pane with no room for a whole row can only be asked for the row's head,
+                    // which is the half with the icon in it.
+                    var wanted = Math.Min(rowHeight, seen);
+                    var hidden = Math.Max(offset - top, top + wanted - (offset + seen));
+                    if (hidden > worst)
+                    {
+                        worst = hidden;
+                        worstAt = height;
+                    }
+
+                    // Everything down to the chosen row fits, so there is nothing to scroll for.
+                    if (top + rowHeight <= seen && offset != 0)
+                        fidgeted.Add(height + " tall, scrolled " + offset);
+                }
+
+                if (worst > 0)
+                {
+                    Console.WriteLine("FAIL: row " + selected + " is cut off as the window shrinks - by " +
+                                      worst + " pixels at its worst, with the window " + worstAt + " tall");
+                    failures++;
+
+                    if (!shot)
+                    {
+                        form.Height = worstAt;
+                        Pump();
+                        Shoot(form, outputDir, "13-chosen-row-cut-off");
+                        shot = true;
+                    }
+                }
+
+                if (fidgeted.Count > 0)
+                {
+                    Console.WriteLine("FAIL: the preview scrolled where row " + selected +
+                                      " was in view without it - " + string.Join("; ", fidgeted));
+                    failures++;
+                }
+            }
+
+            if (failures == 0)
+                Console.WriteLine("OK: the chosen row stays above the tear at every height, and the preview " +
+                                  "holds still at the heights where it already fits");
+
+            // A short window with the chosen row still in it, which is the shot the change is about.
+            preview.ShowNavigation(many, 34, "A stand-in navigation, row 34 of forty.", true);
+            form.Height = 400;
+            Pump();
+            Shoot(form, outputDir, "13-chosen-row-kept-in-view");
+
+            form.Height = wasHeight;
+            preview.ShowNavigation(new List<NavRow>(), -1, "", false);
             Pump();
             return failures;
         }

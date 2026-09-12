@@ -207,6 +207,14 @@ namespace Icons.Ui
             private IList<NavRow> _rows;
             private int _offset;
 
+            // The scroll a shrinking pane took to keep the chosen row above the tear, and where
+            // the drawing sat before it took it - so a window grown back gives it up again. Two
+            // numbers rather than a flag because the offset is also the proof: while it is still
+            // the one this pane set, nobody has wheeled since, and it is still this pane's to
+            // undo. _fitAt of -1 is nothing owed.
+            private int _fitAt = -1;
+            private int _fitFrom;
+
             public Surface()
             {
                 AutoScroll = false;
@@ -255,17 +263,48 @@ namespace Icons.Ui
             }
 
             /// <summary>
-            /// Brings the chosen row into view. A real site map is forty rows where the stand-in
-            /// is ten, and a preview whose whole point is the row you are choosing for is worth
-            /// nothing if that row is below the fold of a pane this size. A row already in view
-            /// is left where it is: scrolling under somebody who can see what they asked for is
-            /// its own kind of wrong.
+            /// Brings the chosen row into view, with the rows around it for company. A real site
+            /// map is forty rows where the stand-in is ten, and a preview whose whole point is
+            /// the row you are choosing for is worth nothing if that row is below the fold of a
+            /// pane this size. A row already in view is left where it is: scrolling under
+            /// somebody who can see what they asked for is its own kind of wrong.
             /// </summary>
             public void ScrollToChosen()
+            {
+                BringChosenIntoView(true);
+            }
+
+            /// <summary>
+            /// The chosen row back above the fold, centred when a navigation has just arrived
+            /// and by the smallest amount that will do when the pane is being resized.
+            ///
+            /// A pane that changes height changes what is in view without the drawing moving an
+            /// inch, which is why this is not only a job for a new navigation: XrmToolBox
+            /// restored down from maximised takes the height off this pane first, and the row
+            /// the whole preview exists for was the one that went under the tear.
+            ///
+            /// Which is also why a resize nudges rather than centres. A drag that answered every
+            /// pixel of the splitter with half a pane of scroll would read as the drawing
+            /// fighting the mouse; moving it by just what the shrinking edge took keeps the row
+            /// on the same side of the tear it was on. And it is given back on the way up: a
+            /// window maximised again would otherwise keep the top of the navigation cut off
+            /// for a shortage of height that is over.
+            /// </summary>
+            private void BringChosenIntoView(bool centre)
             {
                 var rows = Rows;
                 if (rows == null || Selected < 0 || Selected >= rows.Count) return;
                 if (ClientSize.Height <= 0) return;
+
+                if (centre) _fitAt = -1;
+                else if (_fitAt >= 0 && _offset == _fitAt)
+                {
+                    // What a previous shrink took, handed back before anything is asked about
+                    // what is in view - so the question is put to where the drawing belongs
+                    // rather than to where this pane last had to put it.
+                    _fitAt = -1;
+                    Offset(_fitFrom);
+                }
 
                 var painter = new NavPainter(_theme, PixelScale);
                 var top = painter.Top(rows, Selected);
@@ -274,9 +313,39 @@ namespace Icons.Ui
                 // In view means in view above the tear. A row in the torn foot has been half
                 // eaten by it, which for the one row the whole preview exists for will not do.
                 var seen = ClientSize.Height - Fold;
-                if (top >= _offset && top + height <= _offset + seen) return;
 
-                Offset(top - (seen - height) / 2);
+                int to;
+                if (seen <= height)
+                {
+                    // A pane with no room for a whole row shows the row's head, where the icon
+                    // is, rather than centring it and pushing the icon off the top instead.
+                    to = top;
+                }
+                else if (top >= _offset && top + height <= _offset + seen)
+                {
+                    return;
+                }
+                else if (centre)
+                {
+                    // Centred, unless everything above the row fits beside it - a navigation
+                    // short enough to be shown from its own top is shown from its own top,
+                    // rather than having its head cut off to centre a row that was already
+                    // going to be on the page.
+                    to = top + height <= seen ? 0 : top - (seen - height) / 2;
+                }
+                else
+                {
+                    to = top < _offset ? top : top + height - seen;
+                }
+
+                var from = _offset;
+                Offset(to);
+
+                if (!centre && _offset != from)
+                {
+                    _fitFrom = from;
+                    _fitAt = _offset;
+                }
             }
 
             /// <summary>CSS pixels to this screen's pixels, so the drawing is the size the app is.</summary>
@@ -343,6 +412,13 @@ namespace Icons.Ui
             protected override void OnSizeChanged(EventArgs e)
             {
                 base.OnSizeChanged(e);
+
+                // The pane just changed how much of the drawing is in view, so what is in view
+                // has to be asked again. Clamping alone only stops the last row running out of
+                // page; it says nothing about the one row this preview is for - and it runs
+                // second, because moving the offset first would cost the fit its proof that
+                // nobody has wheeled since.
+                BringChosenIntoView(false);
                 Clamp();
             }
 
