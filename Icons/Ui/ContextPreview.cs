@@ -341,9 +341,13 @@ namespace Icons.Ui
                 var from = _offset;
                 Offset(to);
 
-                if (!centre && _offset != from)
+                // What to hand back later, and the proof it is still this pane's to hand back.
+                // An arrival owes nothing - a centred offset is where the drawing belongs -
+                // except when the pane was too short to hold a row at all, which is a shortage
+                // of height like any other and ends when the height comes back.
+                if (_offset != from && (!centre || seen <= height))
                 {
-                    _fitFrom = from;
+                    _fitFrom = centre ? 0 : from;
                     _fitAt = _offset;
                 }
             }
