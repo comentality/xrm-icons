@@ -175,6 +175,7 @@ namespace Icons.UiHarness
                 }
 
                 failures += ShootAtALargerFont(outputDir);
+                failures += CheckTheWindowOpensNarrow(outputDir);
             }
             catch (Exception ex)
             {
@@ -1224,8 +1225,19 @@ namespace Icons.UiHarness
         /// </summary>
         private static int ShootAtALargerFont(string outputDir)
         {
+            // Windows will not show a window bigger than the screen, so a size asked for here is
+            // only a wish on a laptop - and a pass that quietly ran in a window half the size it
+            // meant to would be a pass about something else. It is taken from the screen, and
+            // said out loud below.
+            var work = Screen.PrimaryScreen.WorkingArea;
+
             using (var control = new IconsControl())
-            using (var form = new Form { Width = 1770, Height = 1140, Text = "Icons, at a larger font" })
+            using (var form = new Form
+            {
+                Width = Math.Min(1770, work.Width),
+                Height = Math.Min(1140, work.Height),
+                Text = "Icons, at a larger font"
+            })
             {
                 // The window grows with the font, because on the machine where the font is that
                 // big the window is that big too. A 1180-wide window at a 1.5x font is a
@@ -1238,8 +1250,65 @@ namespace Icons.UiHarness
 
                 Shoot(form, outputDir, "14-larger-font");
 
-                var failures = NoScrollBars(control, "at a font half again as big");
-                failures += NothingIsClipped(control, "at a font half again as big");
+                var where = "at a font half again as big, in a " + form.Width + "x" + form.Height + " window";
+
+                var failures = NoScrollBars(control, where);
+                failures += NothingIsClipped(control, where);
+
+                form.Close();
+                Pump();
+                return failures;
+            }
+        }
+
+        /// <summary>
+        /// The window opened in a pane narrower than the two sides would like, which is what a
+        /// restored-down XrmToolBox is.
+        ///
+        /// The proportions are laid once, on the first layout wide enough to hold both sides -
+        /// and what each side would like is now measured off its own rows, so it grew. If that
+        /// measurement is also what decides whether the layout happens, a window between the old
+        /// threshold and the new one gets no layout at all: a SplitContainer opens at fifty
+        /// pixels and stays there, and the whole library is a sliver.
+        /// </summary>
+        private static int CheckTheWindowOpensNarrow(string outputDir)
+        {
+            const BindingFlags Private = BindingFlags.Instance | BindingFlags.NonPublic;
+
+            using (var control = new IconsControl())
+            using (var form = new Form { Width = 800, Height = 700, Text = "Icons, in a narrow window" })
+            {
+                form.Controls.Add(control);
+                form.Show();
+                Pump();
+
+                Shoot(form, outputDir, "15-narrow-window");
+
+                var body = typeof(IconsControl).GetField("_body", Private)?.GetValue(control) as SplitContainer;
+                if (body == null)
+                {
+                    Console.WriteLine("FAIL: no body splitter in a narrow window");
+                    return 1;
+                }
+
+                var failures = 0;
+
+                // 320 is the width the library pane has always been allowed to shrink to, and
+                // an 800-wide window has the room for it. Under that, either the proportions
+                // were never laid at all or the target side took what was not its to take.
+                if (body.SplitterDistance < 320)
+                {
+                    Console.WriteLine("FAIL: in an 800-wide window the library pane is only " +
+                                      body.SplitterDistance + " pixels wide");
+                    failures++;
+                }
+                else
+                {
+                    Console.WriteLine("OK: an 800-wide window still opens on two panes, the library " +
+                                      body.SplitterDistance + " of it");
+                }
+
+                failures += NoScrollBars(control, "in an 800-wide window");
 
                 form.Close();
                 Pump();

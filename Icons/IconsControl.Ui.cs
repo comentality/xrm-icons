@@ -201,14 +201,24 @@ namespace Icons
             // whichever is more. The numbers alone were right in one font: the filter row and the
             // form are both as wide as their own words, and in a bigger font they are wider than
             // any minimum written down here.
-            var libraryMinimum = Math.Max(320, _libraryHeader.PreferredSize.Width);
-            var targetMinimum = Math.Max(340, _form.PreferredSize.Width + 16);
+            var wantsLibrary = Math.Max(320, _libraryHeader.PreferredSize.Width);
+            var wantsTarget = Math.Max(340, _form.PreferredSize.Width + 16);
 
-            if (!_splitterLaid && _body.Width >= libraryMinimum + targetMinimum + _body.SplitterWidth)
+            // Whether the window is laid out at all is still the old question asked of the old
+            // two numbers. What the panes would like is bigger than those - 484 and 355 in the
+            // font this was written in, and half as much again in a larger one - and a window
+            // too narrow for the sum of that is a window to divide up as well as it can be, not
+            // one to leave at a SplitContainer's fifty-pixel default. A restored-down
+            // XrmToolBox is exactly that window.
+            if (!_splitterLaid && _body.Width >= 320 + 340 + _body.SplitterWidth)
             {
-                _body.Panel1MinSize = libraryMinimum;
-                _body.Panel2MinSize = targetMinimum;
-                _body.SplitterDistance = Math.Max(libraryMinimum, _body.Width - Math.Max(430, targetMinimum + 90));
+                var spare = _body.Width - _body.SplitterWidth;
+                var target = Math.Min(wantsTarget, spare - 320);
+                var library = Math.Min(wantsLibrary, spare - target);
+
+                _body.Panel1MinSize = library;
+                _body.Panel2MinSize = target;
+                _body.SplitterDistance = Math.Max(library, _body.Width - Math.Max(430, target + 90));
                 _splitterLaid = true;
             }
 
