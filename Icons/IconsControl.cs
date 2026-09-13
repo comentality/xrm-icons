@@ -1,8 +1,12 @@
-using System;
+﻿using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Drawing;
 using System.Linq;
+using System.Net.Http;
 using System.Text;
+using System.Threading;
+using System.Threading.Tasks;
 using System.Windows.Forms;
 using Icons.Catalog;
 using Icons.Logic;
@@ -50,6 +54,19 @@ namespace Icons
             public string CurrentSmall;
             public string CurrentMedium;
             public string CurrentLarge;
+
+            /// <summary>
+            /// The drawing a model-driven app already puts beside this table without anybody
+            /// having given it one, or null for a table no app draws. Empty for every table the
+            /// org would not answer for, which is what this tool believed before it asked.
+            /// </summary>
+            public string Stock;
+
+            /// <summary>Nothing stored on the table, and no app drawing one either.</summary>
+            public bool HasNoIcon
+            {
+                get { return string.IsNullOrEmpty(CurrentIcon) && string.IsNullOrEmpty(Stock); }
+            }
 
             public override string ToString()
             {
@@ -458,8 +475,9 @@ namespace Icons
         /// the icon. It can have read the drawing and found it is none of the bundled ones,
         /// which is a hand-drawn icon or one from a set this tool does not carry. It can have
         /// the name of a web resource it never read, which is every icon under somebody else's
-        /// publisher prefix - Microsoft's own, mostly. Or the table has no icon, and there is
-        /// nothing to say.
+        /// publisher prefix - Microsoft's own, mostly. It can have nothing stored on the table
+        /// and an app drawing one anyway, which is every standard table and the reason Account is
+        /// not in the short list. Or the table has no icon at all, and there is nothing to say.
         /// </summary>
         private void ShowCurrentIcon(TableItem table, bool mine)
         {
@@ -469,7 +487,19 @@ namespace Icons
             _currentLabel.Visible = false;
 
             var name = (table?.CurrentIcon ?? "").Trim();
-            if (name.Length == 0) return;
+            if (name.Length == 0)
+            {
+                // Nothing stored, but something on screen. Said plainly, because a user who has
+                // just unticked the box to find Account is owed the reason it was not there -
+                // and because "no icon" and "no icon of its own" are different errands.
+                if (string.IsNullOrEmpty(table?.Stock)) return;
+
+                _currentLabel.Text = "On its stock icon - the one an app draws for a standard " +
+                                     "table. Nothing is stored on the table, and choosing an " +
+                                     "icon below replaces it.";
+                _currentLabel.Visible = true;
+                return;
+            }
 
             string svg;
             var read = _stored.TryGetValue(name, out svg);
@@ -634,6 +664,14 @@ namespace Icons
             _outcomeSteps = null;
             SyncEnabled();
 
+            // Read here rather than in the worker: the connection belongs to the UI thread, and
+            // the worker only needs the address out of it. An org that does not say where it
+            // lives is one nothing can be asked of, and the stock icons are simply not read.
+            var orgUrl = StockIcons.OrgAddress(
+                ConnectionDetail?.WebApplicationUrl,
+                ConnectionDetail?.OriginalUrl,
+                ConnectionDetail?.OrganizationServiceUrl);
+
             WorkAsync(new WorkAsyncInfo
             {
                 Message = "Loading tables...",
@@ -645,8 +683,19 @@ namespace Icons
                         RetrieveAsIfPublished = true
                     });
 
-                    args.Result = response.EntityMetadata
+                    var listed = response.EntityMetadata
                         .Where(e => e.IsIntersect != true && e.IsPrivate != true)
+                        .ToList();
+
+                    // Only the empty ones. A table already carrying a web resource is drawn from
+                    // it rather than from the app's own font, so what the app would otherwise
+                    // have drawn is not what is on screen and not worth a round trip.
+                    var empty = listed
+                        .Where(e => string.IsNullOrEmpty(e.IconVectorName))
+                        .Select(e => e.ObjectTypeCode);
+                    var stock = ReadStockIcons(orgUrl, empty);
+
+                    args.Result = listed
                         .Select(e => new TableItem
                         {
                             LogicalName = e.LogicalName,
@@ -655,7 +704,8 @@ namespace Icons
                             CurrentIcon = e.IconVectorName,
                             CurrentSmall = e.IconSmallName,
                             CurrentMedium = e.IconMediumName,
-                            CurrentLarge = e.IconLargeName
+                            CurrentLarge = e.IconLargeName,
+                            Stock = Drawing(stock, e.ObjectTypeCode)
                         })
                         .OrderBy(t => t.DisplayName, StringComparer.CurrentCultureIgnoreCase)
                         .ToList();
@@ -697,6 +747,132 @@ namespace Icons
                     LoadSolutions();
                 }
             });
+        }
+
+        /// <summary>
+        /// One client for the life of the tool. A new one per load leaks a socket per load, and
+        /// this one is only ever pointed at the org the tool is already connected to.
+        ///
+        /// The timeout is per request and short on purpose: a stock icon is a nicety, and no
+        /// single one of them is worth making somebody wait for the table list.
+        /// </summary>
+        private static readonly HttpClient StockHttp =
+            new HttpClient { Timeout = TimeSpan.FromSeconds(5) };
+
+        /// <summary>How many of these to have in the air at once.</summary>
+        private const int StockAtOnce = 8;
+
+        /// <summary>
+        /// The whole read, however many tables there are. Six hundred of them against a real
+        /// environment is under half a second; this is the wall for the environment that is not
+        /// real, where every one of them is going to time out and the user is waiting on a
+        /// nicety. What has come back by then is kept, and the rest are simply not known.
+        /// </summary>
+        private static readonly TimeSpan StockBudget = TimeSpan.FromSeconds(20);
+
+        /// <summary>
+        /// What a model-driven app already draws beside each of these tables.
+        ///
+        /// On the worker thread, as part of the load, so the list arrives knowing which of its
+        /// tables are really empty. Nothing here can fail the load: every failure - no address,
+        /// a proxy, a timeout, a host that answers with a sign-in page - comes back as a table
+        /// nothing is known about, which is a table with no icon, which is what this tool
+        /// believed before it asked.
+        /// </summary>
+        private static IDictionary<int, string> ReadStockIcons(string orgUrl, IEnumerable<int?> codes)
+        {
+            if (string.IsNullOrEmpty(orgUrl)) return new Dictionary<int, string>();
+
+            var wanted = codes.Where(c => c.HasValue).Select(c => c.Value).Distinct().ToList();
+            var got = new ConcurrentDictionary<int, string>();
+
+            using (var gate = new SemaphoreSlim(StockAtOnce))
+            using (var budget = new CancellationTokenSource(StockBudget))
+            {
+                var reads = wanted.Select(async code =>
+                {
+                    try
+                    {
+                        await gate.WaitAsync(budget.Token).ConfigureAwait(false);
+                    }
+                    catch (OperationCanceledException)
+                    {
+                        // The budget went while this one was queued. Nothing was taken, so
+                        // nothing is released.
+                        return;
+                    }
+
+                    try
+                    {
+                        var svg = await FetchStockIcon(orgUrl, code, budget.Token).ConfigureAwait(false);
+                        if (svg != null) got[code] = svg;
+                    }
+                    catch (Exception)
+                    {
+                        // One address that would not answer is one table this tool cannot speak
+                        // for, and the others are still worth having.
+                    }
+                    finally
+                    {
+                        gate.Release();
+                    }
+                }).ToArray();
+
+                try
+                {
+                    Task.WaitAll(reads, StockBudget);
+                }
+                catch (Exception)
+                {
+                    // WaitAll throws for the ones that faulted. They have already been counted
+                    // as tables nothing is known about.
+                }
+            }
+
+            // Back through the rules, so what counts as a drawing is decided in one place and
+            // the place that decides it is the one under test.
+            return StockIcons.DrawnAmong(wanted.Select(c => (int?)c), code =>
+            {
+                string svg;
+                return got.TryGetValue(code, out svg) ? svg : null;
+            });
+        }
+
+        private static async Task<string> FetchStockIcon(string orgUrl, int code, CancellationToken token)
+        {
+            var address = StockIcons.Address(orgUrl, code);
+            if (address == null) return null;
+
+            using (var response = await StockHttp.GetAsync(address, token).ConfigureAwait(false))
+            {
+                var body = await response.Content.ReadAsStringAsync().ConfigureAwait(false);
+                var type = response.Content.Headers.ContentType?.MediaType;
+                return StockIcons.IsDrawing((int)response.StatusCode, type, body?.Length ?? 0)
+                    ? body
+                    : null;
+            }
+        }
+
+        /// <summary>
+        /// The drawing an app puts beside this table without anybody having given it one, read
+        /// during the load. Empty for a table nothing came back for, and for every table when
+        /// the org would not answer at all.
+        /// </summary>
+        private string StockFor(string logicalName)
+        {
+            if (string.IsNullOrEmpty(logicalName)) return null;
+
+            return _tables
+                .FirstOrDefault(t => string.Equals(t.LogicalName, logicalName,
+                    StringComparison.OrdinalIgnoreCase))
+                ?.Stock;
+        }
+
+        /// <summary>What was read for this table, or null for one nothing came back for.</summary>
+        private static string Drawing(IDictionary<int, string> stock, int? code)
+        {
+            string svg;
+            return code.HasValue && stock.TryGetValue(code.Value, out svg) ? svg : null;
         }
 
         private void LoadSolutions()
@@ -917,7 +1093,11 @@ namespace Icons
             var unsetOnly = _unsetOnlyBox.Checked;
             var hideLocked = _hideLockedBox.Checked;
             var matching = _tables.Where(t =>
-                (!unsetOnly || string.IsNullOrEmpty(t.CurrentIcon)) &&
+                // A table an app already draws is not one nobody has got to. Account has nothing
+                // stored on it and never has had, and the errand this box is for - find the
+                // tables that look unfinished - is not served by listing every standard table in
+                // the org alongside the ones that really are blank.
+                (!unsetOnly || t.HasNoIcon) &&
                 (!hideLocked || t.Customizable) &&
                 (filter.Length == 0 ||
                  t.DisplayName.IndexOf(filter, StringComparison.OrdinalIgnoreCase) >= 0 ||
@@ -1412,8 +1592,17 @@ namespace Icons
                             string.Equals(change.PreviousVector, change.Request.WebResourceName,
                                           StringComparison.OrdinalIgnoreCase);
 
+            // "Back to having none" is only true of a table that really had none. A standard
+            // table had its stock icon before this and gets it back the moment the slot is
+            // emptied, which is a different thing to promise and the thing that will be on
+            // screen.
+            var hadStock = !string.IsNullOrEmpty(StockFor(change.TableLogicalName));
+
             var back = string.IsNullOrEmpty(change.PreviousVector)
-                ? change.TableDisplayName + " had no icon before this, and goes back to having none."
+                ? hadStock
+                    ? change.TableDisplayName + " had no icon of its own before this, and goes " +
+                      "back to the stock one an app draws for it."
+                    : change.TableDisplayName + " had no icon before this, and goes back to having none."
                 : samePlace
                     ? change.TableDisplayName + " keeps pointing at " + change.PreviousVector + "."
                     : change.TableDisplayName + " goes back to " + change.PreviousVector + ".";

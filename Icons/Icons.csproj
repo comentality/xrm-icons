@@ -34,6 +34,9 @@
     <!-- Zip is in the framework on net48, but only behind an explicit reference. -->
     <Reference Include="System.IO.Compression" />
     <Reference Include="System.IO.Compression.FileSystem" />
+    <!-- And so is the HTTP client the stock icons are read with. The only host it is ever
+         pointed at is the org this tool is already connected to. -->
+    <Reference Include="System.Net.Http" />
   </ItemGroup>
 
   <ItemGroup>

@@ -609,12 +609,14 @@ namespace Icons
             _tableFilterBox.TextChanged += (s, e) => ShowTables();
             _tableFilterBox.KeyDown += TableFilter_KeyDown;
 
-            // The common errand is "which of these has nobody given an icon yet", and the
-            // answer is already in hand: the load reads IconVectorName with everything else,
-            // so this narrows the list without another round trip.
+            // The common errand is "which of these looks unfinished", and two different things
+            // have to be true for a table to qualify. Nothing stored on it - the load reads
+            // IconVectorName with everything else - and no app drawing one for it either, which
+            // the load asks the org about. A standard table is the second case: Account has
+            // never had an icon stored on it, and has never looked as though it needed one.
             //
             // Ticked to begin with, because that errand is the reason anybody opens this tool:
-            // the list of tables with no icon is the work, and the full list is what you ask for
+            // the list of tables with nothing is the work, and the full list is what you ask for
             // when you have come to change one that is already there.
             _unsetOnlyBox = new CheckBox
             {
@@ -623,6 +625,10 @@ namespace Icons
                 AutoSize = true,
                 Anchor = AnchorStyles.Left
             };
+            _hints.SetToolTip(_unsetOnlyBox,
+                "Tables with nothing stored on them and nothing drawn for them either.\r\n" +
+                "A standard table like Account is on its stock icon, so it counts as\r\n" +
+                "having one - untick to see every table, including those.");
             _unsetOnlyBox.CheckedChanged += (s, e) => ShowTables();
 
             // A table locked against customisation cannot be given an icon by anybody, so it is
