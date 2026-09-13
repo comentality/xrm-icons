@@ -80,6 +80,13 @@ namespace Icons.SlowHarness
         /// <summary>How the environment behaves, set before anything is pressed.</summary>
         public Action<SlowService> Wire;
 
+        /// <summary>
+        /// A host to stand up before the tool is handed its connection, for the one thing this
+        /// tool asks for over HTTP rather than through the SDK. What it returns is where the org
+        /// says it lives, and it is taken down with the window.
+        /// </summary>
+        public Func<DeadHost> Host;
+
         public readonly List<Beat> Beats = new List<Beat>();
 
         public Scenario At(int ms, string label, Action<Run> what)
@@ -105,8 +112,12 @@ namespace Icons.SlowHarness
             run.Service = SlowService.Sampled();
             if (Wire != null) Wire(run.Service);
 
+            // Before the connection rather than with it: the address is read off the detail the
+            // moment a load starts, so the host has to be listening by then.
+            var host = Host == null ? null : Host();
+
             run.Control = new IconsControl { Dock = DockStyle.Fill };
-            Connect(run.Control, run.Service);
+            Connect(run.Control, run.Service, host == null ? null : host.Url);
             run.Probe = new Probe(run.Control);
 
             run.Form = new QuietForm
@@ -177,6 +188,7 @@ namespace Icons.SlowHarness
                 sweeper.Stop();
                 if (!run.Control.IsDisposed) run.Control.Dispose();
                 run.Form.Dispose();
+                if (host != null) host.Dispose();
             }
 
             return run.Failures;

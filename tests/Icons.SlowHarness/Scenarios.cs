@@ -63,7 +63,79 @@ namespace Icons.SlowHarness
                 PreferredSolutionWins(),
                 CarryingAnIcon(),
                 OfferSurvivesAFilter(),
+                StockIconsHang(),
             };
+        }
+
+        /// <summary>
+        /// The org's own icon host takes the connection and then says nothing. That is what a
+        /// proxy sitting on a request looks like from in here, and it is the expensive failure:
+        /// a refusal costs milliseconds, a held request costs the timeout.
+        ///
+        /// The stock icons are a nicety - they are what stops a standard table the app already
+        /// draws from being listed as a table with no icon - and no nicety is worth making
+        /// somebody wait for the table list. So the read is bounded twice: eight in the air, and
+        /// twenty seconds for the lot however many tables there are. Sixty tables through a
+        /// five-second timeout, eight at a time, is thirty-seven seconds of reading if nothing
+        /// bounds it, so a list that lands well inside that is the budget being real rather than
+        /// written down.
+        ///
+        /// The other half is what the tool falls back to, which is what it believed before it
+        /// asked: an org that will not say what it draws is an org where every empty table is
+        /// still an empty table. Nothing here is trouble, because nothing here failed - the
+        /// tables, the solutions and the window are all exactly what they would have been.
+        /// </summary>
+        private static Scenario StockIconsHang()
+        {
+            return new Scenario
+            {
+                Name = "stock-icons-hang",
+                Why = "a host that will not answer for the stock icons must not hold the table list",
+                Host = DeadHost.Standing,
+                Wire = s =>
+                {
+                    s.Tables.Clear();
+                    for (var i = 0; i < 60; i++)
+                    {
+                        s.Tables.Add(SlowService.Table(
+                            "contoso_table" + i, "Contoso Table " + i, objectTypeCode: 10000 + i));
+                    }
+                }
+            }
+                .At(200, "press Load", r => r.Probe.PressLoad())
+                .At(3000, "the read is really out there", r =>
+                {
+                    // Before anything is proved about the budget, prove there is something for a
+                    // budget to bound. Nothing has come back at three seconds - the first eight
+                    // are still inside their own five - so a list here would mean the tool never
+                    // asked, and every check after this one would be passing on an empty errand.
+                    r.Check(r.Probe.Tables.Items.Count == 0,
+                        "the list should still be out at three seconds, and holds "
+                        + r.Probe.Tables.Items.Count + " - if it is already in, the org url never "
+                        + "reached the tool and this scenario is testing nothing");
+                    r.Check(!r.Probe.Load.Enabled, "Load should be dead while the load is still out");
+                    r.Check(r.Probe.Status.IndexOf("Loading tables", StringComparison.OrdinalIgnoreCase) >= 0,
+                        "and the status line should own up to it, rather than saying \""
+                        + r.Probe.Status + "\"");
+                })
+                .At(26000, "the list lands anyway", r =>
+                {
+                    r.Check(r.Probe.Tables.Items.Count == 60,
+                        "all sixty tables should be in the list by now - the budget is twenty "
+                        + "seconds and unbounded reading is thirty-seven - and it holds "
+                        + r.Probe.Tables.Items.Count);
+                    r.Check(r.Probe.Load.Enabled, "Load must be live again");
+                    r.Check(r.Probe.Solutions.Items.Count > 0,
+                        "the solutions are read after the tables, so they must have landed too, and the box holds "
+                        + r.Probe.Solutions.Items.Count);
+                    r.Check(r.Probe.Trouble == null,
+                        "a host that will not answer about a nicety is not trouble, and the window says \""
+                        + r.Probe.Trouble + "\"");
+                    r.Check(r.Dialogs.Count == 0,
+                        "and nothing should have been put in front of anybody: " + string.Join(" | ", r.Dialogs));
+                    r.Check(r.Probe.UnsetOnly.Checked,
+                        "the window should still be on the tables with no icon yet");
+                });
         }
 
         /// <summary>

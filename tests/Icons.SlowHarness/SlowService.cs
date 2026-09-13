@@ -119,12 +119,17 @@ namespace Icons.SlowHarness
 
         public static EntityMetadata Table(string logicalName, string schemaName, bool customizable = true,
                                           string icon = null, string small = null, string medium = null,
-                                          string large = null)
+                                          string large = null, int? objectTypeCode = null)
         {
             var metadata = new EntityMetadata { LogicalName = logicalName, SchemaName = schemaName };
             // The interesting properties have no public setters; they are set the way the
             // deserialiser would set them on the way in over the wire.
             Set(metadata, "IsCustomizable", new BooleanManagedProperty(customizable));
+            // The code the app names its own glyph by, and so the only thing the stock icons can
+            // be asked for by. Left off unless a scenario is about them: a table without one is
+            // never asked about, which is correct and would make such a scenario pass by doing
+            // nothing at all.
+            if (objectTypeCode != null) Set(metadata, "ObjectTypeCode", objectTypeCode);
             // These do have setters - the applier writes them - so a table that already carries
             // icons is made the same way the tool would leave it, or the way a table nobody
             // here has touched arrives: a vector icon and classic ones that predate it.
