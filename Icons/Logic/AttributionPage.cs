@@ -33,8 +33,9 @@ namespace Icons.Logic
     /// holding the information as its own example. A web resource has a URI, so this is that
     /// link rather than a file nobody can reach.
     ///
-    /// It is rebuilt from the environment on every apply rather than added to, so an icon
-    /// somebody replaced by hand stops being credited the moment it stops being there.
+    /// It is rebuilt from the environment on every apply - and on every undo - rather than
+    /// added to, so an icon somebody replaced by hand stops being credited the moment it stops
+    /// being there.
     /// </summary>
     public static class AttributionPage
     {
@@ -140,7 +141,7 @@ namespace Icons.Logic
 
             page.Append("<p class=\"note\">Written by <a href=\"https://github.com/comentality/xrm-icons\">Icons</a> ")
                 .Append("on ").Append(written.ToString("d MMMM yyyy", CultureInfo.InvariantCulture))
-                .AppendLine(". It is rewritten every time an icon is applied.</p>");
+                .AppendLine(". It is rewritten every time this tool changes an icon in this folder.</p>");
 
             page.AppendLine("</body>");
             page.AppendLine("</html>");

@@ -10,6 +10,10 @@ its own.
 
   ![Picking Invoice searches the library for the invoice](https://raw.githubusercontent.com/comentality/xrm-icons/main/docs/images/release/search-follows-the-table.png)
 
+- **Undoing an apply now rebuilds the page crediting the icons, rather than putting it back to what it said.** The page describes what is stored in the folder, and an undo does not empty the folder — nothing here deletes, so the drawing whose apply was taken back is still there and is still credited. Putting the page back made it the one thing in the folder claiming that drawing was gone. The case it is really for is applying twice under one name: the drawing goes back to the first icon, and the credit goes back to the set that drew it, which restoring could not do because the page it would restore to was written before that drawing was overwritten.
+
+- **Undo and Redo now name every web resource they are about to write, the way the first apply does.** Redo used to say it would write the SVG “the way it did the first time” and leave the attribution page and the PNG icons to be remembered; Undo said “the web resource that was written stays where it is” about two or more of them, and said nothing about the page it was touching. A gate that stands in front of a write should say what the write is.
+
 ## v1.0.0 — 13 September 2026
 
 The first release. It was written up as finished on 10 September and then went on being worked

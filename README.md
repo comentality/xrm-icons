@@ -94,9 +94,9 @@ resources, update table definitions and publish customisations.
   at it.
 - **A page beside the icons saying where they came from** — each stored SVG carries a comment
   naming the set that drew it, its copyright holder, its licence and what was changed on the way
-  in, and every apply rebuilds `ATTRIBUTION.html` in the same folder from those comments. It says
-  what is stored there now rather than what any one session did, so an icon somebody replaced by
-  hand stops being credited the moment it stops being there. For these four families it is a
+  in, and every apply — and every undo — rebuilds `ATTRIBUTION.html` in the same folder from those
+  comments. It says what is stored there now rather than what any one session did, so an icon
+  somebody replaced by hand stops being credited the moment it stops being there. For these four families it is a
   courtesy; for a set whose licence asks for a credit line it is the price of the icon.
 - **The classic PNG icons too, if you want them** — optionally generates and stores the 16×16,
   32×32 and 66×48 images for the older `IconSmallName`, `IconMediumName` and `IconLargeName`
