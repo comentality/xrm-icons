@@ -1,7 +1,14 @@
 # Changelog
 
-Every released version, newest first. The bolded sentence of each entry is the one that goes on
-the package page, so it has to stand on its own.
+Every released version, newest first, with whatever is waiting for the next one above them. The
+bolded sentence of each entry is the one that goes on the package page, so it has to stand on
+its own.
+
+## Unreleased — 1.0.1-dev
+
+- **Every table you pick searches the library for that table, including the ones you pick after choosing an icon.** The seed used to work once a session: taking the window up on it made the library yours, and the next table left your search box alone rather than pull the grid out from under you. But moving to another table is the next errand, and a box still searching for the last table's word over the last table's icon is the errand before this one. Two things still hold the library, because both are somebody's own work rather than the window's: a search you typed, which survives every table change, and an icon you picked before choosing any table at all - that icon is the reason you are picking a table.
+
+  ![Picking Invoice searches the library for the invoice](https://raw.githubusercontent.com/comentality/xrm-icons/main/docs/images/release/search-follows-the-table.png)
 
 ## v1.0.0 — 13 September 2026
 
