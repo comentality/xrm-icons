@@ -214,9 +214,19 @@ namespace DpiSpike
             /// that moment and put back after, so it belongs to this window and not to the
             /// program.
             /// </summary>
+            private int opened;
+
             internal Child OpenChild(string title, IntPtr context)
             {
-                var child = new Child(title) { MdiParent = this };
+                // Side by side, because the whole point is comparing one against the next: at
+                // 150% the three red squares should not be the same size on the screen.
+                var child = new Child(title)
+                {
+                    MdiParent = this,
+                    StartPosition = FormStartPosition.Manual,
+                    Location = new Point(opened++ * 360 + 6, 6),
+                    Size = new Size(350, 430)
+                };
 
                 if (context == IntPtr.Zero)
                 {
