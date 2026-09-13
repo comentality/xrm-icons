@@ -165,6 +165,7 @@ namespace Icons.UiHarness
                     failures += CheckUnsetOnlyFilter(control, form, outputDir);
                     failures += CheckLockedTablesAreHiddenAndExplained(control, form, outputDir);
                     failures += CheckRasterHelpOffered(control);
+                    failures += CheckTheSearchFollowsTheTable(control, form, outputDir);
                     failures += CheckFamiliesAreShownAndFiltered(control, form, outputDir);
                     failures += CheckFormSurvivesTheNarrowestPane(control, form, outputDir);
                     failures += CheckApplyStaysInTheWindowAsItShrinks(control, form, outputDir);
@@ -714,6 +715,142 @@ namespace Icons.UiHarness
             return failures;
         }
 
+
+        /// <summary>
+        /// Picking a table puts that table's own word in the search box, and goes on doing it
+        /// after somebody has chosen an icon for the table before.
+        ///
+        /// The second half is what this is here for. The window used to read an icon in hand as
+        /// a hand on the library and leave the search alone, which meant the seed worked once:
+        /// the second table of a session, and every table after it, opened on the first table's
+        /// search with the first table's icon still lit.
+        ///
+        /// A search somebody typed themselves is still theirs, and the same run checks that, because
+        /// a fix that seeded over a typed question would trade one annoyance for a worse one.
+        /// </summary>
+        private static int CheckTheSearchFollowsTheTable(IconsControl control, Form form, string outputDir)
+        {
+            const BindingFlags Private = BindingFlags.Instance | BindingFlags.NonPublic;
+
+            var tablesField = typeof(IconsControl).GetField("_tables", Private);
+            var showTables = typeof(IconsControl).GetMethod("ShowTables", Private);
+            var itemType = typeof(IconsControl).GetNestedType("TableItem", BindingFlags.NonPublic);
+            if (tablesField == null || showTables == null || itemType == null)
+            {
+                Console.WriteLine("FAIL: the control's table plumbing has moved and the harness cannot seed it");
+                return 1;
+            }
+
+            // Two tables no other check uses, so this one cannot be handed a window that has
+            // already seeded the table it is about to pick and would sit there saying nothing.
+            var tables = (IList)Activator.CreateInstance(typeof(List<>).MakeGenericType(itemType));
+            tables.Add(SeededTable(itemType, "employee", "Employee"));
+            tables.Add(SeededTable(itemType, "invoice", "Invoice"));
+            tablesField.SetValue(control, tables);
+
+            var tableBox = RowControl(control, "Table") as ListBox;
+            var filterBox = RowControl(control, "Find table") as TextBox;
+            var search = Find<TextBox>(control, "search");
+            var grid = Descendants(control).OfType<ListView>().FirstOrDefault();
+            var familyBox = Descendants(control).OfType<ComboBox>()
+                .FirstOrDefault(c => c.Items.Count > 0 && c.Items[0] as string == "All families");
+
+            if (tableBox == null || filterBox == null || search == null || grid == null || familyBox == null)
+            {
+                Console.WriteLine("FAIL: the table row, the search box, the grid and the family filter are not all there");
+                return 1;
+            }
+
+            // Whatever the checks before left on screen. An empty search box is the state this
+            // is about, and a narrowed family would rank a different grid under it.
+            familyBox.SelectedIndex = 0;
+            filterBox.Text = "";
+            search.Text = "";
+            showTables.Invoke(control, null);
+            Pump();
+
+            var failures = 0;
+
+            tableBox.SelectedIndex = IndexOfTable(tableBox, "employee");
+            Pump();
+
+            var first = search.Text;
+            if (first.Trim().Length == 0)
+            {
+                Console.WriteLine("FAIL: picking Employee put nothing in the search box");
+                failures++;
+            }
+            else
+            {
+                Console.WriteLine("OK: picking Employee searched for '" + first + "'");
+            }
+
+            // Somebody takes the window up on it. This is the gesture that used to freeze the
+            // search box for the rest of the session.
+            if (grid.VirtualListSize == 0)
+            {
+                Console.WriteLine("FAIL: nothing in the grid for Employee, so there is no icon to choose");
+                failures++;
+            }
+            else
+            {
+                grid.SelectedIndices.Clear();
+                grid.SelectedIndices.Add(0);
+                grid.Focus();
+                Pump();
+
+                if (Chosen(control) == null)
+                {
+                    Console.WriteLine("FAIL: clicking the first cell chose no icon");
+                    failures++;
+                }
+            }
+
+            tableBox.SelectedIndex = IndexOfTable(tableBox, "invoice");
+            Pump();
+
+            var second = search.Text;
+            if (second.Trim().Length == 0)
+            {
+                Console.WriteLine("FAIL: with an icon in hand, moving to Invoice emptied the search box");
+                failures++;
+            }
+            else if (second == first)
+            {
+                Console.WriteLine("FAIL: with an icon in hand, moving to Invoice left the box searching for '" +
+                                  first + "' - the seed only works until somebody uses it");
+                failures++;
+            }
+            else
+            {
+                Console.WriteLine("OK: with an icon in hand, moving to Invoice searched for '" + second + "'");
+            }
+
+            Shoot(form, outputDir, "09-search-follows-the-table");
+
+            // The other half. A question somebody typed is not the window's to answer again.
+            search.Text = "folder";
+            Pump();
+            tableBox.SelectedIndex = IndexOfTable(tableBox, "employee");
+            Pump();
+
+            if (search.Text != "folder")
+            {
+                Console.WriteLine("FAIL: a typed search should survive a table change, and became '" +
+                                  search.Text + "'");
+                failures++;
+            }
+            else
+            {
+                Console.WriteLine("OK: a search somebody typed survives a table change");
+            }
+
+            tableBox.SelectedIndex = -1;
+            search.Text = "";
+            Pump();
+
+            return failures;
+        }
 
         /// <summary>
         /// A table locked against customisation. It is not offered at all by default, because

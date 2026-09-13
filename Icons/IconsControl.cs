@@ -263,6 +263,14 @@ namespace Icons
         /// <summary>Which table that search was for, so the same table is not seeded twice.</summary>
         private string _seededFor;
 
+        /// <summary>
+        /// The last table the window was actually put on. Arriving at a table and leaving one
+        /// for another look identical from inside the handler, and they are not the same thing:
+        /// an icon chosen before any table is the reason a table is being picked at all, while
+        /// an icon chosen with a table up belonged to that table.
+        /// </summary>
+        private string _lastTable;
+
         /// <summary>What is worth knowing about the chosen icon, the solution, and the name.</summary>
         private string _iconConcern;
         private string _nameConcern;
@@ -278,12 +286,6 @@ namespace Icons
 
         /// <summary>What the chosen table is already carrying, once it has been worked out.</summary>
         private IconIdentity _currentIdentity;
-
-        /// <summary>The table whose own icon the window put in the grid, so it knows the choice is its.</summary>
-        private string _chosenFor;
-
-        /// <summary>Set while the window is moving the grid selection itself.</summary>
-        private bool _choosingCurrent;
 
         /// <summary>Set while several filters are being moved at once, so the grid is ranked once.</summary>
         private bool _refiltering;
@@ -505,10 +507,11 @@ namespace Icons
             var read = _stored.TryGetValue(name, out svg);
             _currentIdentity = read ? IconIdentifier.Identify(svg, _catalog) : null;
 
-            // Offered rather than chosen: the grid moves only while nobody has taken it over,
-            // and the offer is withdrawn the moment somebody picks something themselves.
-            if (mine && _currentIdentity?.Entry != null && Choose(_currentIdentity.Entry))
-                _chosenFor = table.LogicalName;
+            // The grid follows the table onto whatever it is already carrying, so long as
+            // nothing on screen is somebody else's: a search they typed, or an icon they picked
+            // before any table was up, which is the icon this table is being picked for. An
+            // icon picked with another table up is that table's, and is left behind with it.
+            if (mine && _currentIdentity?.Entry != null) Choose(_currentIdentity.Entry);
 
             string said;
             if (_currentIdentity != null) said = "Carrying " + _currentIdentity.Described + ".";
@@ -536,17 +539,9 @@ namespace Icons
             if (index < 0) return false;
             if (_grid.SelectedIndices.Count == 1 && _grid.SelectedIndices[0] == index) return true;
 
-            _choosingCurrent = true;
-            try
-            {
-                _grid.SelectedIndices.Clear();
-                _grid.SelectedIndices.Add(index);
-                _grid.EnsureVisible(index);
-            }
-            finally
-            {
-                _choosingCurrent = false;
-            }
+            _grid.SelectedIndices.Clear();
+            _grid.SelectedIndices.Add(index);
+            _grid.EnsureVisible(index);
 
             return true;
         }
@@ -590,26 +585,27 @@ namespace Icons
                 Choose(icon);
             }
 
-            _chosenFor = (_tableBox.SelectedItem as TableItem)?.LogicalName;
             ShowCurrentIcon(_tableBox.SelectedItem as TableItem, false);
             _grid.Focus();
         }
 
         /// <summary>
         /// Whether the library is still the window's to move: the search box holds what the
-        /// window last put there, and the icon in hand is one the window offered rather than
-        /// one somebody picked.
+        /// window last put there or nothing at all, and nothing on screen is work in progress.
         ///
-        /// An empty box is nobody's until it is certain nobody is using it, whoever emptied it:
-        /// a table whose name seeds nothing leaves an empty seed behind, and matching that
-        /// against an empty box would claim the library somebody is browsing by hand.
+        /// A search somebody typed is theirs, always. An icon picked out of an empty box is
+        /// theirs too - right up until they leave the table they picked it for. Both orders are
+        /// real: find the icon and then say which table gets it, or pick the table and then go
+        /// looking. The first is why an icon in hand holds the library at all; the second is why
+        /// it stops holding it at the next table, where a box still searching for the last
+        /// table's word over the last table's icon is the errand before this one.
         /// </summary>
-        private bool TheLibraryIsMineToMove()
+        private bool TheLibraryIsMineToMove(bool leavingAnotherTable)
         {
             var current = (_searchBox.Text ?? "").Trim();
             if (current.Length > 0) return current == _seededSearch;
 
-            return _selectedIcon == null || _chosenFor != null;
+            return leavingAnotherTable || _selectedIcon == null;
         }
 
         private void UpdateStatus()
@@ -1222,16 +1218,21 @@ namespace Icons
         /// read a Dataverse word; this is only the tool asking it the question the user was
         /// about to type.
         ///
-        /// It writes over its own last suggestion and nothing else. A search somebody typed is
-        /// theirs, and an empty box with an icon already picked out of the whole library is
-        /// somebody browsing - re-ranking the grid under them would take that icon away.
+        /// It writes over its own last suggestion, and over an empty box. A search somebody
+        /// typed is theirs and is left alone, and so is an icon picked before any table was
+        /// chosen - that icon is what the table is being picked for. Once a table has been up,
+        /// what is on screen belongs to it and is left behind with it.
+        ///
+        /// Whether the library is the window's is worked out by the caller, which knows which
+        /// table this arrived from. Asking again here would be asking it of a search box the
+        /// answer is about to be written into.
         /// </summary>
-        private void SeedSearch(TableItem table)
+        private void SeedSearch(TableItem table, bool mine)
         {
             if (table == null || _catalog == null) return;
             if (_seededFor == table.LogicalName) return;
 
-            if (!TheLibraryIsMineToMove()) return;
+            if (!mine) return;
 
             // A table whose name the library has no answer for empties the box rather than
             // leaving the last table's search standing over a grid that is not about it. Asked
@@ -1277,43 +1278,28 @@ namespace Icons
 
             _shown = IconSearch.Rank(wanted, _searchBox.Text);
 
-            // Every move of the selection below is this window's own, made to keep the same
-            // icon under the highlight through a re-ranking. None of them is somebody choosing
-            // an icon, so none of them may take the grid off the window - an icon the window
-            // offered is still the window's offer after a filter has moved.
-            _choosingCurrent = true;
-            try
+            _grid.SelectedIndices.Clear();
+            _grid.VirtualListSize = _shown.Count;
+
+            // Follow the icon to wherever it landed in the new ranking. Without this the
+            // highlighted cell and the preview drift apart the moment somebody chooses an
+            // icon and then keeps typing: index 4 of the old order is a different icon in
+            // the new one.
+            var index = IndexOf(_shown, keep);
+            if (index >= 0)
             {
-                _grid.SelectedIndices.Clear();
-                _grid.VirtualListSize = _shown.Count;
-
-                // Follow the icon to wherever it landed in the new ranking. Without this the
-                // highlighted cell and the preview drift apart the moment somebody chooses an
-                // icon and then keeps typing: index 4 of the old order is a different icon in
-                // the new one.
-                var index = IndexOf(_shown, keep);
-                if (index >= 0)
-                {
-                    _selectedIcon = keep;
-                    _grid.SelectedIndices.Add(index);
-                    _grid.EnsureVisible(index);
-                }
-                else
-                {
-                    SelectIcon(null);
-
-                    // The offer went with it: there is no icon in hand to have been offered.
-                    _chosenFor = null;
-
-                    // Nothing carried over, so this is a different list - and the scroll
-                    // position from the last one is row forty of it. The best matches are at
-                    // the top and that is where a new search should be looking.
-                    if (_shown.Count > 0) _grid.EnsureVisible(0);
-                }
+                _selectedIcon = keep;
+                _grid.SelectedIndices.Add(index);
+                _grid.EnsureVisible(index);
             }
-            finally
+            else
             {
-                _choosingCurrent = false;
+                SelectIcon(null);
+
+                // Nothing carried over, so this is a different list - and the scroll
+                // position from the last one is row forty of it. The best matches are at
+                // the top and that is where a new search should be looking.
+                if (_shown.Count > 0) _grid.EnsureVisible(0);
             }
 
             _grid.Invalidate();
@@ -1638,15 +1624,30 @@ namespace Icons
                     ? change.TableDisplayName + " keeps pointing at " + change.PreviousVector + "."
                     : change.TableDisplayName + " goes back to " + change.PreviousVector + ".";
 
-            var drawings = change.Overwritten == null || change.Overwritten.Count == 0
-                ? "The web resource that was written stays where it is - nothing here deletes one."
-                : "The " + (change.Overwritten.Count == 1 ? "drawing" : "drawings") +
-                  " this wrote over " + (change.Overwritten.Count == 1 ? "goes" : "go") +
-                  " back to what " + (change.Overwritten.Count == 1 ? "it held" : "they held") + " too.";
+            // The page the apply wrote over is in Overwritten with the drawings, but it is not
+            // one of them and is not put back - it is rebuilt - so it is not counted here either.
+            var pageName = AttributionPage.NameFor(change.Request.WebResourceName);
+            var over = change.Overwritten == null
+                ? 0
+                : change.Overwritten.Count(
+                    o => !string.Equals(o.Name, pageName, StringComparison.OrdinalIgnoreCase));
+
+            var drawings = over == 0
+                ? "The web resources that were written stay where they are - nothing here deletes one."
+                : "The " + (over == 1 ? "drawing" : "drawings") +
+                  " this wrote over " + (over == 1 ? "goes" : "go") +
+                  " back to what " + (over == 1 ? "it held" : "they held") +
+                  " too, and nothing is deleted.";
+
+            // The page is the one thing here that is not put back to what it said. It describes
+            // the folder, and the folder after an undo still holds the icon - so saying it is
+            // "restored" would be a promise it does not keep.
+            var credit = pageName + " is rewritten from the folder afterwards, so it still credits " +
+                         "every icon stored there - including this one, which stays where it is.";
 
             var confirm = MessageBox.Show(this,
                 "Take back setting " + change.IconDisplayName + " on " + change.TableDisplayName + "?\n\n" +
-                back + " " + drawings + "\n\n" +
+                back + " " + drawings + "\n\n" + credit + "\n\n" +
                 "This is another write to the environment, and it publishes the table.",
                 "Undo the last change", MessageBoxButtons.OKCancel, MessageBoxIcon.Question);
             if (confirm != DialogResult.OK) return;
@@ -1660,6 +1661,7 @@ namespace Icons
                 MediumName = change.PreviousMedium,
                 LargeName = change.PreviousLarge,
                 Overwritten = change.Overwritten,
+                WebResourceName = change.Request.WebResourceName,
                 SolutionUniqueName = change.Request.SolutionUniqueName
             };
 
@@ -1748,10 +1750,19 @@ namespace Icons
 
             var change = _redoable.Peek();
 
+            // The same list the first apply gave, rather than "the way it did the first time":
+            // the page and the PNGs are written again here too, and a gate that leaves them to
+            // be remembered is a gate that says less than the write it stands in front of.
+            var rasters = change.Request.IncludeRasterIcons
+                ? " and the three classic PNG icons beside it"
+                : "";
+
             var confirm = MessageBox.Show(this,
                 "Set " + change.IconDisplayName + " on " + change.TableDisplayName + " again?\n\n" +
-                "This writes the web resource " + change.Request.WebResourceName +
-                " and publishes the table, the way it did the first time.",
+                "This writes the web resource " + change.Request.WebResourceName + rasters +
+                ", rewrites the attribution page beside " + (rasters == "" ? "it" : "them") + ", " +
+                AttributionPage.NameFor(change.Request.WebResourceName) +
+                ", and publishes the table, the way it did the first time.",
                 "Do it again", MessageBoxButtons.OKCancel, MessageBoxIcon.Question);
             if (confirm != DialogResult.OK) return;
 
@@ -1935,13 +1946,14 @@ namespace Icons
             _locations = IconLocations.None;
             _typedFolder = null;
             _suggestedFor = null;
-            // The search a table of the old org seeded is not this org's table's search either.
+            // The search a table of the old org seeded is not this org's table's search either,
+            // and no table of this org has been left behind yet.
             _seededFor = null;
+            _lastTable = null;
             // And the drawings read out of the old org say nothing about what this one keeps
             // under the same names.
             _stored.Clear();
             _currentIdentity = null;
-            _chosenFor = null;
             if (_currentLabel != null) { _currentLabel.Text = ""; _currentLabel.Visible = false; }
             // The preview is showing the last org's apps, and its icons around ours.
             ResetContext();

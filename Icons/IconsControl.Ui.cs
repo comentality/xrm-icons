@@ -1188,11 +1188,6 @@ namespace Icons
 
         private void Grid_SelectedIndexChanged(object sender, EventArgs e)
         {
-            // Somebody has picked an icon, so the grid is theirs from here and the window stops
-            // moving it for them. Not while the tool is the one moving it: that selection is
-            // still an offer rather than a choice.
-            if (!_choosingCurrent) _chosenFor = null;
-
             if (_grid.SelectedIndices.Count == 0) { SelectIcon(null); return; }
 
             var index = _grid.SelectedIndices[0];
@@ -1205,14 +1200,19 @@ namespace Icons
 
             var table = _tableBox.SelectedItem as TableItem;
 
-            // Asked before the seed writes into the search box, since what makes the box the
-            // tool's is what is in it now.
-            var mine = TheLibraryIsMineToMove();
+            // Asked once, before the seed writes into the search box, since what makes the box
+            // the tool's is what is in it now - and asked with where this arrived from, because
+            // leaving one table for another is what makes an icon in hand the last table's.
+            var mine = TheLibraryIsMineToMove(_lastTable != null && _lastTable != table?.LogicalName);
 
-            SeedSearch(table);
+            SeedSearch(table, mine);
 
             ShowLocked(table);
             ShowCurrentIcon(table, mine);
+
+            // Only a real table, so a filter that empties the list on its way to the next one
+            // does not read as arriving somewhere for the first time.
+            if (table != null) _lastTable = table.LogicalName;
 
             SyncEnabled();
         }

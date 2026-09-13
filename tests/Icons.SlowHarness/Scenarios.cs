@@ -752,6 +752,11 @@ namespace Icons.SlowHarness
                     r.Check(r.Dialogs.Count == 1,
                         "and the confirm should be the only modal in the whole run, and there were: "
                         + string.Join(" | ", r.Dialogs));
+                    // The write moved the window on to the next table waiting for an icon and
+                    // asked the library that table's question, so nothing is chosen and Apply is
+                    // dead on its own terms. What this beat is about is the guard coming off,
+                    // which is one icon away.
+                    r.Probe.PickFirstIcon();
                     r.Check(r.Probe.Apply.Enabled, "and Apply should be live again afterwards");
                     r.Check(r.Probe.Status.IndexOf("Set ", StringComparison.Ordinal) >= 0,
                         "with the outcome on the status line, which says \"" + r.Probe.Status + "\"");
@@ -971,6 +976,10 @@ namespace Icons.SlowHarness
                         + r.Service.Log("table-update").Count + " times");
                     r.Check(r.Dialogs.Count(d => d == "Undo the last change") == 1,
                         "one confirm asked, and the dialogs were: " + string.Join(" | ", r.Dialogs));
+                    // Putting the icon back landed the window on the table it came off, which
+                    // seeded that table's search over the grid - so the icon that was in hand is
+                    // not any more, and Apply needs one before it can say anything about a guard.
+                    r.Probe.PickFirstIcon();
                     r.Check(r.Probe.Apply.Enabled && r.Probe.Load.Enabled,
                         "with the tool given back afterwards");
                 });
@@ -1100,7 +1109,14 @@ namespace Icons.SlowHarness
                         "with a name suggested for that one rather than the last one, and the box holds \""
                         + r.Probe.Name.Text + "\"");
                 })
-                .At(5600, "give the next one an icon too", r => r.Probe.PressApply())
+                // The advance put the window on the next table and searched for that table's own
+                // word, which is the point of the advance - so this one gets its own icon rather
+                // than inheriting the last one's.
+                .At(5600, "give the next one an icon too", r =>
+                {
+                    r.Probe.PickFirstIcon();
+                    r.Probe.PressApply();
+                })
                 .At(8000, "and stop at the one that cannot take an icon", r =>
                 {
                     // What is left in the list is locked against customisation. It is in the
@@ -1222,8 +1238,10 @@ namespace Icons.SlowHarness
 
         /// <summary>
         /// Picking a table asks the library the question the user was about to type. The search
-        /// this tool wrote is its own to replace when the table changes; a search somebody typed
-        /// is not, and neither is an untouched box with an icon already picked out of it.
+        /// this tool wrote is its own to replace when the table changes, and so is the icon it
+        /// was used to find - the next table is the next errand. A search somebody typed is
+        /// theirs and survives the move; so does an icon picked before any table was chosen,
+        /// because that icon is the reason a table is being picked at all.
         /// </summary>
         private static Scenario TableSeedsTheSearch()
         {
@@ -1281,9 +1299,9 @@ namespace Icons.SlowHarness
                 })
                 .At(2000, "browse the whole library from a table the library knows nothing about", r =>
                 {
-                    // A table that seeds nothing leaves an empty seed behind. An empty box is
-                    // then indistinguishable from one nobody has touched - so it is only ever
-                    // this tool's to write while no icon has been chosen out of it.
+                    // A table that seeds nothing leaves an empty seed behind, so the box here is
+                    // empty for a reason of this tool's own rather than because nobody has been
+                    // near it.
                     r.Probe.Search.Text = "";
                     r.Probe.PickTable("contoso_zzzz");
 
@@ -1291,15 +1309,21 @@ namespace Icons.SlowHarness
                         "a table the library cannot answer should seed nothing, and the box holds \""
                         + r.Probe.Search.Text + "\"");
 
+                    // Somebody goes hunting through the whole library for this table and finds
+                    // something. That icon is this table's, and moving to the next one has to
+                    // ask the library the next table's question rather than leave the last
+                    // answer standing - which is the whole of what the seed is for, and used to
+                    // work exactly once per session.
+                    var whole = r.Probe.Grid.VirtualListSize;
                     r.Probe.PickFirstIcon();
                     r.Probe.PickTable("contoso_account");
 
-                    r.Check(r.Probe.Search.Text.Length == 0,
-                        "and an icon picked out of the whole library must not be re-ranked away by "
-                        + "the next table: the box holds \"" + r.Probe.Search.Text + "\"");
-                    r.Check(r.Probe.Grid.SelectedIndices.Count == 1,
-                        "with that icon still chosen, and " + r.Probe.Grid.SelectedIndices.Count
-                        + " cells are selected");
+                    r.Check(r.Probe.Search.Text == "account",
+                        "an icon picked for the last table must not hold the search box over the "
+                        + "next one: the box holds \"" + r.Probe.Search.Text + "\"");
+                    r.Check(r.Probe.Grid.VirtualListSize > 0 && r.Probe.Grid.VirtualListSize < whole,
+                        "with the grid narrowed to the new table rather than left whole, and it holds "
+                        + r.Probe.Grid.VirtualListSize + " of " + whole);
                 });
         }
 

@@ -241,7 +241,11 @@ namespace Icons
 
                     // A table can already be chosen by now - the list was on screen two links
                     // ago - and until this landed there was nothing to say about what it holds.
-                    ShowCurrentIcon(_tableBox.SelectedItem as TableItem, TheLibraryIsMineToMove());
+                    //
+                    // Nobody has left a table for this: it is an answer arriving late about the
+                    // one that is up. So an icon picked by hand still holds the library, and the
+                    // grid stays where the person using it left it.
+                    ShowCurrentIcon(_tableBox.SelectedItem as TableItem, TheLibraryIsMineToMove(false));
                 }
             });
         }
