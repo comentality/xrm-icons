@@ -786,8 +786,15 @@ namespace Icons
             var wanted = codes.Where(c => c.HasValue).Select(c => c.Value).Distinct().ToList();
             var got = new ConcurrentDictionary<int, string>();
 
-            using (var gate = new SemaphoreSlim(StockAtOnce))
-            using (var budget = new CancellationTokenSource(StockBudget))
+            // Not a using between them: the budget and the gate outlive this method by however
+            // long the last read takes to notice it is over. Disposing them on the way out of a
+            // block races the reads they belong to - a straggler that has just been cancelled
+            // still has a gate to release, and releasing a disposed one turns a read that was
+            // merely late into a faulted task with nobody left to catch it. They are taken down
+            // by the last read instead, below.
+            var gate = new SemaphoreSlim(StockAtOnce);
+            var budget = new CancellationTokenSource(StockBudget);
+
             {
                 var reads = wanted.Select(async code =>
                 {
@@ -827,6 +834,30 @@ namespace Icons
                     // WaitAll throws for the ones that faulted. They have already been counted
                     // as tables nothing is known about.
                 }
+
+                // Whatever has not come back by now is not going to be waited for, so stop it
+                // rather than leaving eight sockets running out their own clocks behind a table
+                // list that has already been handed over. Cancelling is also what lets the last
+                // read finish promptly enough to take these two down.
+                try
+                {
+                    budget.Cancel();
+                }
+                catch (Exception)
+                {
+                    // A budget that has already fired is already cancelled.
+                }
+
+                Task.WhenAll(reads).ContinueWith(done =>
+                {
+                    // Read, so the aggregate is observed here rather than left to the finaliser
+                    // and whatever the host does with one of those.
+                    var observed = done.Exception;
+                    GC.KeepAlive(observed);
+
+                    gate.Dispose();
+                    budget.Dispose();
+                }, TaskScheduler.Default);
             }
 
             // Back through the rules, so what counts as a drawing is decided in one place and

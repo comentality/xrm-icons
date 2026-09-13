@@ -8,6 +8,7 @@ using System.Linq;
 using System.Reflection;
 using System.Runtime.InteropServices;
 using System.Text;
+using System.Threading.Tasks;
 using System.Windows.Forms;
 using McTools.Xrm.Connection;
 using ThreadExceptionEventHandler = System.Threading.ThreadExceptionEventHandler;
@@ -131,6 +132,23 @@ namespace Icons.SlowHarness
                 run.Failures.Add(run.Clock.ElapsedMilliseconds + "ms  the tool threw: " + Head(e.Exception));
             Application.ThreadException += onThreadException;
 
+            // A task nobody is left waiting on can fault long after the beat that would have
+            // noticed, and it surfaces on the finaliser thread rather than this one - so
+            // ThreadException never hears about it and a scenario can pass over the top of it.
+            // The host decides what such a thing becomes; what this harness can say is that the
+            // tool left one behind. Collected at the end of the run, where the finaliser is what
+            // makes them findable at all.
+            EventHandler<UnobservedTaskExceptionEventArgs> onUnobserved = (s, e) =>
+            {
+                run.Failures.Add(run.Clock.ElapsedMilliseconds
+                                 + "ms  the tool left a faulted task nobody observed: "
+                                 + Head(e.Exception));
+                // Marked observed here so one scenario's finding cannot be another's, and so
+                // the process's own policy for these is not what decides the suite.
+                e.SetObserved();
+            };
+            TaskScheduler.UnobservedTaskException += onUnobserved;
+
             var sweeper = new Dialogs(run);
 
             run.Form.Shown += (s, e) =>
@@ -189,6 +207,15 @@ namespace Icons.SlowHarness
                 if (!run.Control.IsDisposed) run.Control.Dispose();
                 run.Form.Dispose();
                 if (host != null) host.Dispose();
+
+                // An unobserved fault is only reported when the task it is on is collected, so
+                // the scenario has to go and look rather than wait to be told. The host is gone
+                // by here and anything still running is the tool's own leftover, which is the
+                // thing being asked about.
+                GC.Collect();
+                GC.WaitForPendingFinalizers();
+                GC.Collect();
+                TaskScheduler.UnobservedTaskException -= onUnobserved;
             }
 
             return run.Failures;
