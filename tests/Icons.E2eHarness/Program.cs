@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -41,6 +41,15 @@ namespace Icons.E2eHarness
                 + ";RedirectUri=app://58145B91-0C36-4500-8554-080854F2AC97"
                 + ";TokenCacheStorePath=" + cache
                 + ";LoginPrompt=Never;RequireNewInstance=True");
+        }
+
+        /// <summary>
+        /// The out-of-the-box account table, by its logical name rather than its label: a row
+        /// reads "Account  (account)", and an org can have a custom table labelled Account too.
+        /// </summary>
+        private static bool IsAccount(string row)
+        {
+            return row != null && row.EndsWith("(account)", StringComparison.OrdinalIgnoreCase);
         }
 
         [STAThread]
@@ -132,12 +141,36 @@ namespace Icons.E2eHarness
                 },
                 new Step
                 {
+                    // Account has nothing stored on it and never has had, and a model-driven app
+                    // draws it anyway. Reading IconVectorName alone put it in this list along with
+                    // every other standard table; asking the org what it already draws is what
+                    // takes it out.
+                    //
+                    // The count is the other half: a filter that had emptied the list would pass
+                    // the first test and fail the tool. Only a few dozen tables in an environment
+                    // have a stock icon - 37 of 196 standard ones where this was measured - so a
+                    // list that still runs to hundreds is a list that narrowed rather than fell in.
+                    Label = "a table an app already draws is not in the short list",
+                    Until = r => !r.Probe.TableNames().Any(IsAccount)
+                                 && r.Probe.TableNames().Length > 100,
+                    TimeoutMs = 60000
+                },
+                new Step
+                {
                     // The window opens on the tables with no icon yet, and the fixture table
                     // leaves that list the moment the first write lands. This run applies to it
                     // twice on purpose - the second apply is what proves an apply updates rather
                     // than duplicates - so it has to go on being able to see it.
                     Label = "show every table, not only the ones still without an icon",
                     Do = r => r.Probe.UnsetOnly.Checked = false
+                },
+                new Step
+                {
+                    // And the full list is where it went: the box narrows the list, it does not
+                    // hide a table from the tool altogether.
+                    Label = "account is there when every table is shown",
+                    Until = r => r.Probe.TableNames().Any(IsAccount),
+                    TimeoutMs = 10000
                 },
                 new Step
                 {
@@ -494,7 +527,7 @@ namespace Icons.E2eHarness
 
             try
             {
-                failures = Driver.Play(client, steps, Path.Combine(root, "run"));
+                failures = Driver.Play(client, steps, Path.Combine(root, "run"), url);
             }
             finally
             {

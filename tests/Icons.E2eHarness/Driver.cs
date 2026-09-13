@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Drawing;
 using System.IO;
@@ -19,6 +19,8 @@ namespace Icons.E2eHarness
     public class Step
     {
         public string Label;
+
+        /// <summary>Null for a step that only asserts: see <see cref="Until"/>.</summary>
         public Action<Run> Do;
 
         /// <summary>Null means the step is done the moment it ran.</summary>
@@ -35,7 +37,8 @@ namespace Icons.E2eHarness
     /// </summary>
     public static class Driver
     {
-        public static List<string> Play(IOrganizationService service, List<Step> steps, string shotDir)
+        public static List<string> Play(IOrganizationService service, List<Step> steps, string shotDir,
+                                        string orgUrl)
         {
             var run = new Run { ShotDir = shotDir };
 
@@ -43,7 +46,7 @@ namespace Icons.E2eHarness
             Directory.CreateDirectory(shotDir);
 
             run.Control = new IconsControl { Dock = DockStyle.Fill };
-            Scenario.Connect(run.Control, service);
+            Scenario.Connect(run.Control, service, orgUrl);
             run.Probe = new Probe(run.Control);
 
             run.Form = new QuietForm
@@ -105,7 +108,10 @@ namespace Icons.E2eHarness
                         startedAt = run.Clock.ElapsedMilliseconds;
                         try
                         {
-                            current.Do(run);
+                            // A step with nothing to do is an assertion: it does not touch the
+                            // window, it only says what must be true of it before the run may go
+                            // on. Its Until is the whole step.
+                            if (current.Do != null) current.Do(run);
                         }
                         catch (Exception ex)
                         {

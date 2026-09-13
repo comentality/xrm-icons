@@ -189,8 +189,22 @@ namespace Icons.SlowHarness
         /// </summary>
         public static void Connect(IconsControl control, Microsoft.Xrm.Sdk.IOrganizationService service)
         {
+            Connect(control, service, null);
+        }
+
+        /// <summary>
+        /// The same, for a harness that is talking to a real environment and so can say where it
+        /// is. Without a detail the tool cannot ask the org what it already draws, and the whole
+        /// stock-icon read is skipped - which is correct behaviour, and not what an e2e against
+        /// a real org is there to prove.
+        /// </summary>
+        public static void Connect(IconsControl control, Microsoft.Xrm.Sdk.IOrganizationService service,
+                                   string orgUrl)
+        {
             const BindingFlags any = BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic
                                      | BindingFlags.DeclaredOnly;
+
+            if (!string.IsNullOrEmpty(orgUrl)) Detail(control, orgUrl);
 
             for (var type = control.GetType(); type != null; type = type.BaseType)
             {
@@ -211,6 +225,44 @@ namespace Icons.SlowHarness
             }
 
             throw new MissingMemberException("PluginControlBase", "Service");
+        }
+
+        /// <summary>
+        /// The connection detail XrmToolBox would have filled in, with the one field the tool
+        /// reads off it: where the org lives. Set the same way the service is, and for the same
+        /// reason - the setter belongs to the host.
+        /// </summary>
+        private static void Detail(IconsControl control, string orgUrl)
+        {
+            const BindingFlags any = BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic
+                                     | BindingFlags.DeclaredOnly;
+
+            var detail = new ConnectionDetail
+            {
+                WebApplicationUrl = orgUrl,
+                OriginalUrl = orgUrl,
+                OrganizationServiceUrl = orgUrl.TrimEnd('/') + "/XRMServices/2011/Organization.svc"
+            };
+
+            for (var type = control.GetType(); type != null; type = type.BaseType)
+            {
+                var property = type.GetProperty("ConnectionDetail", any);
+                var setter = property?.GetSetMethod(true);
+                if (setter != null)
+                {
+                    setter.Invoke(control, new object[] { detail });
+                    return;
+                }
+
+                var backing = type.GetField("<ConnectionDetail>k__BackingField", any);
+                if (backing != null)
+                {
+                    backing.SetValue(control, detail);
+                    return;
+                }
+            }
+
+            throw new MissingMemberException("PluginControlBase", "ConnectionDetail");
         }
 
         private static string Head(Exception ex)
