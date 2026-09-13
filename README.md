@@ -44,12 +44,18 @@ resources, update table definitions and publish customisations.
 - **Only the tables you can actually do something with** — a table locked against customisation
   cannot be given an icon by anybody, so it is left out of the list; untick the box to see them,
   and choosing one says under the table box why it is a dead end.
-- **See which tables still need one** — the load reads each table's current icon along with
-  everything else, so *Only tables with no icon yet* narrows the list to the ones nobody has got
-  to, without another round trip. It is ticked when the window opens, because that list is the
-  errand; the full one is a click away, for when you have come to change an icon that is already
-  there. A table leaves the narrowed list the moment you give it an icon, so it stays a working
-  list rather than something to re-read.
+- **See which tables still need one** — *Only tables with no icon yet* narrows the list to the
+  ones that really do look unfinished, which takes two answers rather than one. Nothing stored on
+  the table, which the load reads along with everything else; and no stock icon either. A standard
+  table like Account has never had an icon stored on it, and never looked as though it needed one:
+  a model-driven app draws it from a font of its own, and the org serves the vector of that same
+  glyph, so the tool asks and leaves Account out. Without that, every standard table in the
+  environment was in the list — 196 against 31 in a stock one, which is not a short list. The box
+  is ticked when the window opens, because that list is the errand; the full one is a click away,
+  and picking Account there says why it was not in the short one. A table leaves the narrowed list
+  the moment you give it an icon, so it stays a working list rather than something to re-read.
+  An environment that will not answer — a proxy in the way, an on-premise deployment that serves
+  none of this — falls back to listing every empty table, which is what the tool did before.
 - **Names the icon a table already has** — picking a table that is not empty says which of the
   bundled icons it is carrying, under the box you picked it in, and puts the library on that
   icon so you can see what it is beside what it could be. Three things can say which one it is,
