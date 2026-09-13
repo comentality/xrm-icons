@@ -2,7 +2,7 @@
 <package xmlns="http://schemas.microsoft.com/packaging/2012/06/nuspec.xsd">
   <metadata>
     <id>Comentality.Icons</id>
-    <version>1.0.1-dev</version>
+    <version>1.0.0</version>
     <title>Icons</title>
     <authors>Comentality</authors>
     <license type="expression">MIT</license>
@@ -15,18 +15,21 @@
 - Search 18,637 icons from four families with no API key, no account, and no outbound host but Dataverse itself. Fluent, Phosphor, Lucide and Tabler are bundled inside the DLL, all MIT or ISC.
 - Search in Dynamics words and get the icon rather than the word: account finds the buildings, contact the people, appointment the calendars, case the headsets.
 - The table you pick types the search for you, and says nothing when it cannot say anything true - Payment Term is not a terminal and Social Profile is not a car in profile.
-- Narrow the table list to the ones with no icon yet, without another round trip.
+- See which tables still need one. A standard table the app already draws from a font of its own is not a table with no icon, so the short list is the one somebody really has to get to.
+- Pick a table that already has an icon and it says which one, matched against all 18,637 - so an icon somebody pasted in by hand is named as surely as one this tool wrote.
+- The tables are listed in the open rather than behind a dropdown: type to narrow them, then Enter or Down to walk the list.
 - The web resource name follows your environment's own convention rather than this tool's.
 - See the icon on light and on dark before you commit, at the size a site map really renders it.
-- See it in context draws your icon into a real app's navigation, read from that app's own site map, at sizes measured against a live model-driven app.
+- See it in context draws your icon into a real app's navigation, read from that app's own site map, among the stock icons the app draws beside it.
 - Colour follows the app theme by default, which is what Microsoft asks for in a table icon; a fixed colour is one radio button away.
 - One button stores the SVG web resource, points the table's IconVectorName at it, and publishes both in a single call.
 - Ctrl+Z takes the write back: the table, the drawing that was written over, and a publish. It never deletes.
 - An ATTRIBUTION.html beside the icons credits every one this tool has put there, rebuilt from the icons themselves on every apply.
 - The three classic PNG icons too, if you want them. Off by default.
 - It says what is wrong before the round trip rather than after it: an icon that paints its own colours, a table locked against customisation, a name Dataverse would refuse.
+- About says which build you are running, opens mail to report a bug with your versions already in it, and folds out the icon licences.
 Full changelog, with screenshots: https://github.com/comentality/xrm-icons/releases/tag/v1.0.0
-</releaseNotes>
+    </releaseNotes>
     <tags>XrmToolBox Dynamics365 CRM PowerPlatform Dataverse Icon Icons SVG WebResource Customization</tags>
     <dependencies>
       <group targetFramework=".NETFramework4.8">
