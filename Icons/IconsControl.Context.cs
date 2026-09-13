@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Drawing;
 using System.Linq;
@@ -324,7 +324,12 @@ namespace Icons
                     continue;
                 }
 
-                rows.Add(new NavRow(entry.Label, Parse(entry.IconWebResource, svg)));
+                // A row with no web resource is not an empty row. A standard table is drawn from
+                // the app's own font, and the org serves the vector of that same glyph - so the
+                // preview can show what is really beside that row rather than a hole where an
+                // icon the user can see plainly is.
+                rows.Add(new NavRow(entry.Label,
+                    Parse(entry.IconWebResource, svg) ?? Draw(StockFor(entry.TableLogicalName))));
             }
 
             var note = app.Name + " - this environment's own navigation.";
@@ -360,9 +365,16 @@ namespace Icons
             string text;
             if (string.IsNullOrEmpty(webResource) || !svg.TryGetValue(webResource, out text)) return null;
 
+            return Draw(text);
+        }
+
+        private static SvgImage Draw(string svg)
+        {
+            if (string.IsNullOrEmpty(svg)) return null;
+
             try
             {
-                return SvgImage.Parse(text);
+                return SvgImage.Parse(svg);
             }
             catch
             {

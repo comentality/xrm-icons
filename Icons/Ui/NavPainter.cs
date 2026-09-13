@@ -201,8 +201,8 @@ namespace Icons.Ui
 
         /// <summary>
         /// An icon in the square box the app gives it. A row with nothing to draw gets an
-        /// outline rather than a guess: the environment has no icon for that table, and saying
-        /// so is the point.
+        /// outline rather than a guess: no web resource, and no stock icon either, so the
+        /// environment really does show nothing there - and saying so is the point.
         /// </summary>
         private void Icon(Graphics g, SvgImage image, int x, int y, int box, Color colour)
         {
