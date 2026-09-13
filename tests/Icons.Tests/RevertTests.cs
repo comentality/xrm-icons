@@ -56,6 +56,7 @@ namespace Icons.Tests
                 MediumName = result.PreviousMediumIcon,
                 LargeName = result.PreviousLargeIcon,
                 Overwritten = result.Overwritten,
+                WebResourceName = request.WebResourceName,
                 SolutionUniqueName = request.SolutionUniqueName
             };
         }
@@ -122,8 +123,12 @@ namespace Icons.Tests
             IconApplier.Revert(_service, Undoing(request, result));
 
             Assert.That(_service.WebResourceCount, Is.EqualTo(count), "nothing here deletes a web resource");
-            Assert.That(_service.LastPublishXml, Does.Not.Contain("webresource"),
-                "nothing was written over, so there is no drawing to publish - only the table");
+            Assert.That(_service.LastPublishXml,
+                Does.Not.Contain(_service.WebResource("new_/icons/account.svg").Id.ToString("D")),
+                "the drawing was created rather than written over, so there is nothing to publish about it");
+            Assert.That(_service.LastPublishXml,
+                Does.Contain(_service.WebResource("new_/icons/ATTRIBUTION.html").Id.ToString("D")),
+                "the page is rebuilt on the way back, so it goes out with the table");
         }
 
         [Test]
@@ -229,12 +234,12 @@ namespace Icons.Tests
         }
 
         [Test]
-        public void The_attribution_page_goes_back_with_the_drawing_it_described()
+        public void The_attribution_page_is_rebuilt_rather_than_put_back_to_what_it_said()
         {
-            // The page an apply wrote over is a web resource it wrote over like any other, so it
-            // comes back the same way. It goes back to what it said, not to describing the
-            // folder: nothing here deletes, so the drawing it stops crediting is still stored
-            // with nothing pointing at it until the next apply rewrites the page.
+            // The page describes the folder, and an undo does not empty the folder: nothing here
+            // deletes, so the drawing whose apply was just taken back is still stored and is
+            // still credited. Putting the page back to what it said before would make it the one
+            // thing in the folder claiming that drawing is not there.
             _service.Tables["contact"] = FakeOrganizationService.Table("contact");
 
             var first = new IconApplyRequest
@@ -261,8 +266,45 @@ namespace Icons.Tests
             IconApplier.Revert(_service, Undoing(second, result));
 
             Assert.That(Page(), Does.Contain("new_/icons/account.svg"));
-            Assert.That(Page(), Does.Not.Contain("new_/icons/contact.svg"),
-                "and the page should be back to describing the folder as the first apply left it");
+            Assert.That(Page(), Does.Contain("new_/icons/contact.svg"),
+                "the drawing is still in the folder after the undo, so the page should still credit it");
+        }
+
+        [Test]
+        public void A_drawing_put_back_is_credited_as_what_it_holds_again()
+        {
+            // The case the rebuild is for: applying twice under one name and taking the second
+            // one back. The drawing goes back to the first icon, so the page has to go back to
+            // crediting the set that drew it - which it cannot do by being restored, because the
+            // page it would be restored to was written before that drawing was overwritten.
+            var first = new IconApplyRequest
+            {
+                TableLogicalName = "account",
+                Svg = SvgOutput.Build(Svg, IconColourMode.Theme, Color.Black, null,
+                    IconProvenance.For(new IconEntry(IconFamily.Lucide, "user", "regular", IconStyle.Regular))),
+                WebResourceName = "new_/icons/account.svg",
+                RasterColour = Color.Black
+            };
+            IconApplier.Apply(_service, first);
+
+            var second = new IconApplyRequest
+            {
+                TableLogicalName = "account",
+                Svg = SvgOutput.Build(Svg, IconColourMode.Theme, Color.Black, null,
+                    IconProvenance.For(new IconEntry(IconFamily.Tabler, "user", "outline", IconStyle.Regular))),
+                WebResourceName = "new_/icons/account.svg",
+                RasterColour = Color.Black
+            };
+            var result = IconApplier.Apply(_service, second);
+
+            Assert.That(Page(), Does.Contain(IconLicence.For(IconFamily.Tabler).SetName),
+                "the second apply should have credited the set it wrote");
+
+            IconApplier.Revert(_service, Undoing(second, result));
+
+            Assert.That(Page(), Does.Contain(IconLicence.For(IconFamily.Lucide).SetName));
+            Assert.That(Page(), Does.Not.Contain(IconLicence.For(IconFamily.Tabler).SetName),
+                "and nothing in the folder was drawn by the set the undo took back");
         }
 
         private string Page()

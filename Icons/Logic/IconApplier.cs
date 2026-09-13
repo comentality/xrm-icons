@@ -132,6 +132,12 @@ namespace Icons.Logic
         /// <summary>The web resources the apply wrote over, from its own result.</summary>
         public IList<OverwrittenResource> Overwritten { get; set; }
 
+        /// <summary>
+        /// The name the apply stored its icon under. It says which folder's attribution page
+        /// this undo rebuilds; left empty, the page is not touched at all.
+        /// </summary>
+        public string WebResourceName { get; set; }
+
         /// <summary>Solution the table's update belongs to, or null for none.</summary>
         public string SolutionUniqueName { get; set; }
     }
@@ -193,7 +199,8 @@ namespace Icons.Logic
                 WebResourceTypeSvg,
                 SvgOutput.ToBase64(request.Svg),
                 request.SolutionUniqueName,
-                result);
+                result.Steps,
+                result.Overwritten);
             result.WebResourceIds.Add(vectorId);
             slots[IconSlot.Vector] = request.WebResourceName;
 
@@ -213,7 +220,7 @@ namespace Icons.Logic
                     var png = ToPng(request.Image, raster.Value.Width, raster.Value.Height, request.RasterColour);
                     var id = UpsertWebResource(
                         service, name, WebResourceTypePng, SvgOutput.ToBase64(png),
-                        request.SolutionUniqueName, result);
+                        request.SolutionUniqueName, result.Steps, result.Overwritten);
 
                     result.WebResourceIds.Add(id);
                     slots[raster.Key] = name;
@@ -225,7 +232,10 @@ namespace Icons.Logic
             // which demands the credit can stop the apply while the icon is still a file
             // nothing points at.
             Stop(cancelled);
-            WriteAttributionPage(service, request, result, cancelled, progress);
+            var pageId = WriteAttributionPage(
+                service, request.WebResourceName, request.SolutionUniqueName, request.AttributionRequired,
+                result.Steps, result.Overwritten, cancelled, progress);
+            if (pageId != null) result.WebResourceIds.Add(pageId.Value);
 
             // 4. Point the table at them.
             Stop(cancelled);
@@ -294,12 +304,12 @@ namespace Icons.Logic
         /// published. The same four steps as Apply, in the same order, with the old values - and
         /// the same cancellation checks between them, because it is the same slow link.
         ///
-        /// The attribution page goes back to what it said before, because an apply that rewrote
-        /// one recorded it the way it records any drawing it wrote over. It is not left
-        /// describing the folder, though: nothing here deletes, so the drawing the page stops
-        /// crediting is still stored, with nothing pointing at it, until the next apply rewrites
-        /// the page from the folder as it then stands. Undoing an apply that created the page
-        /// leaves it standing for the same reason.
+        /// The attribution page is not put back to what it said. It is rebuilt from the folder
+        /// once the drawings are back, the same way an apply builds it, because the page
+        /// describes what is stored rather than recording what a run did. Nothing here deletes,
+        /// so the icon this undo took off the table is still in the folder and stays credited;
+        /// what changes is the drawing that was written over, which is credited again as
+        /// whatever it now holds.
         ///
         /// What it does not do is delete. A web resource this tool created is left where it is
         /// with nothing pointing at it: deleting one is not the reverse of writing a file, it is
@@ -326,9 +336,17 @@ namespace Icons.Logic
             var result = new IconRevertResult();
             var restored = new List<Guid>();
 
+            var rebuildingPage = !string.IsNullOrWhiteSpace(request.WebResourceName);
+            var pageName = rebuildingPage ? AttributionPage.NameFor(request.WebResourceName) : null;
+
             // 1. The drawings that were written over, back as they were.
             foreach (var resource in request.Overwritten ?? new OverwrittenResource[0])
             {
+                // The page among them is not a drawing and is not put back: it is rebuilt below
+                // from the folder these drawings are going back into.
+                if (rebuildingPage && string.Equals(resource.Name, pageName, StringComparison.OrdinalIgnoreCase))
+                    continue;
+
                 Stop(cancelled);
                 progress("Putting back " + resource.Name);
 
@@ -340,7 +358,18 @@ namespace Icons.Logic
                 result.Steps.Add("Put the web resource " + resource.Name + " back as it was");
             }
 
-            // 2. Point the table back.
+            // 2. The page, rebuilt from the folder as the restored drawings leave it.
+            if (rebuildingPage)
+            {
+                Stop(cancelled);
+                var pageId = WriteAttributionPage(
+                    service, request.WebResourceName, request.SolutionUniqueName, false,
+                    result.Steps, null, cancelled, progress);
+
+                if (pageId != null) restored.Add(pageId.Value);
+            }
+
+            // 3. Point the table back.
             Stop(cancelled);
             progress("Reading the definition of " + request.TableLogicalName);
             var metadata = RetrieveTable(service, request.TableLogicalName);
@@ -371,7 +400,7 @@ namespace Icons.Logic
             result.Steps.Add("Put the icon on " + request.TableLogicalName + " back to " +
                              (OrNothing(request.VectorName) ?? "none"));
 
-            // 3. One publish, for the same reason the apply had one: a table pointing at a
+            // 4. One publish, for the same reason the apply had one: a table pointing at a
             // drawing that is still the new one is the change only half taken back.
             Stop(cancelled);
             progress("Publishing");
@@ -415,40 +444,48 @@ namespace Icons.Logic
         }
 
         /// <summary>
-        /// Rewrites the attribution page beside the icon just stored, from every icon in that
-        /// folder that says where it came from.
+        /// Rewrites the attribution page beside an icon, from every icon in that folder that
+        /// says where it came from.
         ///
         /// Read back from the environment rather than assembled from what this session
         /// remembers: the folder holds icons written by other people, other machines and older
         /// versions of this tool, and a page that credited only the one icon in front of us
         /// would be worse than none. An icon carrying no provenance is left out rather than
         /// guessed at.
+        ///
+        /// An apply and an undo both end here, which is why it takes the pieces of a request
+        /// rather than a request. The page describes the folder rather than recording a run, so
+        /// whatever last changed the folder is what rebuilds it.
+        ///
+        /// Returns the page's id, or null when it could not be written and the licence did not
+        /// demand it.
         /// </summary>
-        private static void WriteAttributionPage(
+        private static Guid? WriteAttributionPage(
             IOrganizationService service,
-            IconApplyRequest request,
-            IconApplyResult result,
+            string iconWebResourceName,
+            string solutionUniqueName,
+            bool required,
+            List<string> steps,
+            ICollection<OverwrittenResource> overwritten,
             Func<bool> cancelled,
             Action<string> progress)
         {
-            var name = AttributionPage.NameFor(request.WebResourceName);
+            var name = AttributionPage.NameFor(iconWebResourceName);
 
             try
             {
-                progress("Reading what is stored in " + AttributionPage.FolderOf(request.WebResourceName));
+                progress("Reading what is stored in " + AttributionPage.FolderOf(iconWebResourceName));
 
                 Entity existingPage;
-                var svgs = ReadFolder(service, request.WebResourceName, name, out existingPage);
+                var svgs = ReadFolder(service, iconWebResourceName, name, out existingPage);
 
                 Stop(cancelled);
                 progress("Writing " + name);
 
                 var html = AttributionPage.Build(AttributionPage.Read(svgs), DateTime.Now);
-                var id = StoreWebResource(
+                return StoreWebResource(
                     service, existingPage, name, AttributionPage.WebResourceTypeHtml,
-                    SvgOutput.ToBase64(html), request.SolutionUniqueName, result);
-
-                result.WebResourceIds.Add(id);
+                    SvgOutput.ToBase64(html), solutionUniqueName, steps, overwritten);
             }
             catch (CancelledException)
             {
@@ -456,7 +493,7 @@ namespace Icons.Logic
             }
             catch (Exception ex)
             {
-                if (request.AttributionRequired)
+                if (required)
                 {
                     throw new InvalidOperationException(
                         "This icon's licence asks for a credit line, and the page carrying it (" + name +
@@ -464,7 +501,8 @@ namespace Icons.Logic
                 }
 
                 // A courtesy that failed is not a reason to leave the table without its icon.
-                result.Steps.Add("Could not update " + name + " (" + ex.Message + ")");
+                steps.Add("Could not update " + name + " (" + ex.Message + ")");
+                return null;
             }
         }
 
@@ -565,10 +603,12 @@ namespace Icons.Logic
             int type,
             string contentBase64,
             string solutionUniqueName,
-            IconApplyResult result)
+            List<string> steps,
+            ICollection<OverwrittenResource> overwritten)
         {
             return StoreWebResource(
-                service, FindWebResource(service, name), name, type, contentBase64, solutionUniqueName, result);
+                service, FindWebResource(service, name), name, type, contentBase64, solutionUniqueName,
+                steps, overwritten);
         }
 
         /// <summary>
@@ -583,7 +623,8 @@ namespace Icons.Logic
             int type,
             string contentBase64,
             string solutionUniqueName,
-            IconApplyResult result)
+            List<string> steps,
+            ICollection<OverwrittenResource> overwritten)
         {
             if (existing != null)
             {
@@ -602,7 +643,7 @@ namespace Icons.Logic
                         "The web resource " + name + " came from a managed solution and cannot be changed.");
                 }
 
-                result.Overwritten.Add(new OverwrittenResource
+                overwritten?.Add(new OverwrittenResource
                 {
                     Id = existing.Id,
                     Name = name,
@@ -613,7 +654,7 @@ namespace Icons.Logic
                 update["content"] = contentBase64;
                 service.Update(update);
 
-                result.Steps.Add("Updated the web resource " + name);
+                steps.Add("Updated the web resource " + name);
                 return existing.Id;
             }
 
@@ -630,7 +671,7 @@ namespace Icons.Logic
                 create.Parameters["SolutionUniqueName"] = solutionUniqueName;
 
             var response = (CreateResponse)service.Execute(create);
-            result.Steps.Add("Created the web resource " + name);
+            steps.Add("Created the web resource " + name);
             return response.id;
         }
 
