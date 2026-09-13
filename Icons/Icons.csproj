@@ -7,7 +7,7 @@
          after, and it is internal to the assembly anyway. The file name is not, and
          every XrmToolBox tool shares one Plugins folder. -->
     <RootNamespace>Icons</RootNamespace>
-    <Version>1.0.0</Version>
+    <Version>1.0.1-dev</Version>
     <LangVersion>latest</LangVersion>
     <UseWindowsForms>true</UseWindowsForms>
     <Company>Comentality</Company>
