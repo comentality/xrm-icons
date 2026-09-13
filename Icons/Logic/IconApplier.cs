@@ -134,7 +134,8 @@ namespace Icons.Logic
 
         /// <summary>
         /// The name the apply stored its icon under. It says which folder's attribution page
-        /// this undo rebuilds; left empty, the page is not touched at all.
+        /// this undo rebuilds. Left empty, nothing is rebuilt and whatever the apply wrote over
+        /// goes back as it was - the page among it, if the apply happened to write over one.
         /// </summary>
         public string WebResourceName { get; set; }
 
