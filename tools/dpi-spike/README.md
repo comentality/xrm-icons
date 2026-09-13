@@ -57,9 +57,17 @@ Mixed awareness holds, and the hosting call is what does it: without it every ch
 the awareness of the process, and "nothing changes for tools that have not opted in" would be a
 promise nobody could keep.
 
-`UNAWARE_GDISCALED` is the interesting column. A tool that has opted into nothing would be drawn
-by GDI at the real resolution and handed back — the same size on screen as today, and sharper
-than today. Not *unchanged*: better.
+`UNAWARE_GDISCALED` looked like the interesting column — a tool drawn by GDI at the real
+resolution would be the same size on screen as today and sharper. **It is not reachable from
+Windows Forms.** Building the real thing showed why: WinForms records a window's awareness when
+the *control is constructed*, not when the handle is created, and it stores what it finds as one
+of its own four values. `UNAWARE_GDISCALED` is not one of them, so it collapses to plain
+`UNAWARE` and tools get exactly what they have now. Unchanged, not better.
+
+That same finding is what the change rests on, and it is the opposite of where the obvious hook
+is: a context set around `CreateHandle` is overridden by WinForms from inside `base.CreateHandle`,
+and a context set around `new` is kept for every handle that control ever creates — including
+the one it creates again when a tool is dragged out of the dock.
 
 ## What is still unproven, and needs a 150% monitor
 
@@ -80,20 +88,29 @@ Then drag a child window between two monitors at different scales and read its l
   awareness has to be set around every handle creation — an override of `PluginForm.CreateHandle`
   — rather than once around the first `Show`.
 
-## If it holds, the shape of the change
+## What was built on the back of it
 
-1. `SetThreadDpiHostingBehavior(MIXED)` once in `Program.Main`, before `NewForm` exists, guarded
+`comentality/XrmToolBox`, branch `high-dpi-opt-in`:
+
+1. `SetThreadDpiHostingBehavior(MIXED)` once in `Program.Main`, before the first window, guarded
    for Windows older than 1803 — XrmToolBox still lists Windows 8.1 as supported.
 2. Per-monitor-v2 in the manifest and `DpiAwareness` in `app.config`, replacing the typo.
-3. `PluginForm.CreateHandle` sets `UNAWARE_GDISCALED` around `base.CreateHandle()` unless the
-   tool opted in.
+3. `DisplayPluginControl` constructs the tool's control and its `PluginForm` inside an unaware
+   scope, unless the tool implements the new `IDpiAwarePlugin`. `PluginForm` itself is untouched.
 4. The opt-in is a marker interface on the tool's factory class, read from cached metadata before
-   the control is built: `Metadata.Interfaces.Contains(nameof(IDpiAwareTool))`. That is the same
-   idiom `INoConnectionRequired` already uses, and it has to be that idiom rather than a check on
-   the control, because the decision comes before `GetControl()`.
-5. The host's own forms get real scaling. This is the bulk of the work and the part #1260 shows
-   is not free: `NewForm` and `PluginForm` were authored at different design-time baselines
-   (`9F,20F` against `8F,16F`), there is a third-party dock library laying out around them, and a
-   WebView2.
+   the control is built: `Metadata.Interfaces.Contains(nameof(IDpiAwarePlugin))`. The same idiom
+   `INoConnectionRequired` already uses, and it has to be that idiom rather than a check on the
+   control, because the decision comes before `GetControl()`.
+
+Measured with the window probe against that build, sample tool open: the main window is
+`PER_MONITOR_V2`, the tool's window and every control in it are `UNAWARE`, in one process.
+
+Still to do, and the part #1260 shows is not free: the host's own forms. `NewForm` and
+`PluginForm` were authored at different design-time baselines (`9F,20F` against `8F,16F`), there
+is a third-party dock library laying out around them, and a WebView2.
+
+One known gap: only what the tool creates *while it is being opened* is covered. A dialog a tool
+constructs later, from its own code, is constructed on a thread that is aware again, so it comes
+out aware. Whether that matters at 150% is one of the things to look at.
 
 [pr]: https://github.com/MscrmTools/XrmToolBox/pull/1260
