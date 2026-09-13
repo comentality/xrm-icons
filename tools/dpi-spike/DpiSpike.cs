@@ -120,6 +120,24 @@ namespace DpiSpike
                 Say("child, plain unaware", stretched);
                 Console.WriteLine();
 
+                // The tool is only one thing if what it makes later comes out the way it did.
+                Console.WriteLine("A control added to each child after the context was put back:");
+                Console.WriteLine("  in the opted-in child:     " + Name(aware.LateContext));
+                Console.WriteLine("  in the GDI-scaled child:   " + Name(unaware.LateContext));
+                Console.WriteLine("  in the plain unaware child: " + Name(stretched.LateContext));
+
+                var inherited = Same(unaware.LateContext, Context(unaware)) &&
+                                Same(stretched.LateContext, Context(stretched));
+
+                Console.WriteLine(inherited
+                    ? "  -> a child window takes its parent's awareness, so one call at the tool's own"
+                    + Environment.NewLine +
+                      "     window covers everything the tool goes on to make."
+                    : "  -> a child window does NOT take its parent's awareness, so the context has to be"
+                    + Environment.NewLine +
+                      "     held for as long as the tool is making windows, not just around its first.");
+                Console.WriteLine();
+
                 var mixed = !Same(Context(host), Context(unaware));
                 Console.WriteLine(mixed
                     ? "MIXED AWARENESS HOLDS: the child is not the awareness the process is."
@@ -203,6 +221,7 @@ namespace DpiSpike
                 if (context == IntPtr.Zero)
                 {
                     child.Show();
+                    child.AddLateControl();
                     return child;
                 }
 
@@ -215,6 +234,13 @@ namespace DpiSpike
                 {
                     SetThreadDpiAwarenessContext(previous);
                 }
+
+                // Deliberately after the context has been put back, because that is when most of
+                // a tool's windows are really made: a dialog it opens, a ListView that recreates
+                // its handle when a property changes, anything added once the tool is running.
+                // If those come out aware inside an unaware tool, setting the context around one
+                // Show is not enough and the whole tool is not one thing.
+                child.AddLateControl();
 
                 return child;
             }
@@ -262,10 +288,25 @@ namespace DpiSpike
                 Controls.Add(pop);
             }
 
+            /// <summary>
+            /// The window of a control made after the tool was opened, and the awareness it came
+            /// out with. See where it is called from.
+            /// </summary>
+            internal IntPtr LateContext { get; private set; }
+
             protected override void OnShown(EventArgs e)
             {
                 base.OnShown(e);
                 Refresh_();
+            }
+
+            internal void AddLateControl()
+            {
+                var late = new Panel { Dock = DockStyle.Bottom, Height = 24, BackColor = Color.Gainsboro };
+                Controls.Add(late);
+                late.CreateControl();
+
+                LateContext = GetWindowDpiAwarenessContext(late.Handle);
             }
 
             protected override void OnDpiChangedAfterParent(EventArgs e)

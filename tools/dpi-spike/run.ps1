@@ -52,6 +52,17 @@ $exe = Join-Path $out "DpiSpike.exe"
 
 if ($LASTEXITCODE -ne 0) { throw "The spike did not compile." }
 
+# The other half of the folder: reads the windows of something already running, for checking a
+# change to XrmToolBox itself from outside it.
+& $csc -nologo `
+    -target:exe `
+    -r:System.Windows.Forms.dll `
+    -r:System.Drawing.dll `
+    -out:(Join-Path $out "WindowProbe.exe") `
+    (Join-Path $PSScriptRoot "WindowProbe.cs")
+
+if ($LASTEXITCODE -ne 0) { throw "The window probe did not compile." }
+
 $switches = @()
 if ($Headless) { $switches += "-headless" }
 if ($Default) { $switches += "-default-hosting" }
