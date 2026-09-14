@@ -179,3 +179,17 @@
 - [x] Smooth the UX overall — fewer clicks to get an icon assigned. The table seeds the search,
       Enter reaches the results, a filter of one table is that table, a finished write reports on
       the status line rather than in a dialog, and applying lands on the next table waiting.
+- [ ] Give an icon the words it already answers to upstream. Two halves, both open, and
+      `docs/search-vocabulary.md` is the brief — sources, counts, traps and the order to do them
+      in. The first half is a debt: the build drops 683 Font Awesome alias files because they are
+      one drawing under several names, which is right, but the names went with them, so `vcard`
+      finds nothing and the drawing it names sits in the bundle as `address-card`. The second is
+      the larger question behind it. Four of the six sets publish per-icon tags — Tabler 66,254
+      words, Phosphor 25,512, Font Awesome 20,374, Lucide 15,656, Solar a thin 1,603 — and the
+      build has never read any of them. Fluent publishes none, which is the part to settle first
+      rather than last: Fluent leads every tie in `IconSearch.Rank` by the enum order, on purpose,
+      and giving the other five 129,399 words it has not got means they stop tying and start
+      scoring where Fluent cannot reach. The other measured constraints are that the words cannot
+      go into `IconEntry.Words` without corrupting every display name and penalising every icon
+      that carries them, and that search is 7 ms a keystroke across the whole library today at
+      2.18 words an icon — this is 5.96 more.
