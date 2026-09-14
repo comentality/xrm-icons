@@ -164,6 +164,7 @@ namespace Icons.Tests
             {
                 Assert.That(catalog.Icons.Count, Is.EqualTo(_catalog.Icons.Count));
                 Assert.That(catalog.Icons.All(i => i.Aliases.Length == 0), Is.True);
+                Assert.That(catalog.Icons.All(i => i.Tags.Length == 0), Is.True);
                 Assert.That(IconSearch.Rank(catalog.Icons, "vcard"), Is.Empty);
                 Assert.That(IconSearch.Rank(catalog.Icons, "address card").First().Name, Is.EqualTo("address-card"));
             }
@@ -172,22 +173,31 @@ namespace Icons.Tests
         [Test]
         public void No_table_changed_its_mind_about_what_to_search_for()
         {
-            // The words are for somebody typing, not for a box nobody filled in. WorthSeeding
+            // The names are for somebody typing, not for a box nobody filled in. WorthSeeding
             // was left alone on purpose - but SeedFor's first question is whether the whole
             // name answers, and that one is not gated by it, so a two-word table that used to
             // fall back to its last word could in principle now answer whole on an alias.
-            // Asked of all 162 rather than reasoned about: the bundle without its vocabulary is
-            // the tool as it was, and every table has to seed what it seeded then.
+            // Asked of all 162 rather than reasoned about.
+            //
+            // Against the aliases alone, and not against the whole vocabulary: Fluent's
+            // descriptions did move eleven of these, on purpose and for the better, and
+            // DescriptionTests is where that is pinned. Mixing the two would let one of them
+            // cover for the other.
             using (var before = new MemoryStream(BundleWith(null)))
             using (var was = IconCatalog.Load(before))
+            using (var after = new MemoryStream(BundleWith(OnlyAliases())))
+            using (var now = IconCatalog.Load(after))
             {
+                Assert.That(now.Icons.Any(i => i.Aliases.Length > 0), Is.True, "the alias-only bundle has aliases in it");
+                Assert.That(now.Icons.All(i => i.Tags.Length == 0), Is.True, "and nothing else");
+
                 var moved = new List<string>();
 
                 foreach (var table in VocabularyTests.StandardTables)
                 {
                     var then = IconSearch.SeedFor(was.Icons, table);
-                    var now = IconSearch.SeedFor(_catalog.Icons, table);
-                    if (then != now) moved.Add(table + ": " + then + " -> " + now);
+                    var since = IconSearch.SeedFor(now.Icons, table);
+                    if (then != since) moved.Add(table + ": " + then + " -> " + since);
                 }
 
                 Assert.That(moved, Is.Empty, "these tables now seed something else: " + string.Join(", ", moved));
@@ -212,6 +222,18 @@ namespace Icons.Tests
                 Assert.That(catalog.Icons.Count, Is.EqualTo(_catalog.Icons.Count));
                 Assert.That(IconSearch.Rank(catalog.Icons, "vcard").First().Name, Is.EqualTo("address-card"));
             }
+        }
+
+        /// <summary>The bundle's vocabulary with everything but the aliases taken out of it.</summary>
+        private static string OnlyAliases()
+        {
+            var kept = Vocabulary()
+                .Split('\n')
+                .Where(l => l.StartsWith("alias\t", StringComparison.Ordinal))
+                .ToList();
+
+            Assert.That(kept, Is.Not.Empty, "the bundle should carry alias lines");
+            return string.Join("\n", kept) + "\n";
         }
 
         /// <summary>The vocabulary the bundled archive carries, as text.</summary>

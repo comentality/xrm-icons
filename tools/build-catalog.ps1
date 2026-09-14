@@ -85,7 +85,8 @@ param(
     [string]$LucideVersion = "latest",
     [string]$TablerVersion = "latest",
     [string]$FontAwesomeVersion = "latest",
-    [string]$SolarVersion = "latest"
+    [string]$SolarVersion = "latest",
+    [string]$FluentMetadataRef = "main"
 )
 
 $ErrorActionPreference = "Stop"
@@ -188,6 +189,50 @@ function Get-NpmPackage {
             Write-Warning "  $Name failed: $($_.Exception.Message). Retrying once."
         }
     }
+}
+
+function Get-FluentMetadata {
+    <#
+        Clones just the per-icon metadata out of Microsoft's icon repository, and says which
+        commit it got.
+
+        This is the one source here that is not an npm package, and not for want of looking.
+        @fluentui/svg-icons carries 21,682 SVGs and no JSON at all - two separate exclusions in
+        its own package.json see to that - so the words Microsoft writes about its icons cannot
+        be fetched the way everything else in this script is fetched. Issue #788 on the
+        repository asks for them to be published as a package; it has been open since December
+        2024. Until it is answered, the repository is the distribution.
+
+        A sparse clone rather than a full one: the whole repository is most of a gigabyte of
+        SVGs and PDFs, and what is wanted is 2,654 small JSON files. --filter=blob:none fetches
+        no file contents until they are asked for, and the sparse pattern is what asks.
+    #>
+    param(
+        [Parameter(Mandatory)][string]$Ref,
+        [Parameter(Mandatory)][string]$Root
+    )
+
+    $dir = Join-Path $Root "fluent-metadata"
+
+    & git clone --depth 1 --filter=blob:none --sparse --branch $Ref `
+        "https://github.com/microsoft/fluentui-system-icons.git" $dir 2>&1 | Out-Null
+    if ($LASTEXITCODE -ne 0) { throw "Could not clone the Fluent icon repository (git exit $LASTEXITCODE)" }
+
+    Push-Location $dir
+    try {
+        & git sparse-checkout set --no-cone '/assets/*/metadata.json' 2>&1 | Out-Null
+        if ($LASTEXITCODE -ne 0) { throw "Could not narrow the Fluent clone to its metadata (git exit $LASTEXITCODE)" }
+        $commit = (& git rev-parse HEAD).Trim()
+    }
+    finally { Pop-Location }
+
+    $assets = Join-Path $dir "assets"
+    if (-not (Test-Path $assets)) { throw "The Fluent clone has no assets\ directory" }
+
+    $count = @(Get-ChildItem $assets -Directory).Count
+    Write-Host "  microsoft/fluentui-system-icons $($commit.Substring(0, 7)) ($count icons with metadata)"
+
+    return [pscustomobject]@{ Path = $dir; Assets = $assets; Commit = $commit }
 }
 
 function Get-PackageFacts {
@@ -388,6 +433,8 @@ try {
     $solarRoot = Get-NpmPackage -Name "@iconify-json/solar" -VersionOrTag $SolarVersion -Root $temp
     $solarInfo = Get-Content (Join-Path $solarRoot "info.json") -Raw -Encoding UTF8 | ConvertFrom-Json
     $solar = Get-PackageFacts $solarRoot -Fallback "Copyright (c) $($solarInfo.author.name)."
+
+    $fluentMeta = Get-FluentMetadata -Ref $FluentMetadataRef -Root $temp
 
     Write-Host ""
     Write-Host "Selecting icons..."
@@ -652,6 +699,62 @@ try {
             $vocabularyIcons++
         }
 
+        # Fluent's are the other kind, and the larger one: what Microsoft says each icon is
+        # about rather than what it is called. A shield is security, protection and safety. The
+        # words live one metadata.json per icon in the repository - see Get-FluentMetadata for
+        # why they are cloned rather than downloaded - under the same MIT licence as the
+        # drawings, so they bring no obligation the bundle does not already carry.
+        #
+        # The folder is named as a person would write it and the icon is not, so "Access Time"
+        # has to be matched up with access_time. Repeated separators are collapsed, because one
+        # folder is called "Multiplier _5x"; and where the name matches nothing, the left- and
+        # right-to-left pair is tried, because Microsoft keeps one metadata file for Task List
+        # while the package ships task_list_ltr and task_list_rtl. Both get the words: they are
+        # the same icon, drawn twice for the two directions a language runs in.
+        #
+        # A word already in the icon's own name is dropped. It cannot add anything - the name
+        # scores higher than any description - and every word kept is another comparison on
+        # every keystroke.
+        $fluentWords = 0
+        $fluentIcons = 0
+        $fluentUnmapped = 0
+        $fluentSilent = 0
+
+        foreach ($dir in Get-ChildItem $fluentMeta.Assets -Directory | Sort-Object Name) {
+            $file = Join-Path $dir.FullName "metadata.json"
+            if (-not (Test-Path $file)) { continue }
+
+            $meta = Get-Content $file -Raw -Encoding UTF8 | ConvertFrom-Json
+            $metaphors = @($meta.metaphor | Where-Object { $_ })
+            if ($metaphors.Count -eq 0) { $fluentSilent++; continue }
+
+            $stem = ($dir.Name.ToLowerInvariant() -replace ' ', '_') -replace '_+', '_'
+            $names = @(@($stem, ($stem + "_ltr"), ($stem + "_rtl")) | Where-Object { $bundled.Contains("fluent/$_") })
+            if ($names.Count -eq 0) { $fluentUnmapped++; continue }
+
+            foreach ($name in $names) {
+                $own = [System.Collections.Generic.HashSet[string]]::new(
+                    [string[]]($name -split '_'), [StringComparer]::OrdinalIgnoreCase)
+                $kept = [System.Collections.Generic.List[string]]::new()
+
+                foreach ($phrase in $metaphors) {
+                    foreach ($word in ([string]$phrase).ToLowerInvariant() -split '[\s_\-/]+') {
+                        if (-not $word) { continue }
+                        if ($own.Contains($word)) { continue }
+                        if ($kept.Contains($word)) { continue }
+                        [void]$kept.Add($word)
+                    }
+                }
+
+                if ($kept.Count -eq 0) { continue }
+
+                [void]$vocabulary.Append("tag`t").Append("fluent/$name")
+                foreach ($word in $kept) { [void]$vocabulary.Append("`t").Append($word); $fluentWords++ }
+                [void]$vocabulary.Append("`n")
+                $fluentIcons++
+            }
+        }
+
         $entry = $zip.CreateEntry([Icons.Catalog.IconCatalog]::VocabularyEntryName, [System.IO.Compression.CompressionLevel]::Optimal)
         $writer = New-Object System.IO.StreamWriter($entry.Open(), (New-Object System.Text.UTF8Encoding($false)))
         try { $writer.Write($vocabulary.ToString()) } finally { $writer.Dispose() }
@@ -677,6 +780,12 @@ Licensed under the $($fluent.License) License. $($fluent.Copyright)
 Repackaged for Comentality Icons by tools\build-catalog.ps1: one SVG per icon and
 style, at $($sizePreference[0]) pixels where Fluent draws one, otherwise the first available
 of $fallbacks, contents otherwise unmodified.
+
+The words this tool lets you search Fluent by come from the same project rather than
+from the package: @fluentui/svg-icons ships no metadata of any kind, so the per-icon
+metadata.json files in the repository are read at commit $($fluentMeta.Commit) for
+what Microsoft says each icon is about. Same project, same licence, and no drawing
+is taken from it.
 
 Phosphor Icons
 @phosphor-icons/core $($phosphor.Version)
@@ -778,6 +887,8 @@ than bundled blank. Contents otherwise unmodified.
     foreach ($family in $backdropHits.Keys | Sort-Object) { Write-Host "Removed the backdrop rectangle from $($backdropHits[$family]) $family icons" }
     Write-Host "Left out $aliasHits fontawesome files that are another icon under an older name"
     Write-Host "Kept $vocabularyWords of those names as search words, against $vocabularyIcons icons"
+    Write-Host "Took $fluentWords words Microsoft writes about its own icons, against $fluentIcons of them"
+    if ($fluentUnmapped -gt 0) { Write-Host "Left out the words of $fluentUnmapped Fluent icons this bundle does not carry" }
     if ($vocabularyDropped -gt 0) { Write-Host "Left out the names of $vocabularyDropped icons this bundle does not carry" }
     Write-Host "Left out $solarSame solar outline icons that draw what their linear already draws"
     Write-Host "Left out $solarUndrawable solar icons this renderer cannot draw"

@@ -35,6 +35,11 @@ resources, update table definitions and publish customisations.
   Dataverse names tables after what they mean. Searching for `account` finds the buildings and briefcases,
   `contact` finds the people, `appointment` finds the calendars, `case` finds the headsets. An
   icon actually named for your word still wins; the mapping only fills in where nothing is.
+- **Icons answer to what they are for, not only to what they are called** — Microsoft writes a
+  line about each Fluent icon, and the tool reads it: `keychain` finds the key, `patient` finds
+  the person, `sync` finds the cloud. 12,482 of those words, on about nine Fluent icons in ten.
+  A word an icon is *described* by is worth less than a word it is *named* by, so an icon called
+  what you typed still leads the grid.
 - **The names a set has retired still work** — Font Awesome ships every name it has ever used,
   so the card it now calls `address-card` used to be `contact-card` and `vcard`. The library
   holds one drawing per icon rather than the same picture three times, but it kept the names:
@@ -43,7 +48,9 @@ resources, update table definitions and publish customisations.
 - **The table you pick asks for you** — choosing a table puts its own word in the search box, so
   the grid is showing buildings by the time you look at it. A two-word table falls back to the
   word the library knows — *Sales Order* searches for the order, *Hierarchy Rule* for the
-  hierarchy — and it only falls back to a word some icon is really called, or one the tool has
+  hierarchy — though it only falls back when it has to: *Recurring Appointment* asks for the
+  whole thing and gets a repeating calendar, and *Invoice Line* gets a receipt rather than a
+  straight line — and it only falls back to a word some icon is really called, or one the tool has
   been taught. Nothing is seeded on a word the library merely produces results for: *Payment
   Term* is not a terminal and *Social Profile* is not a car in profile. A table it can say
   nothing about seeds nothing rather than a confident wrong answer. It only ever writes over its

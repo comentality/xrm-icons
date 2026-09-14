@@ -1,7 +1,8 @@
 # Search vocabulary: the words an icon answers to
 
 Handoff note, 14 September 2026, and the record of what was done with it. Everything below is
-measured. The first of the two requests is built; the second is not.
+measured. The first request is built. The second is a family in, five to go, and the reason to
+stop and think is written down under **What the first family cost**.
 
 Two requests are open, and they are the same shape:
 
@@ -11,9 +12,9 @@ Two requests are open, and they are the same shape:
    they name sat in the bundle as `address-card`. The names now travel without the files, in
    `vocabulary.v1.tsv` beside the icons: 579 of them against 479 icons. See **What was decided**
    below for what a hit on one is worth and why.
-2. **The words the other five sets already ship.** Four of the six publish per-icon tags, and
-   the build throws all of them away. This is the question behind "did we drop synonyms for
-   some other sets?" — and the answer is that we never picked them up.
+2. **The words the sets already ship.** **Fluent's are in, 14 September 2026** — 12,482 of them
+   against 2,630 of its drawings, scored at 60 where a name scores 100. The other five are not,
+   and the measurement below is why that is now a decision rather than a formality.
 
 ## What is already there, and is not this
 
@@ -253,24 +254,64 @@ Aliases first — it is small, it is the thing that was actually lost, and it pu
 in. Then one family's tags, measured for latency before the other four. Fluent's asymmetry is
 worth settling before the full set goes in, not after.
 
+## What the first family cost
+
+Words an icon went from 2.24 to 3.38 — half as many words again — and a keystroke cost 8% to
+13% more. Both libraries were loaded into one process and timed alternately, round by round, so
+that whatever else the machine was doing fell on both of them equally:
+
+| Query | Without Fluent's words | With | |
+|---|---|---|---|
+| `a` — one letter, most of the library | 16.7 ms | 18.0 ms | +7.9% |
+| `person` — a whole word | 9.4 ms | 10.5 ms | +11.2% |
+| `arrow right` — two words, every entry scored twice | 9.9 ms | 11.1 ms | +11.6% |
+| `security` — a word Fluent mostly does not name an icon after | 11.4 ms | 12.2 ms | +7.5% |
+| `zzzznotanicon` — a miss, which cannot stop early | 15.7 ms | 17.8 ms | +13.5% |
+
+**Measure this the way it is measured above, and not any other way.** The first attempt ran
+`SearchSpeedTests` inside the full suite before and alone after, and reported the keystroke as
+having *doubled* — 300 other tests were competing for the machine in one run and not the other.
+The same test run alone twice reported Fluent's words as having made search *faster*. Neither
+number meant anything. One process, both libraries, alternating rounds, is the only shape of
+this measurement that has answered the same way twice.
+
+What the honest number says is that half as many words again costs a tenth of the time, because
+the per-word comparison is not where the time goes — the loop over 21,698 entries is, along with
+the allocation `Squashed` does on nearly every one of them and the sort at the end. The words
+are close to free; the walk is not.
+
+That is encouraging for the other five families and it is not a promise about them. They hold
+about 129,000 words between them, six or so an icon against Fluent's 1.14, so on the same
+marginal cost the walk stays the dominant term and a keystroke lands somewhere in the teens.
+Somewhere in the teens is fine. But it is an extrapolation from one family, and Tabler is five
+times Fluent on its own, so it gets measured rather than assumed — which is why `SearchSpeedTests`
+is in the repository rather than in a session's scrollback.
+
+If it does turn out to cost, none of these has been tried yet:
+
+- `ScoreTerm` allocates on nearly every icon for every term — `Squashed` runs two `Replace`
+  calls over the name whenever nothing has matched yet, which is the common case. Cache the
+  squashed name on the entry, or drop the fallback to a cheaper test.
+- Nothing is indexed. Every query walks all 21,698 entries and every word of each. A map from
+  word to entries, built once at load, turns the common case from a scan into a lookup, and the
+  vocabulary is exactly what makes that worth building.
+- The words could be filtered harder at bundle time. Fluent's already drop anything the icon's
+  own name says; Tabler's include phrases like `"visual studio"` that no Dataverse customiser
+  will type.
+
 ## What is left
 
-The plumbing is in: a sidecar in the archive, a reader that skips what it cannot place, words
-kept apart from `IconEntry.Words`, and `AliasTests` holding all of it. What remains is the
-second request, in this order:
+The plumbing is in: a sidecar in the archive carrying two kinds of word, a reader that skips
+what it cannot place, words kept out of `IconEntry.Words`, `IconWords` holding both kinds so a
+third is a field rather than a parameter, and `AliasTests`, `DescriptionTests` and
+`SearchSpeedTests` holding it.
 
-1. **Fluent's own `metaphor` words, first of all six.** Settled: they exist, they are MIT, and
-   they are about five words on nine icons in ten. Doing Fluent first turns the whole asymmetry
-   round — instead of holding five families back to protect a sixth that cannot score, the
-   family that leads every tie is the one that gets words first, and the others are measured
-   against a Fluent that can already answer. The work is a new kind of source in the build
-   script: a sparse git clone, not an npm package.
-2. Tabler's tags, through the same sidecar under a `tag` kind, with a latency measurement
-   before and after. Today's figures to beat: 7 ms for a normal query, 12 ms for a single
-   letter, over 21,698 icons at 2.18 words each.
-3. The other four families, if the measurement allows it.
+1. Tabler, being half the remaining vocabulary and so the worst case, measured against the real
+   instrument — one process, both libraries, alternating rounds.
+2. The other four, if that measurement allows it.
+3. Only then, and only if it does not, the cheaper inner loop above.
 
 Two things to carry into that work. Scoring is the whole of it — an alias earned 100 because it
-is a name; a tag is a description and must not be worth the same, or `roledex` will outrank
-what people are actually looking at. And `ScoreTerm` now runs a `Ladder` over two arrays, so a
-third is one more call rather than another copy of the ladder.
+is a name, a description earned 60 because it is true and is not the name, and a fourth kind
+needs the same argument made for it. And `ScoreTerm` now runs a ladder over three arrays in
+bands, so a fourth is one more call rather than another copy of the ladder.

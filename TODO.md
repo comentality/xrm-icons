@@ -215,15 +215,29 @@
       2,601 carry a word that is not already in the icon's own name; 12,926 terms, 1,458
       distinct. MIT, the same licence the drawings come under. `Cloud` answers to storage,
       upload, download, save, sync - which is the sort of thing `Synonyms` was hand-written to
-      supply. So the order turns round: Fluent goes first rather than being protected, and the
-      other five are measured against a Fluent that can already answer. Then Tabler alone, being
-      half the remaining vocabulary and so the worst case for the latency, measured before and
-      after; then the other four if the measurement allows it. Two things to carry in. A tag
-      must not be worth what an alias is worth - an alias is a name, a tag is a description, and
-      100 for a description would put `roledex` above what somebody is actually looking at. And
-      Fluent's file cannot be fetched the way every other source here is: no package ships it
-      (issue #788 on the repo asks for one and is open), so it needs a sparse clone, which is a
-      second kind of source in a script whose whole shape is one npm package a family.
+      supply. So the order turned round, and Fluent went in the same day rather than being
+      protected: 12,482 words against 2,630 of its drawings, scored at 60 where a name scores
+      100 and a prefix of a name scores the same 60 - a description is true about the drawing
+      and is still not what it is called. The build script grew a seventh source for it and the
+      first that is not a package, a sparse clone of microsoft/fluentui-system-icons pinned by
+      commit in ABOUT.txt, because no package ships this and issue #788 asking for one has been
+      open since December 2024. Words the icon's own name already has are dropped at bundle
+      time: they cannot raise a score, and every one kept is another comparison on every
+      keystroke.
+      It moved eleven standard tables onto a better search, which the seeding rule allowed
+      rather than had to be argued into - SeedFor offers a table's whole name when the whole
+      name answers, and eleven could not answer whole before. Recurring Appointment asked for
+      `appointment` and got a video call, and now leads with a repeating calendar; Invoice Line
+      and Quote Line asked for `line` and got a straight line, and now lead with a receipt;
+      Purchase Order led with a reorder arrow and now leads with a cart. DescriptionTests names
+      all eleven.
+      What is left is Tabler and then the other four, and the thing to carry in is how to
+      measure. Half as many words again cost 8-13% of a keystroke, not the doubling the first
+      measurement claimed: SearchSpeedTests was run inside the full suite once and alone the
+      other time, and run alone twice it said the words had made search faster. Neither number
+      meant anything. One process, both libraries, alternating rounds. Most of what a keystroke
+      costs is the walk over 21,698 entries rather than the words, which is why the words are
+      nearly free and why the walk is where room would have to come from if room is ever needed.
       `docs/search-vocabulary.md` has the numbers, the traps - the data is December 2024 vintage,
       case-inconsistent and holds duplicates, and its `keyword` field is which Microsoft product
       the icon belongs to rather than a search word - and what else the search turned up.

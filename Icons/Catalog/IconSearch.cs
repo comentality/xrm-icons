@@ -311,6 +311,25 @@ namespace Icons.Catalog
             return best;
         }
 
+        /// <summary>
+        /// The best any description does against one term. A shorter ladder than a name's, and a
+        /// lower one: named exactly is 60 where a name would score 100, and a description merely
+        /// starting with the word is 30. Nothing for a description that only contains it - an
+        /// icon described as ''accessibility'' is not an answer to ''ilit''.
+        /// </summary>
+        private static int Described(string[] words, string term, int floor)
+        {
+            var best = floor;
+
+            foreach (var word in words)
+            {
+                if (string.Equals(word, term, StringComparison.OrdinalIgnoreCase)) best = Math.Max(best, 60);
+                else if (word.StartsWith(term, StringComparison.OrdinalIgnoreCase)) best = Math.Max(best, 30);
+            }
+
+            return best;
+        }
+
         /// <summary>A name with its separators taken out: arrow_trending_lines as arrowtrendinglines.</summary>
         private static string Squashed(string name)
         {
@@ -327,6 +346,14 @@ namespace Icons.Catalog
             // file per drawing - so without this, the two names the set still answers to find
             // nothing here, and the picture they name sits in the grid under a third word.
             if (best < 100) best = Ladder(icon.AliasWords, term, best);
+
+            // And a description is worth what a name that starts with the word is worth. It is
+            // a true thing about the drawing said by the people who drew it - Microsoft's own
+            // metadata says a shield is about security, protection and safety - and it is still
+            // not what the icon is called, so it cannot reach the 100 a name reaches. Level with
+            // a prefix is where it sits: above an icon that merely has the letters in it
+            // somewhere, below every icon the word is actually the name of.
+            if (best < 60) best = Described(icon.TagWords, term, best);
 
             // A term that spans the separators, so "arrowtrending" and "arrow trending" agree,
             // and "shoppingcart" finds shopping-cart.

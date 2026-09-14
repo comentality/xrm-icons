@@ -113,7 +113,7 @@ namespace Icons.Catalog
         /// file, or a folder this build of the tool knows nothing about. Unknown is skipped
         /// rather than refused, so an archive built by a later script still opens.
         /// </summary>
-        private static IconEntry Read(string path, Dictionary<string, string[]> vocabulary)
+        private static IconEntry Read(string path, Dictionary<string, IconWords> vocabulary)
         {
             if (!path.EndsWith(".svg", StringComparison.OrdinalIgnoreCase)) return null;
 
@@ -131,10 +131,10 @@ namespace Icons.Catalog
 
             // Keyed by family and name rather than by this path, so that the three weights
             // Phosphor draws one icon in share one list rather than hold three copies of it.
-            string[] aliases;
-            vocabulary.TryGetValue(parts[0] + "/" + name, out aliases);
+            IconWords extra;
+            vocabulary.TryGetValue(parts[0] + "/" + name, out extra);
 
-            return new IconEntry(family, name, weight, StyleOf(weight), aliases);
+            return new IconEntry(family, name, weight, StyleOf(weight), extra);
         }
 
         /// <summary>
@@ -150,15 +150,19 @@ namespace Icons.Catalog
         /// empty map when it carries none - which is what every bundle built before this file
         /// existed carries, and is not an error.
         ///
-        /// Each line is a kind, a key, and the words: <c>alias{TAB}fontawesome/address-card{TAB}contact-card{TAB}vcard</c>.
+        /// Each line is a kind, a key, and the words: <c>alias{TAB}fontawesome/address-card{TAB}contact-card{TAB}vcard</c>,
+        /// or <c>tag{TAB}fluent/shield{TAB}security{TAB}protection{TAB}safety</c>. An icon can be named by
+        /// one line of each kind, and the two are not worth the same - see <see cref="IconWords"/>.
         /// A line of a kind this build does not know is skipped rather than refused, and so is
         /// a key naming an icon this bundle does not hold - the opposite of what the drawing
         /// index does with the same situation, and deliberately so. A stale fingerprint is a
         /// wrong answer given confidently; a stale name is a word nothing ever matches.
         /// </summary>
-        private static Dictionary<string, string[]> ReadVocabulary(ZipArchive archive)
+        private static Dictionary<string, IconWords> ReadVocabulary(ZipArchive archive)
         {
-            var vocabulary = new Dictionary<string, string[]>(StringComparer.OrdinalIgnoreCase);
+            var aliases = new Dictionary<string, string[]>(StringComparer.OrdinalIgnoreCase);
+            var tags = new Dictionary<string, string[]>(StringComparer.OrdinalIgnoreCase);
+            var vocabulary = new Dictionary<string, IconWords>(StringComparer.OrdinalIgnoreCase);
 
             string text;
             try
@@ -176,14 +180,30 @@ namespace Icons.Catalog
             {
                 var fields = line.TrimEnd('\r').Split('\t');
                 if (fields.Length < 3) continue;
-                if (!string.Equals(fields[0], "alias", StringComparison.Ordinal)) continue;
+
+                Dictionary<string, string[]> kind;
+                if (string.Equals(fields[0], "alias", StringComparison.Ordinal)) kind = aliases;
+                else if (string.Equals(fields[0], "tag", StringComparison.Ordinal)) kind = tags;
+                else continue;
 
                 var words = new List<string>(fields.Length - 2);
                 for (var i = 2; i < fields.Length; i++)
                     if (fields[i].Length > 0) words.Add(fields[i]);
 
-                if (words.Count > 0) vocabulary[fields[1]] = words.ToArray();
+                if (words.Count > 0) kind[fields[1]] = words.ToArray();
             }
+
+            // One holder an icon, however many lines named it, so that the entry is handed a
+            // single object and the weights of one drawing share it.
+            foreach (var key in aliases.Keys)
+            {
+                string[] described;
+                tags.TryGetValue(key, out described);
+                vocabulary[key] = new IconWords(aliases[key], described);
+            }
+
+            foreach (var key in tags.Keys)
+                if (!vocabulary.ContainsKey(key)) vocabulary[key] = new IconWords(null, tags[key]);
 
             return vocabulary;
         }

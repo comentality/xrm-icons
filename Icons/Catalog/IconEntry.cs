@@ -1,5 +1,4 @@
 using System;
-using System.Collections.Generic;
 
 namespace Icons.Catalog
 {
@@ -51,7 +50,7 @@ namespace Icons.Catalog
         {
         }
 
-        public IconEntry(IconFamily family, string name, string weight, IconStyle style, string[] aliases)
+        public IconEntry(IconFamily family, string name, string weight, IconStyle style, IconWords extra)
         {
             Name = name ?? throw new ArgumentNullException(nameof(name));
             Weight = weight ?? throw new ArgumentNullException(nameof(weight));
@@ -62,8 +61,7 @@ namespace Icons.Catalog
             // Splitting on both gives one search vocabulary rather than one per family.
             Words = name.Split(new[] { '_', '-' }, StringSplitOptions.RemoveEmptyEntries);
             DisplayName = BuildDisplayName(Words);
-            Aliases = aliases ?? None;
-            AliasWords = SplitAll(Aliases);
+            Extra = extra ?? IconWords.None;
             EntryPath = FolderFor(family) + "/" + weight + "/" + name + ".svg";
         }
 
@@ -91,7 +89,17 @@ namespace Icons.Catalog
         /// bundle holds one file per drawing, so those names would otherwise be lost with the
         /// files they arrived in. Empty for a family that publishes none.
         /// </summary>
-        public string[] Aliases { get; }
+        /// <remarks>Held by <see cref="IconWords"/>, which says what each kind is worth.</remarks>
+        public string[] Aliases
+        {
+            get { return Extra.Aliases; }
+        }
+
+        /// <summary>What the set that drew it says it depicts. Empty for a family that says nothing.</summary>
+        public string[] Tags
+        {
+            get { return Extra.Tags; }
+        }
 
         /// <summary>
         /// The aliases split into words, the way <see cref="Words"/> is. Kept apart from Words
@@ -99,7 +107,19 @@ namespace Icons.Catalog
         /// score penalises an icon for leaving unaccounted for, and an alias is neither the
         /// name shown in the grid nor a word the query has to answer to.
         /// </summary>
-        public string[] AliasWords { get; }
+        public string[] AliasWords
+        {
+            get { return Extra.AliasWords; }
+        }
+
+        /// <summary>The descriptions split into words, and not worth what a name is worth.</summary>
+        public string[] TagWords
+        {
+            get { return Extra.TagWords; }
+        }
+
+        /// <summary>Everything anybody else has said about this drawing, kept whole.</summary>
+        public IconWords Extra { get; }
 
         /// <summary>Where this icon lives inside the bundled archive.</summary>
         public string EntryPath { get; }
@@ -119,20 +139,6 @@ namespace Icons.Catalog
         public static string FolderFor(IconFamily family)
         {
             return family.ToString().ToLowerInvariant();
-        }
-
-        private static readonly string[] None = new string[0];
-
-        /// <summary>Every word in every one of these names, in order, duplicates and all.</summary>
-        private static string[] SplitAll(string[] names)
-        {
-            if (names.Length == 0) return None;
-
-            var words = new List<string>(names.Length);
-            foreach (var name in names)
-                words.AddRange(name.Split(new[] { '_', '-' }, StringSplitOptions.RemoveEmptyEntries));
-
-            return words.ToArray();
         }
 
         private static string BuildDisplayName(string[] words)
