@@ -1,13 +1,16 @@
 # Search vocabulary: the words an icon answers to
 
-Handoff note, 14 September 2026. Nothing below is built. Everything below is measured.
+Handoff note, 14 September 2026, and the record of what was done with it. Everything below is
+measured. The first of the two requests is built; the second is not.
 
 Two requests are open, and they are the same shape:
 
-1. **Font Awesome's alias names, as search words.** The build drops 683 alias files because
-   they are the same drawing under an older name, which is right — but the names went with
-   them. `vcard` and `contact-card` find nothing today, and the drawing they name is in the
-   bundle as `address-card`.
+1. ~~**Font Awesome's alias names, as search words.**~~ **Built, 14 September 2026.** The build
+   drops 683 alias files because they are the same drawing under an older name, which is right —
+   but the names went with them, so `vcard` and `contact-card` found nothing and the drawing
+   they name sat in the bundle as `address-card`. The names now travel without the files, in
+   `vocabulary.v1.tsv` beside the icons: 579 of them against 479 icons. See **What was decided**
+   below for what a hit on one is worth and why.
 2. **The words the other five sets already ship.** Four of the six publish per-icon tags, and
    the build throws all of them away. This is the question behind "did we drop synonyms for
    some other sets?" — and the answer is that we never picked them up.
@@ -36,15 +39,134 @@ Verified against the pinned versions on 14 September 2026. All five paths exist 
 | Phosphor | `dist/index.mjs` | `tags:` in a JS array literal | 1,512 | 1,512 of 1,512 | 25,512 |
 | Lucide | `tags.json` | `{name: [tags]}` | 1,834 | 1,834 of 1,834 | 15,656 |
 | Solar | `icons.json` aliases, `metadata.json` categories | alias→parent, category→names | 1,268 | 1,267 of 1,288 | 1,603 |
-| **Fluent** | — | **ships none** | — | — | **0** |
+| **Fluent** | ~~—~~ `assets/<Icon Name>/metadata.json` in the repo | ~~**ships none**~~ `metaphor` + `description` | 2,654 | ~2,654 of ~2,933 | 12,926 |
+
+**The Fluent row was wrong, and it was the row everything else hung off.** Corrected
+14 September 2026, after asking rather than assuming. See **Fluent does publish one** below.
 
 Word counts are after splitting phrases and multiplying across the weights each name is
 bundled in. The build already reads Font Awesome's `icon-families.json` and Solar's
 `icons.json`, so two of the five need no new download.
 
+## What was decided
+
+Put to the person whose tool it is, 14 September 2026. Three of the four are settled and the
+alias half is built on them; the fourth is the one still open, and it is the one that decides
+whether the tag half can go in at all.
+
+**An alias is worth exactly what a name is worth — 100, not the synonym band's 15.** Because it
+*is* a name: one Font Awesome published for that drawing and later stopped leading with, not a
+hint about what the drawing looks like. Scoring it lower would have put the icon somebody asked
+for by name below every icon with the word in it somewhere. The consequence, taken knowingly:
+an alias ties with an icon really called that word, and the tie breaks on the family order, the
+same rule that already settles two icons of one name. `contact card` still leads with Fluent's
+`contact_card`; Font Awesome's `address-card` is in the grid beside it, which it was not before.
+
+**Tags will not seed.** `SeedFor` keeps its two-rule test — a word some icon is literally called,
+or a curated synonym in `Synonyms`. The seeding fixture exists because a looser rule gave
+confident wrong answers in a box nobody filled in, and tags are looser than the rule that was
+already caught being wrong. Aliases are not exempted from this either: `WorthSeeding` was not
+touched, and nothing in the alias half changed what any of the 162 standard tables seeds.
+
+**Tabler's tags go in first**, when the tag half is built: 66,254 words, half the whole
+vocabulary, and so the worst case for the latency problem below. If search keeps up with Tabler
+in it, nothing left can surprise us.
+
+**Fluent's asymmetry was researched rather than guessed at, and it turned out not to be one.**
+The question asked first was whether a keyword vocabulary for Fluent already exists that an MIT
+DLL can carry. It does, and it is Microsoft's own. See below.
+
+## Fluent does publish one
+
+Measured 14 September 2026. This is the correction that matters most in this document, because
+every option in the section below was an answer to a premise that is false.
+
+Microsoft ships a per-icon vocabulary in `microsoft/fluentui-system-icons`, one
+`assets/<Icon Name>/metadata.json` per icon family:
+
+```json
+{
+  "name": "Shield",
+  "size": [24, 20, 16, 28, 32, 48],
+  "style": ["Regular", "Filled"],
+  "keyword": "fluent-icon",
+  "description": "Used to represent security, safety & protection.",
+  "metaphor": ["security", "protection", "safety"]
+}
+```
+
+- **2,654 files** across 2,989 asset folders, 88.8%. Against the ~2,933 names this bundle draws,
+  that is about nine icons in ten.
+- **2,604** carry a non-empty `metaphor`; **2,601** carry at least one word that is not already
+  in the icon's own name. 12,926 term instances, 1,458 distinct, about 5 an icon.
+- **MIT**, under the repository's own `LICENSE`, Copyright (c) 2020 Microsoft Corporation. The
+  same licence the drawings already ship under, so it adds no obligation the bundle does not
+  already carry.
+- `Cloud` → storage, upload, download, save, sync. `Key` → security, lock, password, access,
+  keychain. `Person` → human, patient, contact, guest, avatar, people. These are the Dataverse
+  words the curated `Synonyms` map exists to supply, coming from the set that drew the icon.
+
+Four things to know before building on it.
+
+**No package ships it.** Not `@fluentui/svg-icons` — which carries 21,682 SVGs and no JSON at
+all, by two deliberate exclusions in its `package.json` — nor `@fluentui/react-icons`, whose
+only JSON is font codepoints. Issue #788 on the repo, opened by a Microsoft member in December
+2024 and still open, asks for exactly this to be packaged and says of Microsoft's own catalogue
+that it "can only currently search by exact name". So `build-catalog.ps1` cannot fetch this the
+way it fetches everything else. A sparse clone is the route:
+
+```
+git clone --depth 1 --filter=blob:none --sparse https://github.com/microsoft/fluentui-system-icons.git
+git sparse-checkout set --no-cone '/assets/*/metadata.json'
+```
+
+That is a second kind of source in a script whose whole shape is "one npm package per family",
+and it is the first thing to think about rather than the last.
+
+**It is December 2024 vintage.** Two bulk commits added it — PR #618 in July 2023 and PR #778 in
+December 2024 — and nothing since. The 335 folders without it skew to icons added after that:
+`agents`, `autopilot`, `auto_fit`, the `battery_charge_N` family.
+
+**The data is uneven.** Case is inconsistent (`Access Time` → `["number", "24", "Circle"]`),
+arrays hold duplicates (`Lock Closed` names `access` twice), and a minority of terms describe
+the shape rather than the meaning. Fold case and deduplicate.
+
+**`keyword` is not a search word.** It is which Microsoft product the icon belongs to —
+`fluent-icon` on 2,604, then `teams` 227, `outlook` 177, `excel` 81. Do not read it as one.
+
+One measurement worth keeping, because it says what *not* to do. Joining the other five sets'
+tag files onto Fluent's names by exact name reaches only about 20% of them, however many sets
+are pooled — and the words that never join are the structural modifiers Fluent's names are full
+of: `arrow`, `right`, `off`, `left`, `multiple`, `down`, `up`, `checkmark`, `dismiss`, `align`,
+`ltr`, `rtl`, `panel`. Only about a third of Fluent's names have every token covered. So
+borrowing another set's words for Fluent was never going to work; Microsoft's own file is not
+merely the better option, it is the only one that covers the set.
+
+Two sources were checked and must not be used. RemixIcon's own licence (v1.0, January 2026)
+defines the licensed work to include "related assets" — which takes in its `tags.json` — and
+then forbids use "to create, distribute, or sell a competing icon library or icon set", which
+is arguably this. And the academic icon datasets are share-alike or non-commercial:
+`rico_semantics` is CC BY-SA 4.0, IconQA and Icon645 are CC BY-NC-SA. Google's Material tag
+data is a maybe rather than a yes — it is not in the Apache-2.0 repository at all, only behind
+an undocumented `fonts.google.com/metadata/icons` endpoint that carries no licence statement of
+its own, and the only thing tying the two together is that an Apache-2.0 script in that repo
+names the endpoint. That is the shape of mistake this project has made once already, with
+Solar's licence read off a third party's wrapper package.
+
+The other thing the search turned up, worth recording but not decided: `search-alias.ts` in
+`antfu-collective/icones` is 52 synonym groups over 159 terms, MIT, applied to the *query*
+rather than to an icon — the same shape as our own `Synonyms` and generic where ours is
+Dataverse's. 39 of its 52 groups bridge a word to one Fluent already uses. Nobody has built a
+per-icon keyword set for Fluent outside Microsoft: Iconify's `@iconify-json/fluent` carries 490
+aliases and no tags, and its search index is built from name chunks, which is why asking it for
+`trash` in Fluent returns nothing.
+
 ## The four things to decide before writing code
 
-**Fluent has no vocabulary, and Fluent wins every tie.** `IconSearch.Rank` breaks a tie on the
+**Fluent has no vocabulary, and Fluent wins every tie.** *(The first half of this is false — see
+**Fluent does publish one** above. The rest of the paragraph is still the right worry, and the
+answer to it is now that Fluent goes in first rather than that the others are held back.)*
+`IconSearch.Rank` breaks a tie on the
 family enum ordinal, and Fluent is first — deliberately, so that Fluent leads each band of
 equal relevance rather than losing its own grid to whichever family writes shortest names.
 Give the other five families 129,399 extra words and Fluent stops leading, because the others
@@ -83,17 +205,40 @@ Ask before letting them in.
   once per weight, so deduplicate, and they are broad enough (`arrows`, `messages`) to be
   close to noise.
 - **Font Awesome** `search.terms` include the spelled-out digits — `3` answers to *triad*,
-  *trio*, *numeral three*. Fine, but it is where the 20,374 comes from.
+  *trio*, *numeral three*. Fine, but it is where the 20,374 comes from. Take them from
+  `metadata/icons.yml` rather than from `metadata/icon-families.json`, which is where the build
+  reads the alias names today. The two carry the same terms, but `icon-families.json` also
+  embeds every icon's raw SVG path data, which puts the file astride Font Awesome's own licence
+  split: MIT covers "all non-font and non-icon files", CC BY 4.0 covers the icons as SVG.
+  `icons.yml` holds no path data at all and is unambiguously the MIT half. This does not reach
+  back to the aliases already bundled — a name is not a drawing, and Font Awesome's icons are
+  credited on the attribution page regardless — but for a file read only for its words there is
+  no reason to read the one with the drawings in it.
 - `4k-linear` is both a real Solar icon and, in its other weights, an alias of `four-k`.
   Upstream is inconsistent about it; the build already handles it and bundles `4k`.
 
-## Where it would live
+## Where it lives
 
-The archive is `<family>/<weight>/<name>.svg` plus `ABOUT.txt` plus `drawings.v2.tsv`.
-`IconCatalog.Read` returns null for any path that is not three parts ending `.svg`, so a new
-sidecar is skipped by an older build rather than breaking it — `drawings.v2.tsv` is the
-precedent for the versioned name. Keyed by `<family>/<name>`, not by entry path, for the
-reason above.
+Built as `vocabulary.v1.tsv` in the archive, beside `ABOUT.txt` and `drawings.v2.tsv`.
+`IconCatalog.Read` returns null for any path that is not three parts ending `.svg`, so it is
+skipped by an older build rather than breaking it, and `drawings.v2.tsv` is the precedent for
+the versioned name. Keyed by `<family>/<name>` and not by entry path, so the three weights
+Phosphor draws one icon in share one list rather than hold a copy each.
+
+One line per icon, tab separated: a kind, the key, then the words.
+
+    alias⇥fontawesome/address-card⇥contact-card⇥vcard
+
+The kind column is there for the tag half — tags are worth a different score from aliases and
+have to be told apart, and a line of a kind the reader does not know is skipped rather than
+refused. So is a line naming an icon the bundle does not hold, which is the opposite of what
+the drawing index does with the same situation and deliberately so: a stale fingerprint is a
+confident wrong answer, a stale name is a word nothing ever matches. The build writes no such
+line and a test says so, because an alias the bundle cannot show is dead weight that reads
+like coverage.
+
+The entry is named by `IconCatalog.VocabularyEntryName` and the build script asks the reader
+for it rather than spelling it again, the way `index-catalog.ps1` asks for the index's name.
 
 ## Tests that will have an opinion
 
@@ -107,3 +252,25 @@ the shared-drawing bound at 355 and is not affected: this changes names, not dra
 Aliases first — it is small, it is the thing that was actually lost, and it puts the plumbing
 in. Then one family's tags, measured for latency before the other four. Fluent's asymmetry is
 worth settling before the full set goes in, not after.
+
+## What is left
+
+The plumbing is in: a sidecar in the archive, a reader that skips what it cannot place, words
+kept apart from `IconEntry.Words`, and `AliasTests` holding all of it. What remains is the
+second request, in this order:
+
+1. **Fluent's own `metaphor` words, first of all six.** Settled: they exist, they are MIT, and
+   they are about five words on nine icons in ten. Doing Fluent first turns the whole asymmetry
+   round — instead of holding five families back to protect a sixth that cannot score, the
+   family that leads every tie is the one that gets words first, and the others are measured
+   against a Fluent that can already answer. The work is a new kind of source in the build
+   script: a sparse git clone, not an npm package.
+2. Tabler's tags, through the same sidecar under a `tag` kind, with a latency measurement
+   before and after. Today's figures to beat: 7 ms for a normal query, 12 ms for a single
+   letter, over 21,698 icons at 2.18 words each.
+3. The other four families, if the measurement allows it.
+
+Two things to carry into that work. Scoring is the whole of it — an alias earned 100 because it
+is a name; a tag is a description and must not be worth the same, or `roledex` will outrank
+what people are actually looking at. And `ScoreTerm` now runs a `Ladder` over two arrays, so a
+third is one more call rather than another copy of the ladder.

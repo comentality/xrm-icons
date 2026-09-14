@@ -179,12 +179,26 @@
 - [x] Smooth the UX overall — fewer clicks to get an icon assigned. The table seeds the search,
       Enter reaches the results, a filter of one table is that table, a finished write reports on
       the status line rather than in a dialog, and applying lands on the next table waiting.
-- [ ] Give an icon the words it already answers to upstream. Two halves, both open, and
+- [ ] Give an icon the words it already answers to upstream. Two halves, the first one done, and
       `docs/search-vocabulary.md` is the brief — sources, counts, traps and the order to do them
-      in. The first half is a debt: the build drops 683 Font Awesome alias files because they are
-      one drawing under several names, which is right, but the names went with them, so `vcard`
-      finds nothing and the drawing it names sits in the bundle as `address-card`. The second is
-      the larger question behind it. Four of the six sets publish per-icon tags — Tabler 66,254
+      in. The first half was a debt and was paid on 14 September 2026: the build drops 683 Font
+      Awesome alias files because they are one drawing under several names, which is right, but
+      the names went with them, so `vcard` found nothing and the drawing it names sat in the
+      bundle as `address-card`. The names now travel without the files, in a `vocabulary.v1.tsv`
+      the archive carries beside its icons — 579 of them against 479 icons, keyed by family and
+      name so the weights share one list, with a kind column so the tags can land in the same
+      file under a different score.
+      A hit on one is worth 100, the same as the icon's own name, because that is what it is: a
+      name the set published and later stopped leading with, not a hint about the drawing the way
+      a synonym is. The consequence was taken knowingly rather than worked around - an alias ties
+      with an icon really called that word, and the tie breaks on the family order, which is the
+      rule that already settles two icons of one name. `contact card` still leads with Fluent's
+      `contact_card`. The words are kept out of `IconEntry.Words`, which would have put them in
+      the grid label and charged every icon carrying them for words no query accounted for.
+      Nothing seeds on them: `WorthSeeding` was not touched, and no standard table's suggestion
+      moved.
+      The second is the larger question behind it, and is still open.
+      Four of the six sets publish per-icon tags — Tabler 66,254
       words, Phosphor 25,512, Font Awesome 20,374, Lucide 15,656, Solar a thin 1,603 — and the
       build has never read any of them. Fluent publishes none, which is the part to settle first
       rather than last: Fluent leads every tie in `IconSearch.Rank` by the enum order, on purpose,
@@ -193,3 +207,23 @@
       go into `IconEntry.Words` without corrupting every display name and penalising every icon
       that carries them, and that search is 7 ms a keystroke across the whole library today at
       2.18 words an icon — this is 5.96 more.
+      Fluent's asymmetry was researched rather than guessed at on 14 September 2026, and it is
+      not one: Fluent publishes a per-icon vocabulary after all. Not in the npm package this
+      build fetches, which carries 21,682 SVGs and no JSON at all - in the repository, one
+      `assets/<Icon Name>/metadata.json` an icon, with a `metaphor` array of about five words.
+      2,654 of them against 2,989 asset folders, so about nine in ten of the names bundled here;
+      2,601 carry a word that is not already in the icon's own name; 12,926 terms, 1,458
+      distinct. MIT, the same licence the drawings come under. `Cloud` answers to storage,
+      upload, download, save, sync - which is the sort of thing `Synonyms` was hand-written to
+      supply. So the order turns round: Fluent goes first rather than being protected, and the
+      other five are measured against a Fluent that can already answer. Then Tabler alone, being
+      half the remaining vocabulary and so the worst case for the latency, measured before and
+      after; then the other four if the measurement allows it. Two things to carry in. A tag
+      must not be worth what an alias is worth - an alias is a name, a tag is a description, and
+      100 for a description would put `roledex` above what somebody is actually looking at. And
+      Fluent's file cannot be fetched the way every other source here is: no package ships it
+      (issue #788 on the repo asks for one and is open), so it needs a sparse clone, which is a
+      second kind of source in a script whose whole shape is one npm package a family.
+      `docs/search-vocabulary.md` has the numbers, the traps - the data is December 2024 vintage,
+      case-inconsistent and holds duplicates, and its `keyword` field is which Microsoft product
+      the icon belongs to rather than a search word - and what else the search turned up.
