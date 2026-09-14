@@ -10,6 +10,16 @@ its own.
 
   ![Picking Invoice searches the library for the invoice](https://raw.githubusercontent.com/comentality/xrm-icons/main/docs/images/release/search-follows-the-table.png)
 
+- **Solar joins the library: 1,402 more icons, and the sixth family.** 21,698 icons in all. Solar is drawn with corner smoothing turned all the way up, which gives it a rounder, softer line than anything else bundled — and it is CC BY 4.0, so like Font Awesome it is credited on the attribution page the tool writes beside your icons, and one of its icons is not put on a table unless that page goes with it.
+
+  ![Solar icons from the bundle](https://raw.githubusercontent.com/comentality/xrm-icons/main/docs/images/release/solar.png)
+
+- Solar draws every icon six ways and two of them are bundled: `linear` whole, and `outline` only where it draws something its `linear` does not. They are the same outline stroked and filled, so no comparison of the files would ever match them — but rendered, 1,146 of the 1,273 drawings that exist in both share more than 95% of their ink. Taking both as they come would have offered the same picture twice in the grid and, because the tool recognises a stored icon by what it draws, cost many of them their name. The number of drawings this bundle holds under more than one name is 355, exactly what it was before Solar went in.
+
+- Solar is also the one set that is not its author's own files: 480 Design publish it as a Figma community file rather than as SVGs, so what is bundled is Iconify's rendition. That is a change of hand rather than of drawing, which CC BY asks be indicated — it is recorded on every Solar icon the tool stores. Eighteen of its icons are left out because this renderer cannot draw them: a mask, a transform, or a zero-length line meant to come out as a dot under a round cap.
+
+- **Shapes that punch their holes with the even-odd rule now come out right.** The renderer filled everything nonzero, which for a set that draws both rings of a hole the same way round means no hole at all — a calendar comes back a black rectangle, a building loses its windows. Nothing that shipped before this was affected: not one of the 20,296 icons in the previous bundle asks for even-odd. Solar's outline style asks for it 1,202 times.
+
 - **Font Awesome Free is bundled: 1,591 more icons, and the first set whose licence asks for a credit line.** The library is five families and 20,296 icons. Font Awesome's are CC BY 4.0, which wants attribution wherever the drawings go and changes indicated — so `ATTRIBUTION.html` stops being a courtesy for these and becomes the condition of the icon: pick one and the library says so under the preview, naming the licence and the page it will write, and an apply that cannot write that page does not put the icon on the table. Four of the five sets still carry no obligation of their own; what changed is that the fifth's lands on a page in your solution rather than on you.
 
   ![What the library says when you pick a Font Awesome icon](https://raw.githubusercontent.com/comentality/xrm-icons/main/docs/images/release/credit-line.png)
