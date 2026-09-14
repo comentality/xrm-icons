@@ -10,6 +10,14 @@ its own.
 
   ![Picking Invoice searches the library for the invoice](https://raw.githubusercontent.com/comentality/xrm-icons/main/docs/images/release/search-follows-the-table.png)
 
+- **Font Awesome Free is bundled: 1,591 more icons, and the first set whose licence asks for a credit line.** The library is five families and 20,296 icons. Font Awesome's are CC BY 4.0, which wants attribution wherever the drawings go and changes indicated — so `ATTRIBUTION.html` stops being a courtesy for these and becomes the condition of the icon: pick one and the library says so under the preview, naming the licence and the page it will write, and an apply that cannot write that page does not put the icon on the table. Four of the five sets still carry no obligation of their own; what changed is that the fifth's lands on a page in your solution rather than on you.
+
+  ![What the library says when you pick a Font Awesome icon](https://raw.githubusercontent.com/comentality/xrm-icons/main/docs/images/release/credit-line.png)
+
+- Font Awesome ships every name it has ever used, so `address-card` arrives again as `contact-card` and as `vcard`. Those 683 alias files are left out at bundle time, because the tool recognises a stored icon by what it draws, and a drawing under three names is recognised as none of them — taking the set as it comes would have cost 1,255 of its icons their name and offered the same picture three times in the grid. Its brands weight, 609 company logos, is left out too. It is also the one set not drawn square, and is bundled at the width it was drawn rather than padded out to match the other four.
+
+- Solar was measured alongside it and refused. Iconify lists it CC BY 4.0; its author ships it on npm as GPL-3.0. Upstream's own distribution is the one that counts, and an ambiguous licence is worse than a restrictive one for a drawing written into a customer's environment.
+
 - **The warning line under the preview now reads to the end, instead of stopping mid-word at the edge of the pane.** It has been cut off since it was written: a label that sizes itself measures its text as one line, and docking then handed it the pane’s width and drew the first line of it. The one that says a name is under another publisher’s prefix — the longest thing it had to say, and the one it was most worth reading — stopped at “A web resource of th”. It now wraps to as many lines as the sentence takes, re-measured when the pane is dragged narrower. Those lines come out of the preview above rather than off the bottom of the form: the line moved inside the pane that scrolls, so a warning long enough to crowd the form is scrolled to along with it rather than pinned over a form squeezed to make room.
 
   ![The whole of the prefix warning](https://raw.githubusercontent.com/comentality/xrm-icons/main/docs/images/release/warning-reads-whole.png)
