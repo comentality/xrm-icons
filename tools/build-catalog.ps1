@@ -33,7 +33,9 @@
     the renderer fits and centres a viewBox rather than stretching it, and padding one to
     square would be changing the drawing to make it look like the other four.
 
-    The archive layout is <family>/<weight>/<name>.svg plus one ABOUT.txt, and nothing else.
+    The archive layout is <family>/<weight>/<name>.svg plus one ABOUT.txt, one vocabulary
+    of the words an icon answers to besides its own name, and the drawing index that
+    index-catalog.ps1 writes after this script has run. Nothing else.
     Weight is the family's own word for it, not a normalised one: Phosphor's fill and Tabler's
     filled are the same idea, but a person reading "phosphor/fill" should find it where
     Phosphor says it is. The reader maps those words onto its own two-way filter.
@@ -128,8 +130,8 @@ $expected = [ordered]@{
     "tabler/filled"    = 1054
     "fontawesome/solid"   = 1422
     "fontawesome/regular" = 169
-    "solar/linear"        = 1267
-    "solar/outline"       = 127
+    "solar/linear"        = 1266
+    "solar/outline"       = 136
 }
 
 # ---------------------------------------------------------------------------------------------
@@ -476,10 +478,24 @@ try {
     # the tool recognises a stored icon by what it draws - a drawing under more than one name
     # can be recognised as none of them. The package says which name is the real one, so that
     # is what is asked.
+    #
+    # It also keeps the names it dropped. An alias is a name Font Awesome published for this
+    # drawing and later stopped leading with, and it is still what a good many people call the
+    # thing - the set answers to vcard, and after the file goes the bundle does not. So the
+    # names travel on without the files, in the vocabulary the archive carries beside its
+    # icons, and search treats one as worth exactly what the real name is worth.
     $families = Get-Content (Join-Path $fontAwesomeRoot "metadata\icon-families.json") -Raw -Encoding UTF8 | ConvertFrom-Json
     $aliases = [System.Collections.Generic.HashSet[string]]::new([StringComparer]::OrdinalIgnoreCase)
+    $aliasesOf = @{}
     foreach ($icon in $families.PSObject.Properties) {
-        foreach ($alias in $icon.Value.aliases.names) { [void]$aliases.Add($alias) }
+        # Asked in two steps rather than one. @($icon.Value.aliases.names) on an icon that has
+        # no aliases node is not an empty array - it is an array holding one $null, which
+        # writes a line with an empty word on it for every icon in the set.
+        if (-not $icon.Value.aliases) { continue }
+        $names = @($icon.Value.aliases.names | Where-Object { $_ })
+        if ($names.Count -eq 0) { continue }
+        foreach ($alias in $names) { [void]$aliases.Add($alias) }
+        $aliasesOf[$icon.Name] = $names
     }
     if ($aliases.Count -eq 0) { throw "No aliases found in the Font Awesome metadata - has its shape changed?" }
 
@@ -603,6 +619,43 @@ try {
             try { $writer.Write($svg.Text) } finally { $writer.Dispose() }
         }
 
+        # --- Vocabulary -------------------------------------------------------------------
+        # The words an icon answers to besides its own name, one line per icon: a kind, a
+        # family and name, then the words. Keyed by name rather than by entry path because
+        # the words belong to the drawing, not to the weight it happens to be drawn in - so
+        # the three weights Phosphor draws one icon in would share one line rather than hold
+        # three copies of it.
+        #
+        # Only Font Awesome has any today, and only its aliases: the names it ships as
+        # separate files for one drawing, which this script drops and which would otherwise
+        # be lost with them. A name naming an icon that did not make it into the archive is
+        # not written - an alias the bundle cannot show is dead weight that reads like
+        # coverage, and the reader would skip it anyway. The entry is named by the reader
+        # rather than spelled again here, the way index-catalog.ps1 names the drawing index.
+        $bundled = [System.Collections.Generic.HashSet[string]]::new([StringComparer]::OrdinalIgnoreCase)
+        foreach ($record in $records) {
+            $parts = $record.Entry.Split('/')
+            [void]$bundled.Add($parts[0] + "/" + [System.IO.Path]::GetFileNameWithoutExtension($parts[2]))
+        }
+
+        $vocabulary = New-Object System.Text.StringBuilder
+        $vocabularyWords = 0
+        $vocabularyIcons = 0
+        $vocabularyDropped = 0
+        foreach ($name in $aliasesOf.Keys | Sort-Object) {
+            $key = "fontawesome/$name"
+            if (-not $bundled.Contains($key)) { $vocabularyDropped++; continue }
+
+            [void]$vocabulary.Append("alias`t").Append($key)
+            foreach ($alias in $aliasesOf[$name]) { [void]$vocabulary.Append("`t").Append($alias); $vocabularyWords++ }
+            [void]$vocabulary.Append("`n")
+            $vocabularyIcons++
+        }
+
+        $entry = $zip.CreateEntry([Icons.Catalog.IconCatalog]::VocabularyEntryName, [System.IO.Compression.CompressionLevel]::Optimal)
+        $writer = New-Object System.IO.StreamWriter($entry.Open(), (New-Object System.Text.UTF8Encoding($false)))
+        try { $writer.Write($vocabulary.ToString()) } finally { $writer.Dispose() }
+
         # Provenance travels with the icons. The tool shows this in its About box, and a bundle
         # that cannot say where it came from or under what terms is a liability. Each block names
         # the package actually resolved at build time and what this script changed about it.
@@ -701,7 +754,7 @@ than bundled blank. Contents otherwise unmodified.
     # question worth answering is what is in the archive.
     $check = [System.IO.Compression.ZipFile]::OpenRead($out)
     try {
-        $furniture = @("ABOUT.txt") + @($check.Entries | Where-Object { $_.FullName -like "drawings.v*.tsv" } | ForEach-Object { $_.FullName })
+        $furniture = @("ABOUT.txt", [Icons.Catalog.IconCatalog]::VocabularyEntryName) + @($check.Entries | Where-Object { $_.FullName -like "drawings.v*.tsv" } | ForEach-Object { $_.FullName })
         $svgs = $check.Entries | Where-Object { $furniture -notcontains $_.FullName }
         $stray = $svgs | Where-Object { $_.FullName -notmatch '^(fluent|phosphor|lucide|tabler|fontawesome|solar)/[a-z]+/[^/]+\.svg$' }
         if ($stray) { throw "Unexpected entries: $(($stray | Select-Object -First 5 -ExpandProperty FullName) -join ', ')" }
@@ -724,6 +777,8 @@ than bundled blank. Contents otherwise unmodified.
     foreach ($family in $classHits.Keys | Sort-Object) { Write-Host "Removed a class attribute from $($classHits[$family]) $family icons" }
     foreach ($family in $backdropHits.Keys | Sort-Object) { Write-Host "Removed the backdrop rectangle from $($backdropHits[$family]) $family icons" }
     Write-Host "Left out $aliasHits fontawesome files that are another icon under an older name"
+    Write-Host "Kept $vocabularyWords of those names as search words, against $vocabularyIcons icons"
+    if ($vocabularyDropped -gt 0) { Write-Host "Left out the names of $vocabularyDropped icons this bundle does not carry" }
     Write-Host "Left out $solarSame solar outline icons that draw what their linear already draws"
     Write-Host "Left out $solarUndrawable solar icons this renderer cannot draw"
     if ($backdropMisses -gt 0) { Write-Warning "$backdropMisses Tabler icons did not have exactly one backdrop rectangle" }

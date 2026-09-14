@@ -292,21 +292,52 @@ namespace Icons.Catalog
             return Math.Max(total, 1);
         }
 
-        private static int ScoreTerm(IconEntry icon, string term)
+        /// <summary>
+        /// The best any of these words does against one term: named exactly, named as a prefix,
+        /// or merely containing it. Never below <paramref name="floor"/>, which is what some
+        /// other set of words already scored.
+        /// </summary>
+        private static int Ladder(string[] words, string term, int floor)
         {
-            var best = 0;
+            var best = floor;
 
-            foreach (var word in icon.Words)
+            foreach (var word in words)
             {
                 if (string.Equals(word, term, StringComparison.OrdinalIgnoreCase)) best = Math.Max(best, 100);
                 else if (word.StartsWith(term, StringComparison.OrdinalIgnoreCase)) best = Math.Max(best, 60);
                 else if (word.IndexOf(term, StringComparison.OrdinalIgnoreCase) >= 0) best = Math.Max(best, 30);
             }
 
+            return best;
+        }
+
+        /// <summary>A name with its separators taken out: arrow_trending_lines as arrowtrendinglines.</summary>
+        private static string Squashed(string name)
+        {
+            return name.Replace("_", "").Replace("-", "");
+        }
+
+        private static int ScoreTerm(IconEntry icon, string term)
+        {
+            var best = Ladder(icon.Words, term, 0);
+
+            // An alias is worth exactly what the name is worth, because it is a name: one the
+            // set published for this same drawing and later stopped leading with. Font Awesome
+            // ships address-card as contact-card and as vcard too, and the bundle keeps one
+            // file per drawing - so without this, the two names the set still answers to find
+            // nothing here, and the picture they name sits in the grid under a third word.
+            if (best < 100) best = Ladder(icon.AliasWords, term, best);
+
             // A term that spans the separators, so "arrowtrending" and "arrow trending" agree,
             // and "shoppingcart" finds shopping-cart.
-            if (best == 0 && icon.Name.Replace("_", "").Replace("-", "").IndexOf(term, StringComparison.OrdinalIgnoreCase) >= 0)
+            if (best == 0 && Squashed(icon.Name).IndexOf(term, StringComparison.OrdinalIgnoreCase) >= 0)
                 best = 20;
+
+            if (best == 0)
+            {
+                foreach (var alias in icon.Aliases)
+                    if (Squashed(alias).IndexOf(term, StringComparison.OrdinalIgnoreCase) >= 0) { best = 20; break; }
+            }
 
             // Only when the icon says nothing about the word itself. A synonym hit is a hint, not
             // a match, and must never outrank the icon actually called that.

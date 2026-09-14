@@ -38,7 +38,9 @@ namespace Icons.Tests
         /// Standard tables across sales, service, marketing, field service and the customisation
         /// surface, plus the business nouns custom tables are usually named after.
         /// </summary>
-        private static readonly string[] StandardTables =
+        /// <remarks>AliasTests reads this too, to say that no table here changed its mind
+        /// when the upstream names arrived.</remarks>
+        internal static readonly string[] StandardTables =
         {
             "Account", "Contact", "Lead", "Opportunity", "Quote", "Order", "Invoice", "Product",
             "Price List", "Price List Item", "Discount", "Discount List", "Unit", "Unit Group",

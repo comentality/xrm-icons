@@ -35,6 +35,11 @@ resources, update table definitions and publish customisations.
   Dataverse names tables after what they mean. Searching for `account` finds the buildings and briefcases,
   `contact` finds the people, `appointment` finds the calendars, `case` finds the headsets. An
   icon actually named for your word still wins; the mapping only fills in where nothing is.
+- **The names a set has retired still work** — Font Awesome ships every name it has ever used,
+  so the card it now calls `address-card` used to be `contact-card` and `vcard`. The library
+  holds one drawing per icon rather than the same picture three times, but it kept the names:
+  579 of them, and searching for one finds the icon it named. A name is worth what a name is
+  worth, so where something in the library really is called your word, that icon still leads.
 - **The table you pick asks for you** — choosing a table puts its own word in the search box, so
   the grid is showing buildings by the time you look at it. A two-word table falls back to the
   word the library knows — *Sales Order* searches for the order, *Hierarchy Rule* for the

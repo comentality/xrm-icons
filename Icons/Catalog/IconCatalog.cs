@@ -86,10 +86,12 @@ namespace Icons.Catalog
 
             var archive = new ZipArchive(new MemoryStream(bytes, writable: false), ZipArchiveMode.Read);
 
+            var vocabulary = ReadVocabulary(archive);
+
             var icons = new List<IconEntry>(archive.Entries.Count);
             foreach (var entry in archive.Entries)
             {
-                var icon = Read(entry.FullName);
+                var icon = Read(entry.FullName, vocabulary);
                 if (icon != null) icons.Add(icon);
             }
 
@@ -111,7 +113,7 @@ namespace Icons.Catalog
         /// file, or a folder this build of the tool knows nothing about. Unknown is skipped
         /// rather than refused, so an archive built by a later script still opens.
         /// </summary>
-        private static IconEntry Read(string path)
+        private static IconEntry Read(string path, Dictionary<string, string[]> vocabulary)
         {
             if (!path.EndsWith(".svg", StringComparison.OrdinalIgnoreCase)) return null;
 
@@ -127,7 +129,63 @@ namespace Icons.Catalog
             var name = parts[2].Substring(0, parts[2].Length - 4);
             if (name.Length == 0) return null;
 
-            return new IconEntry(family, name, weight, StyleOf(weight));
+            // Keyed by family and name rather than by this path, so that the three weights
+            // Phosphor draws one icon in share one list rather than hold three copies of it.
+            string[] aliases;
+            vocabulary.TryGetValue(parts[0] + "/" + name, out aliases);
+
+            return new IconEntry(family, name, weight, StyleOf(weight), aliases);
+        }
+
+        /// <summary>
+        /// What the extra words are called inside the archive.
+        /// </summary>
+        public static string VocabularyEntryName
+        {
+            get { return "vocabulary.v1.tsv"; }
+        }
+
+        /// <summary>
+        /// The extra words the bundle carries for its icons, keyed by family and name, or an
+        /// empty map when it carries none - which is what every bundle built before this file
+        /// existed carries, and is not an error.
+        ///
+        /// Each line is a kind, a key, and the words: <c>alias{TAB}fontawesome/address-card{TAB}contact-card{TAB}vcard</c>.
+        /// A line of a kind this build does not know is skipped rather than refused, and so is
+        /// a key naming an icon this bundle does not hold - the opposite of what the drawing
+        /// index does with the same situation, and deliberately so. A stale fingerprint is a
+        /// wrong answer given confidently; a stale name is a word nothing ever matches.
+        /// </summary>
+        private static Dictionary<string, string[]> ReadVocabulary(ZipArchive archive)
+        {
+            var vocabulary = new Dictionary<string, string[]>(StringComparer.OrdinalIgnoreCase);
+
+            string text;
+            try
+            {
+                text = ReadTextEntry(archive, VocabularyEntryName);
+            }
+            catch (IOException)
+            {
+                return vocabulary;
+            }
+
+            if (text == null) return vocabulary;
+
+            foreach (var line in text.Split('\n'))
+            {
+                var fields = line.TrimEnd('\r').Split('\t');
+                if (fields.Length < 3) continue;
+                if (!string.Equals(fields[0], "alias", StringComparison.Ordinal)) continue;
+
+                var words = new List<string>(fields.Length - 2);
+                for (var i = 2; i < fields.Length; i++)
+                    if (fields[i].Length > 0) words.Add(fields[i]);
+
+                if (words.Count > 0) vocabulary[fields[1]] = words.ToArray();
+            }
+
+            return vocabulary;
         }
 
         private static bool TryFamily(string folder, out IconFamily family)
