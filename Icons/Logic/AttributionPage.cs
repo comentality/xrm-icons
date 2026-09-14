@@ -26,9 +26,9 @@ namespace Icons.Logic
     ///
     /// Every icon this tool writes carries its own provenance, and this turns a folder of them
     /// back into one page: who drew each icon, under what licence, and what was done to it.
-    /// For the four families bundled today it is a courtesy - their licences ask only that the
-    /// notice travel with the software, which <c>ABOUT.txt</c> in the bundle is. For a set
-    /// licensed CC BY it is the obligation itself, and the licence says attribution may be
+    /// For the four sets under MIT and ISC it is a courtesy - their licences ask only that the
+    /// notice travel with the software, which <c>ABOUT.txt</c> in the bundle is. For Font
+    /// Awesome it is the obligation itself, and the licence says attribution may be
     /// given "in any reasonable manner based on the medium", naming a link to a resource
     /// holding the information as its own example. A web resource has a URI, so this is that
     /// link rather than a file nobody can reach.

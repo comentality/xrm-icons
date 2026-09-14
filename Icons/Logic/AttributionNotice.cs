@@ -6,12 +6,13 @@ namespace Icons.Logic
     /// What a licence that asks for a credit line means for somebody about to use one of its
     /// drawings, in words.
     ///
-    /// The page this talks about is written beside every icon regardless - for the four families
-    /// bundled today it is a courtesy, and a courtesy is not worth a warning line. This is for
-    /// the set whose licence makes it the condition of using the drawing at all: there the extra
-    /// web resource is not a nicety the tool threw in, it is the thing that makes the icon usable,
-    /// and refusing to write it refuses the icon. Somebody should learn that from the library
-    /// while they are still choosing, not from the confirmation they open already decided.
+    /// The page this talks about is written beside every icon regardless - for the four sets
+    /// under MIT and ISC it is a courtesy, and a courtesy is not worth a warning line. This is
+    /// for Font Awesome, whose licence makes it the condition of using the drawing at all: there
+    /// the extra web resource is not a nicety the tool threw in, it is the thing that makes the
+    /// icon usable, and refusing to write it refuses the icon. Somebody should learn that from
+    /// the library while they are still choosing, not from the confirmation they open already
+    /// decided.
     ///
     /// It is here rather than in the window because a sentence that carries a licence obligation
     /// is worth being able to test.

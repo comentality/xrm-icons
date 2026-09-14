@@ -192,54 +192,48 @@ namespace Icons.UiHarness
 
 
         /// <summary>
-        /// A set whose licence asks for a credit line, and what the window says about it while
-        /// somebody is still choosing.
-
-        /// No bundled family asks for one, so the licence lookup is a field and this puts a set
-        /// that does ask through it. Two things are being checked and the second is the one that
-        /// breaks: that the sentence is there at all, and that the longest line this window can
-        /// show - it is three times the length of any other concern - still fits the pane it has
-        /// to grow.
+        /// The one bundled set whose licence asks for a credit line, and what the window says
+        /// about it while somebody is still choosing.
+        ///
+        /// Two things are checked and the second is the one that breaks: that the sentence is
+        /// there at all, and that the longest line this window can show still leaves the form
+        /// whole in the pane it has to share.
         /// </summary>
         private static int CheckCreditLineIsSaidWhileChoosing(IconsControl control, Form form, string outputDir)
         {
             const BindingFlags Private = BindingFlags.Instance | BindingFlags.NonPublic;
 
-            var licences = typeof(IconsControl).GetField("_licences", Private);
             var warningField = typeof(IconsControl).GetField("_warningLabel", Private);
-            if (licences == null || warningField == null)
+            if (warningField == null)
             {
-                Console.WriteLine("FAIL: the licence lookup or the warning line has moved and the harness cannot reach it");
+                Console.WriteLine("FAIL: the warning line has moved and the harness cannot reach it");
                 return 1;
             }
 
-            var asking = new IconLicence(
-                IconFamily.Fluent, "Example Icons", "Someone Else", "CC-BY-4.0",
-                "https://spdx.org/licenses/CC-BY-4.0.html", "https://example.invalid/icons", null, true);
-
-            var real = licences.GetValue(control);
             var search = Find<TextBox>(control, "search");
             var grid = Descendants(control).OfType<ListView>().FirstOrDefault();
             var warning = warningField.GetValue(control) as Label;
+            var familyBox = Descendants(control).OfType<ComboBox>()
+                .FirstOrDefault(c => c.Items.Count > 0 && c.Items[0] as string == "All families");
 
-            if (search == null || grid == null || warning == null)
+            if (search == null || grid == null || warning == null || familyBox == null)
             {
-                Console.WriteLine("FAIL: the search box, the grid and the warning line are not all there");
+                Console.WriteLine("FAIL: the search box, the grid, the family filter and the warning line are not all there");
                 return 1;
             }
 
             var failures = 0;
+            var licence = IconLicence.For(IconFamily.FontAwesome);
 
             try
             {
-                licences.SetValue(control, new Func<IconFamily, IconLicence>(family => asking));
-
-                search.Text = "account";
+                familyBox.SelectedItem = IconFamily.FontAwesome;
+                search.Text = "folder";
                 Pump();
 
                 if (grid.VirtualListSize == 0)
                 {
-                    Console.WriteLine("FAIL: nothing in the grid, so there is no icon to choose");
+                    Console.WriteLine("FAIL: no Font Awesome icon in the grid, so there is none to choose");
                     return 1;
                 }
 
@@ -248,31 +242,27 @@ namespace Icons.UiHarness
                 grid.Focus();
                 Pump();
 
-                if (!warning.Visible || warning.Text.IndexOf("CC-BY-4.0", StringComparison.Ordinal) < 0)
+                if (!warning.Visible || warning.Text.IndexOf(licence.Licence, StringComparison.Ordinal) < 0)
                 {
                     Console.WriteLine("FAIL: choosing an icon that asks for a credit line says " +
                                       (warning.Visible ? warning.Text : "nothing") + " under the grid");
                     failures++;
                 }
-                else if (warning.Text.IndexOf("ATTRIBUTION.html", StringComparison.Ordinal) < 0)
+                else if (warning.Text.IndexOf("ATTRIBUTION.html", StringComparison.Ordinal) < 0
+                         || warning.Text.IndexOf(licence.SetName, StringComparison.Ordinal) < 0)
                 {
-                    Console.WriteLine("FAIL: the line says the licence asks for a credit but never names " +
-                                      "the file that carries it: " + warning.Text);
+                    Console.WriteLine("FAIL: the line says a credit is owed but not by whom or on what: " + warning.Text);
                     failures++;
                 }
                 else
                 {
-                    Console.WriteLine("OK: the library says what the licence asks and what gets written for it");
+                    Console.WriteLine("OK: choosing a Font Awesome icon says what its licence asks and " +
+                                      "what gets written for it");
                 }
 
-                // What the sentence costs, and whether it is being paid. A line of it is a line
-                // of the form pane, so this is the number to watch when the wording changes.
                 Console.WriteLine("The credit line is " + warning.Text.Length + " characters and " +
                                   warning.Height + " pixels tall in a " + warning.Width + " pixel pane");
 
-                // Three lines of warning, and the form still whole under it: the lines come out
-                // of the preview above rather than off the bottom of the form, which is what
-                // moving the label inside the pane that scrolls bought.
                 failures += NoScrollBars(control, "with the credit line showing");
                 failures += NothingIsClipped(control, "with the credit line showing");
                 Shoot(form, outputDir, "13-credit-line");
@@ -293,17 +283,15 @@ namespace Icons.UiHarness
             }
             finally
             {
-                licences.SetValue(control, real);
-
-                // Whatever is chosen now was chosen under a licence this bundle does not have.
                 grid.SelectedIndices.Clear();
+                familyBox.SelectedIndex = 0;
                 search.Text = "";
                 Pump();
             }
 
-            if (warning.Visible && warning.Text.IndexOf("CC-BY-4.0", StringComparison.Ordinal) >= 0)
+            if (warning.Visible && warning.Text.IndexOf(licence.SetName, StringComparison.Ordinal) >= 0)
             {
-                Console.WriteLine("FAIL: the credit line outlived the licence it was about: " + warning.Text);
+                Console.WriteLine("FAIL: the credit line outlived the icon it was about: " + warning.Text);
                 failures++;
             }
 

@@ -274,15 +274,6 @@ namespace Icons
         /// <summary>What is worth knowing about the chosen icon, the solution, and the name.</summary>
         private string _iconConcern;
         private string _licenceConcern;
-
-        /// <summary>
-        /// Where the window asks what a family is licensed under. A field rather than three
-        /// calls to the static table, because no family bundled today asks for a credit line -
-        /// so everything the window does about one is unreachable, and unreachable is how it
-        /// would stay until the first CC BY set is bundled and somebody finds out in a
-        /// customer's org. The harness puts a set that does ask through here instead.
-        /// </summary>
-        private Func<IconFamily, IconLicence> _licences = IconLicence.For;
         private string _nameConcern;
         private string _solutionConcern;
 
@@ -369,7 +360,7 @@ namespace Icons
 
             _licenceConcern = _selectedIcon == null
                 ? null
-                : AttributionNotice.For(_licences(_selectedIcon.Family), _nameBox.Text.Trim());
+                : AttributionNotice.For(IconLicence.For(_selectedIcon.Family), _nameBox.Text.Trim());
             _nameConcern = NameConcern();
             _solutionConcern = SolutionConcern();
             ShowConcerns();
@@ -1466,7 +1457,7 @@ namespace Icons
             // Why the second web resource exists, for a licence where it is the condition of
             // using the drawing rather than a courtesy. The library says this while the icon is
             // being chosen; a gate that is about to write the page is not the place to stop.
-            var credit = AttributionNotice.Why(_licences(icon.Family));
+            var credit = AttributionNotice.Why(IconLicence.For(icon.Family));
             if (credit != null) credit = "\n\n" + credit;
 
             var confirm = MessageBox.Show(this,
@@ -1503,7 +1494,7 @@ namespace Icons
                 IncludeRasterIcons = _rasterBox.Checked,
                 Image = image,
                 RasterColour = _colour,
-                AttributionRequired = _licences(icon.Family).RequiresNotice
+                AttributionRequired = IconLicence.For(icon.Family).RequiresNotice
             };
 
             var generation = ++_generation;

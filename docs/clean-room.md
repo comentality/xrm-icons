@@ -40,19 +40,19 @@ it. Reading it out of curiosity, having already shipped, does too — you cannot
 Worth recording, because "we made different choices" is the substance of the claim:
 
 - **The icon source.** IconEngine draws on Flaticon, which needs an API key and carries
-  attribution terms. This tool bundles four sets inside the assembly — Microsoft's Fluent UI
-  System Icons and Phosphor and Tabler under MIT, Lucide under ISC — so there is no key, no
-  network, and no attribution obligation on what you store in a customer's org. The licences
-  ask for their notice to travel with the software, which is what `ABOUT.txt` in the bundle is.
-  A set that asked for more than that is a set this tool does not bundle: Microsoft's own
-  codicons are CC-BY-4.0, and were measured and left out for that among other reasons (TODO.md).
-- **Where a credit line would live.** Since the attribution page, that last sentence is about
-  what is bundled rather than about what could be. Every icon written into an org carries its own
-  provenance and the apply rebuilds `ATTRIBUTION.html` beside the icons from it, so a set whose
-  whole demand is a notice now has somewhere to put one. Nothing shipping today asks for that —
-  `IconLicence.RequiresNotice` is false for all four families and a test says so — but the day a
-  CC BY set is bundled, the obligation lands on that page rather than on the customer, and the
-  page is the price of the icon: it must not be applied without one.
+  attribution terms. This tool bundles five sets inside the assembly — Microsoft's Fluent UI
+  System Icons and Phosphor and Tabler under MIT, Lucide under ISC, Font Awesome Free under
+  CC-BY-4.0 — so there is no key and no network. Four of them ask only that their notice
+  travel with the software, which is what `ABOUT.txt` in the bundle is.
+- **Where the credit line lives.** Font Awesome is the fifth set and the one that asks for more:
+  CC BY 4.0 wants a credit line wherever the drawings go, and changes indicated. The attribution
+  page was built before any such set was bundled, and it is where that obligation now lands.
+  Every icon written into an org carries its own provenance, the apply rebuilds
+  `ATTRIBUTION.html` beside the icons from it, and `IconLicence.RequiresNotice` — true for Font
+  Awesome and nothing else, which a test asserts by name — makes that page the price of the icon
+  rather than a kindness: a Font Awesome icon is not put on a table unless the page goes with
+  it, and the library says so under the preview while the icon is being chosen. So the
+  obligation is discharged by the tool, in the solution, rather than handed to whoever runs it.
 - **Colour.** The default is `fill="currentColor"` so the app themes the icon, following
   Microsoft's own guidance for table icons, rather than baking a colour in.
 - **Rendering.** No SVG library: the path grammar is parsed and rasterised in

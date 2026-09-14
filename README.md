@@ -1,7 +1,7 @@
 # ![](https://raw.githubusercontent.com/comentality/xrm-icons/main/Icons/icon.png) Icons
 
 An [XrmToolBox](https://www.xrmtoolbox.com/) tool for putting a decent icon on a Dataverse
-table. Search a library of Fluent, Phosphor, Lucide and Tabler icons, pick one, and the tool
+table. Search a library of Fluent, Phosphor, Lucide, Tabler and Font Awesome icons, pick one, and the tool
 writes the SVG web resource, points the table at it, and publishes — without leaving XrmToolBox.
 
 ![The library, searched for "account", with an icon chosen](https://raw.githubusercontent.com/comentality/xrm-icons/main/docs/images/overview.png)
@@ -23,12 +23,13 @@ resources, update table definitions and publish customisations.
 
 ## What it does
 
-- **Search four icon families at once** — Microsoft's [Fluent UI System Icons](https://github.com/microsoft/fluentui-system-icons),
-  [Phosphor](https://phosphoricons.com/), [Lucide](https://lucide.dev/) and
-  [Tabler](https://tabler.io/icons), bundled inside the tool. No API key, no account, and no
-  outbound host beyond Dataverse itself, so it works from behind a customer's proxy. Filter to
+- **Search five icon families at once** — Microsoft's [Fluent UI System Icons](https://github.com/microsoft/fluentui-system-icons),
+  [Phosphor](https://phosphoricons.com/), [Lucide](https://lucide.dev/),
+  [Tabler](https://tabler.io/icons) and [Font Awesome Free](https://fontawesome.com), bundled
+  inside the tool. No API key, no account, and no outbound host beyond Dataverse itself, so it
+  works from behind a customer's proxy. Filter to
   one family when you want a house style, and turn on *Show family* to see which set drew each
-  icon — four of them draw a folder and all four are called Folder.
+  icon — five of them draw a folder and all five are called Folder.
 - **Search in Dynamics words** — an icon set names its icons after what they depict, and
   Dataverse names tables after what they mean. Searching for `account` finds the buildings and briefcases,
   `contact` finds the people, `appointment` finds the calendars, `case` finds the headsets. An
@@ -60,7 +61,7 @@ resources, update table definitions and publish customisations.
   bundled icons it is carrying, under the box you picked it in, and puts the library on that
   icon so you can see what it is beside what it could be. Three things can say which one it is,
   and the first that can is believed: the comment this tool writes into every icon it stores,
-  then the drawing itself matched shape for shape against all 18,637, then the CSS class Lucide
+  then the drawing itself matched shape for shape against all 20,296, then the CSS class Lucide
   and Tabler ship theirs with. So an icon somebody pasted in by hand is recognised as surely as
   one this tool wrote. Nothing is guessed: an icon that is none of the bundled ones is called
   none of them rather than the nearest thing, and an icon under another publisher's prefix is
@@ -96,8 +97,10 @@ resources, update table definitions and publish customisations.
   naming the set that drew it, its copyright holder, its licence and what was changed on the way
   in, and every apply — and every undo — rebuilds `ATTRIBUTION.html` in the same folder from those
   comments. It says what is stored there now rather than what any one session did, so an icon
-  somebody replaced by hand stops being credited the moment it stops being there. For these four families it is a
-  courtesy; for a set whose licence asks for a credit line it is the price of the icon.
+  somebody replaced by hand stops being credited the moment it stops being there. For the four
+  sets under MIT and ISC it is a courtesy; for Font Awesome, whose licence asks for a credit
+  line, it is the price of the icon — one of its icons is not put on a table unless the page
+  goes with it.
 - **The classic PNG icons too, if you want them** — optionally generates and stores the 16×16,
   32×32 and 66×48 images for the older `IconSmallName`, `IconMediumName` and `IconLargeName`
   properties. Off by default, because Microsoft's guidance is to use the vector instead.
@@ -176,24 +179,36 @@ Four sets, bundled whole:
 | [Phosphor](https://github.com/phosphor-icons/core), © Phosphor Icons | regular, bold, fill | MIT |
 | [Lucide](https://github.com/lucide-icons/lucide), © Lucide Contributors | one | ISC |
 | [Tabler](https://github.com/tabler/tabler-icons), © Paweł Kuna | outline, filled | MIT |
+| [Font Awesome Free](https://fontawesome.com), © Fonticons, Inc. | solid, regular | CC-BY-4.0 |
 
 Fluent is taken at the optical size it is drawn most completely — 24px where there is one,
 falling back through the others. Phosphor's thin, light and duotone weights are left out: beside
-Fluent they read as a different tool rather than a different set. Otherwise the SVGs are as
+Fluent they read as a different tool rather than a different set. Font Awesome's brands weight is
+left out too — 609 company logos, which is not what a table icon is — and so are the 683 names
+it keeps as aliases of another icon, so that one drawing is offered once rather than as
+`address-card`, `contact-card` and `vcard`. Otherwise the SVGs are as
 their authors ship them, bar two things done at bundle time — a `class` attribute dropped,
 because Microsoft advises against CSS classes in a table icon, and Tabler's invisible
 full-canvas backdrop rectangle removed.
+
+Font Awesome is the one set not drawn square: 512 tall and anywhere from 320 to 640 wide. It is
+bundled at the width it was drawn, and the tool fits and centres a viewBox rather than
+stretching it — so one of its icons sits in a square slot with room either side of it, which is
+how its author drew it.
 
 **About** in the toolbar shows the exact package versions and the licences, under *Icon licences and credits*.
 `tools\build-catalog.ps1` regenerates the bundle from newer releases, and fingerprints
 every icon into the archive as it goes, so recognising the icon a table already has costs a few
 tens of milliseconds rather than half a second of working it out again on every connection.
 
-All four licences are permissive, so what you store in your environment carries no attribution
-obligation — the notices travel with the bundle so you can check that for yourself. The tool
-writes an `ATTRIBUTION.html` beside the icons anyway, listing every icon it has put there with
-its family, author, licence and what was changed; when a set that does ask for a credit line is
-added, that page is where the credit lives.
+Four of the five ask only that their notice travel with the software, which is what `ABOUT.txt`
+in the bundle is, so what you store from them carries no obligation of its own. Font Awesome is
+the exception, and it is deliberate: CC BY 4.0 asks for a credit line wherever the drawings go,
+and for changes to be indicated. Both live on the `ATTRIBUTION.html` the tool writes beside the
+icons — every icon it has put there, with its family, author, licence and what was changed — so
+the obligation lands on a page in the solution rather than on you. It is also why applying a
+Font Awesome icon stops if that page cannot be written: the credit is the condition of the
+drawing rather than a courtesy, and the library says so under the preview before you pick one.
 
 ## Building it
 

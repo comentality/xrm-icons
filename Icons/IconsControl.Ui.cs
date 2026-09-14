@@ -528,7 +528,7 @@ namespace Icons
 
             // Two rows: the search on its own, and the three things that narrow what it searches
             // under it. On one row the search box is the only control that can give up width,
-            // and with four families to choose between there is not enough of it to give.
+            // and with five families to choose between there is not enough of it to give.
             // Two rows as tall as what stands in them, rather than two rows of 27 and a panel of
             // 58 that has to be kept equal to them. The two boxes' columns are the one thing here
             // that cannot be measured out of a control - they hold words that are not in them

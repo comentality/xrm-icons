@@ -46,8 +46,20 @@
       README saying nothing stored carries an obligation stays true - no CC BY set ships, only the
       machinery - so both were added to rather than retracted: the page is named as where a credit
       line would live.
-- [ ] Bundle a set whose licence asks for a credit line, now that there is somewhere for one to
-      live. This is what the page was for. It reopens the sources refused so far - codicons, and
+- [x] Bundle a set whose licence asks for a credit line, now that there is somewhere for one to
+      live. This is what the page was for. Font Awesome Free went in on 14 September 2026: 1,591
+      icons in solid and regular, CC-BY-4.0, and the first set for which
+      `IconLicence.RequiresNotice` is true - so its icons are not put on a table unless the
+      attribution page goes with them, and the library says so under the preview while one is
+      being chosen. Brands is left out, 609 logos. Two things were not obvious going in. The set
+      ships every name it has ever used as its own file - address-card also arrives as
+      contact-card and as vcard - and taken as they come those 683 alias files put 1,255 of its
+      icons into the shared-drawing set, where a drawing under more than one name is recognised
+      as none of them; the package's own metadata\icon-families.json says which name is real, and
+      asking it leaves 2. And it is the one set not drawn square, 512 tall by 320 to 640 wide,
+      bundled at the width it was drawn because padding a viewBox out to square is changing the
+      drawing to make it look like the other four.
+      What is left of this item is the rest of the list below. It reopened the sources refused so far - codicons, and
       the free tier of Noun Project - because the objection to both was that the obligation landed
       on the customer with nothing carrying it, not that it existed. It does not reopen bundling
       Noun Project: its API forbids distributing icons at all, so the route there is
@@ -59,6 +71,15 @@
       terms that ask for more: share-alike, which the recoloured copy would inherit; a licence
       that forbids redistribution, which is Noun Project's API and Flaticon; or a copyleft set
       inside an MIT DLL. The test for a candidate set is whether a notice is all it wants.
+      Solar was measured on 14 September 2026 and refused, and the reason is worth writing down
+      because the listing that recommends it does not say it: Iconify lists Solar as CC BY 4.0,
+      sourced from its Figma community page, but its author ships it on npm as GPL-3.0
+      (solar-icon-set, github.com/480-Design/Solar-Icon-Set). Upstream's own distribution is the
+      one that counts, copyleft inside an MIT DLL is named below as something this page does not
+      unlock, and an ambiguous licence is worse than a restrictive one for a drawing written into
+      a customer's org. It is 1,268 drawings in six styles and it renders cleanly, so if the two
+      distributions are ever made to agree it is worth re-measuring - from the author, not from
+      the listing.
       What passes that test today, counted from Iconify's registry on 5 September 2026 and
       filtered to monochrome, current, drawn-for-UI sets: 22 sets, 31,449 icons, against the
       18,637 bundled now. Counts include style variants, as the bundle's own figure does.
