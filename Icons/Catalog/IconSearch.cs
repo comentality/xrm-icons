@@ -143,6 +143,16 @@ namespace Icons.Catalog
             { "duplicate",      new[] { "copy", "stamp" } },
             { "rating",         new[] { "star" } },
             { "time",           new[] { "clock", "timer" } },
+
+            // Two words that were seeding on a collision rather than on a meaning. A Work Order
+            // found document_border_print - "order" inside b-order, and "work" out of that icon's
+            // description, where it means paper work - and a Unit Group found people_community,
+            // "unit" inside comm-unit-y, when a unit group is a unit of measure. Both now have a
+            // word of their own, so the table asks about what it is rather than about what its
+            // letters happen to spell.
+            { "work",           new[] { "clipboard", "wrench", "toolbox" } },
+            { "unit",           new[] { "box", "scale", "ruler" } },
+            { "group",          new[] { "people", "multiple", "stack" } },
         };
 
         /// <summary>

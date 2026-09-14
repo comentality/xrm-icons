@@ -82,6 +82,23 @@ reorder arrow and now leads with a cart. `DescriptionTests` names all eleven wit
 one leads with. To close it instead, `Answers` would need a form that counts only name and alias
 hits for the whole-name question, and that test-case block comes out.
 
+**Two of the eleven were answering on letters rather than on meaning, and were fixed at the
+source.** Search matches inside a word on purpose - somebody typing `fold` should reach folder -
+and that is how those two found their icons. Work Order found `document_border_print`: "order"
+is inside b-**order**, and "work" comes out of that icon's own description, where it means
+*paper work*. Unit Group found `people_community`: "unit" is inside comm-**unit**-y, when a
+Dataverse unit group is a group of units of measure. Each put one icon in the box, confidently,
+and each was wrong.
+
+Neither was gated. `Synonyms` was given the words instead - `work` -> clipboard, wrench,
+toolbox; `unit` -> box, scale, ruler; and `group` -> people, multiple, stack, because a
+two-word query needs both halves to hit and "group" was the half with no answer. A curated hit
+scores 50 against a substring's 30, so the meaning simply outranks the collision without
+anything having to forbid it. Work Order now leads with a `clipboard` out of 137 results rather
+than one printed document; Unit Group leads with `box_multiple` out of 28. That is the general
+shape of the fix here: when a search answers for the wrong reason, give the right reason a
+higher score rather than taking the wrong one away.
+
 **Tabler's tags go in first**, when the tag half is built: 66,254 words, half the whole
 vocabulary, and so the worst case for the latency problem below. If search keeps up with Tabler
 in it, nothing left can surprise us.

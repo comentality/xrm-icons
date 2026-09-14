@@ -180,12 +180,12 @@ namespace Icons.Tests
         [TestCase("Invoice Line", "line", "receipt")]
         [TestCase("Quote Line", "line", "receipt")]
         [TestCase("Resource Group", "group", "people_toolbox")]
-        [TestCase("Unit Group", "group", "people_community")]
         [TestCase("Process Session", "session", "flow")]
+        [TestCase("Work Order", "order", "clipboard")]
+        [TestCase("Unit Group", "group", "box_multiple")]
         [TestCase("Web Resource", "resource", null)]
         [TestCase("Document Location", "location", null)]
         [TestCase("Document Template", "template", null)]
-        [TestCase("Work Order", "order", null)]
         public void A_table_that_could_only_ask_half_its_name_now_asks_all_of_it(
             string table, string used, string leads)
         {
@@ -198,6 +198,35 @@ namespace Icons.Tests
             Assert.That(first, Is.Not.Null, seed + " should find something");
 
             if (leads != null) Assert.That(first.Name, Is.EqualTo(leads));
+        }
+
+        /// <summary>
+        /// The two of the eleven that were answering on letters rather than on meaning.
+        ///
+        /// Search matches inside a word on purpose - somebody typing "fold" should reach folder -
+        /// and that is how these two got their icons. Work Order found document_border_print,
+        /// because "order" is inside b-order and "work" is in that icon's description, where it
+        /// means paper work. Unit Group found people_community, because "unit" is inside
+        /// comm-unit-y, when a Dataverse unit group is a group of units of measure. Each showed
+        /// one icon, confidently, in a box nobody had typed into.
+        ///
+        /// Both are answered now by giving the words to the curated map rather than by gating
+        /// anything: a curated hit scores 50 against a substring's 30, so the meaning wins
+        /// without having to forbid the collision. A clipboard for a job ticket and a stack of
+        /// boxes for a group of units.
+        /// </summary>
+        [TestCase("work order", "clipboard", "document_border_print", "order is inside b-order")]
+        [TestCase("unit group", "box_multiple", "people_community", "unit is inside comm-unit-y")]
+        public void A_search_that_was_answering_on_letters_now_answers_on_meaning(
+            string query, string leads, string used, string why)
+        {
+            var ranked = IconSearch.Rank(_catalog.Icons, query);
+
+            Assert.That(ranked.First().Name, Is.EqualTo(leads), query + ": " + why);
+            Assert.That(ranked.Count, Is.GreaterThan(20),
+                "and it is a grid to choose from rather than the single icon the collision gave");
+            Assert.That(ranked.Take(4).Any(i => i.Name == used), Is.False,
+                "the collision should no longer lead");
         }
 
         [Test]
