@@ -453,7 +453,10 @@ namespace Icons
         /// </summary>
         private void SizeWarning()
         {
-            if (!_warningLabel.Visible || _warningLabel.Width <= 0) return;
+            // What it says, not whether it is on screen: Visible reads the whole ancestry, so a
+            // concern set while the tool is not the tab in front would measure nothing and stay
+            // unmeasured until somebody dragged the pane.
+            if (_warningLabel.Text.Length == 0 || _warningLabel.Width <= 0) return;
 
             var room = Math.Max(80, _warningLabel.Width - _warningLabel.Padding.Horizontal);
             var needed = TextRenderer.MeasureText(
