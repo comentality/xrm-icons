@@ -84,10 +84,20 @@ namespace Icons.Logic
 
             // Which attribute carries the colour depends on how the icon is drawn. Fluent and
             // Phosphor state a shape and fill it; Lucide and Tabler state a line and stroke it,
-            // with fill="none" on the root so the shape between the lines stays empty. Setting
-            // fill on one of those fills it in, which turns a drawing of a folder into a black
-            // pentagon. The root says which kind it is, because that is where both sets put it.
-            var stroked = root.Attribute("stroke") != null;
+            // with fill="none" so the shape between the lines stays empty. Setting fill on one
+            // of those fills it in, which turns a drawing of a folder into a black pentagon.
+            // The root, and only the root, because this attribute is a default that every
+            // element without one of its own inherits. Solar puts its stroke on a group one
+            // level down, and asking the whole tree instead was tried: it strokes ten of that
+            // set's icons that are drawn in both, where a filled path sits beside a stroked one
+            // under the same group and states no stroke of its own. Those came back outlined as
+            // well as filled - file-favourite by a third. What the root says is the only thing
+            // that is safe to answer with, so the record below says what actually happened
+            // rather than the other way round.
+            //
+            // A stroke of "none" is not a stroke: Tabler opens every icon with a backdrop
+            // rectangle painted with nothing at all.
+            var stroked = IsStroked((string)root.Attribute("stroke"));
             if (stroked)
                 root.SetAttributeValue("stroke", ink);
             else
@@ -103,9 +113,16 @@ namespace Icons.Logic
             // Only currentColor, and only when a colour was asked for. A shape painting a
             // colour of its own means it - that is the case Inspect warns about - and following
             // the theme is already the answer in the other mode.
+            // Counted apart by which attribute was written, because the sentence this ends up
+            // in names one of them. A Solar icon carries its stroke on a group, so the root gets
+            // a fill and the group gets the stroke - and a record saying "the fill was set, and
+            // so was the one shape inside it" would be false twice over: it was that element's
+            // stroke, and the element is a group rather than a shape.
             var followers = 0;
+            var otherFollowers = 0;
             if (mode == IconColourMode.Fixed)
             {
+                var carrier = stroked ? "stroke" : "fill";
                 foreach (var element in root.Descendants())
                 {
                     foreach (var name in new[] { "fill", "stroke" })
@@ -115,7 +132,8 @@ namespace Icons.Logic
                         if (!string.Equals(paint.Value.Trim(), "currentColor", StringComparison.OrdinalIgnoreCase)) continue;
 
                         paint.Value = ink;
-                        followers++;
+                        if (name == carrier) followers++;
+                        else otherFollowers++;
                     }
                 }
             }
@@ -133,7 +151,7 @@ namespace Icons.Logic
             if (provenance != null)
             {
                 var written = provenance.Copy();
-                written.Changes.Add(Provenance.ColourChange(stroked, ink, followers));
+                written.Changes.Add(Provenance.ColourChange(stroked, ink, followers, otherFollowers));
                 if (sizePixels.HasValue) written.Changes.Add(Provenance.SizeChange(sizePixels.Value));
 
                 root.AddFirst(new XComment(Provenance.Comment(written)));
@@ -206,6 +224,16 @@ namespace Icons.Logic
         }
 
         /// <summary>Whether a paint attribute names a colour of its own, rather than none or the theme's.</summary>
+        /// <summary>
+        /// Whether this stroke attribute means the drawing is stroked. An absent one does not,
+        /// and neither does "none" - which is what Tabler's backdrop rectangle says.
+        /// </summary>
+        private static bool IsStroked(string raw)
+        {
+            return !string.IsNullOrWhiteSpace(raw)
+                   && !raw.Equals("none", StringComparison.OrdinalIgnoreCase);
+        }
+
         private static bool StatesAColour(string raw)
         {
             return !string.IsNullOrWhiteSpace(raw)

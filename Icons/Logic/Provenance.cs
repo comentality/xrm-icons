@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
@@ -215,18 +215,30 @@ namespace Icons.Logic
         }
 
         /// <summary>What storing it did to the drawing, in the words the page says it in.</summary>
-        public static string ColourChange(bool stroked, string ink, int followers = 0)
+        public static string ColourChange(bool stroked, string ink, int followers = 0, int otherFollowers = 0)
         {
             var attribute = stroked ? "stroke" : "fill";
+            var other = stroked ? "fill" : "stroke";
             var change = "the " + attribute + " was set to " + ink;
 
             // Said separately because it happened separately, and because a page that claims
             // one colour was set on an icon drawn in two would be worth less than no page.
-            if (followers == 1) return change + ", and so was the one shape inside it that followed the theme";
-            if (followers > 1)
-                return change + ", and so were the "
-                       + followers.ToString(CultureInfo.InvariantCulture)
-                       + " shapes inside it that followed the theme";
+            //
+            // "and so was" covers only what had the same attribute written. An icon drawn in
+            // both - Solar strokes a group and fills a detail inside it - gets the other named
+            // for what it is rather than counted in with the first, and "element" rather than
+            // "shape" because the thing carrying a Solar stroke is a group, not a drawing.
+            if (followers == 1) change += ", and so was the one element inside it that followed the theme";
+            else if (followers > 1)
+                change += ", and so were the "
+                          + followers.ToString(CultureInfo.InvariantCulture)
+                          + " elements inside it that followed the theme";
+
+            if (otherFollowers == 1) change += ", along with the " + other + " of one element that followed the theme";
+            else if (otherFollowers > 1)
+                change += ", along with the " + other + " of "
+                          + otherFollowers.ToString(CultureInfo.InvariantCulture)
+                          + " elements that followed the theme";
 
             return change;
         }

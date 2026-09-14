@@ -240,7 +240,10 @@ namespace Icons.Tests
 
         /// <summary>
         /// The attribution page says what was done to the drawing, so it has to count the
-        /// shapes that were repainted with the outline rather than claim only the one change.
+        /// shapes that were repainted with the outline rather than claim only the one change -
+        /// and name the attribute each of them was repainted on. Tabler strokes its outline and
+        /// fills the one shape that says which percentage it is, so a record reading "and so
+        /// was the one shape" would be naming the wrong attribute on the only shape it counts.
         /// </summary>
         [Test]
         public void The_record_says_the_shapes_were_repainted_too()
@@ -254,7 +257,41 @@ namespace Icons.Tests
                                              Color.FromArgb(0xC0, 0x10, 0x20), null, IconProvenance.For(icon));
 
                 Assert.That(Provenance.Find(stored).Changes,
-                    Has.Some.Contains("the stroke was set to #C01020, and so was the one shape inside it that followed the theme"));
+                    Has.Some.Contains("the stroke was set to #C01020, along with the fill of one element that followed the theme"));
+            }
+        }
+
+        /// <summary>
+        /// Solar states its stroke on a group one level down rather than on the root, so the
+        /// root takes the fill and the group is repainted as a follower. The record has to say
+        /// that it was the group's stroke: a page claiming the fill of a stroked drawing was
+        /// set is the kind of credit that is worth less than none, which is the whole reason
+        /// this text exists.
+        ///
+        /// Reading the stroke off the tree rather than the root was tried and reverted - it
+        /// outlines the ten Solar icons drawn both ways at once. See SvgOutput.
+        /// </summary>
+        [Test]
+        public void A_stroke_stated_below_the_root_is_named_for_what_it_is()
+        {
+            using (var catalog = IconCatalog.Load())
+            {
+                var icon = catalog.Icons.First(i => i.Family == IconFamily.Solar
+                                                    && i.Name == "folder" && i.Weight == "linear");
+
+                var source = catalog.ReadSvg(icon);
+                Assert.That(XDocument.Parse(source).Root.Attribute("stroke"), Is.Null,
+                    "this test is about the case where the root does not say it");
+
+                var stored = SvgOutput.Build(source, IconColourMode.Fixed,
+                                             Color.FromArgb(0xC0, 0x10, 0x20), null, IconProvenance.For(icon));
+
+                Assert.That(Provenance.Find(stored).Changes,
+                    Has.Some.Contains("the fill was set to #C01020, along with the stroke of one element that followed the theme"));
+
+                Assert.That(Provenance.Find(stored).Changes,
+                    Has.None.Contains("and so was the one element"),
+                    "the follower was a stroke; only same-attribute followers may be counted in");
             }
         }
 
