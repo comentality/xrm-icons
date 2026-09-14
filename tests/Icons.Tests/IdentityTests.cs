@@ -214,11 +214,19 @@ namespace Icons.Tests
                 "this only tests the bundled index if the bundled index is what was used");
             Assert.That(wrong, Is.Empty,
                 "the bundled index disagrees with the drawings; run tools\\index-catalog.ps1");
-            // 685 on this bundle, measured. The bound is close to it on purpose: a fingerprint
-            // is 96 bits of a digest rather than the whole of it, and the only way a truncation
-            // that started colliding would show is here, as drawings that are not really the
-            // same one going quiet. Upstream adding a handful of aliases moves this by a
-            // handful; a truncation gone wrong moves it by hundreds.
+            // 699 on this bundle, measured; 685 before Font Awesome was added, and the fourteen
+            // between them are Fluent and Lucide having grown rather than anything Font Awesome
+            // brought. It very nearly was not: Font Awesome ships every name it has ever used,
+            // so address-card arrives again as contact-card and as vcard, and taking the files
+            // as they come put 1,255 of its icons in here and cost every one of them its name.
+            // The build script asks the package which name is the real one - see the Font
+            // Awesome block in tools\build-catalog.ps1 - and this number is what says it worked.
+            //
+            // The bound is kept close to the measurement on purpose: a fingerprint is 96 bits of
+            // a digest rather than the whole of it, and the only way a truncation that started
+            // colliding would show is here, as drawings that are not really the same one going
+            // quiet. Upstream adding a handful of aliases moves this by a handful; a truncation
+            // gone wrong, or a set bundled without its aliases dropped, moves it by hundreds.
             Assert.That(shared, Is.LessThan(750),
                 "more icons share a drawing than this bundle has ever had - if upstream did not "
                 + "add aliases, the fingerprint is colliding on drawings that differ");

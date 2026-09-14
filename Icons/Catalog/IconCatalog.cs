@@ -147,13 +147,16 @@ namespace Icons.Catalog
 
         /// <summary>
         /// Which class of weight a family's word for it belongs to. Only the solid weights need
-        /// naming: Fluent's filled, Phosphor's fill, Tabler's filled. Everything else — regular,
-        /// bold, outline — is an outline, and a weight added later is treated as one until
-        /// somebody says otherwise, which is the safer way round for a filter.
+        /// naming: Fluent's filled, Phosphor's fill, Tabler's filled, Font Awesome's solid.
+        /// Everything else — regular, bold, outline — is an outline, and a weight added later
+        /// is treated as one until somebody says otherwise, which is the safer way round for a
+        /// filter: an outline offered among the solids is odd, while a solid the solid filter
+        /// hides is most of a family nobody can find.
         /// </summary>
         private static IconStyle StyleOf(string weight)
         {
             return weight.StartsWith("fill", StringComparison.OrdinalIgnoreCase)
+                   || weight.Equals("solid", StringComparison.OrdinalIgnoreCase)
                 ? IconStyle.Filled
                 : IconStyle.Regular;
         }

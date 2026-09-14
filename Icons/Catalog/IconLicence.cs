@@ -64,9 +64,10 @@ namespace Icons.Catalog
 
         /// <summary>
         /// Whether this licence's demand is a credit line - CC BY and its relatives - rather
-        /// than only that the notice travel with the software. False for all four families
-        /// bundled today: their notice is <c>ABOUT.txt</c>, and the attribution page is a
-        /// courtesy. When it is true, an icon of that family must not be applied unless the
+        /// than only that the notice travel with the software. False for the four sets under
+        /// MIT and ISC, whose notice is <c>ABOUT.txt</c> and for whom the attribution page is
+        /// a courtesy. True for Font Awesome, where the page is the price of the icon rather
+        /// than a kindness. When it is true, an icon of that family must not be applied unless the
         /// page goes with it.
         /// </summary>
         public bool RequiresNotice { get; }
@@ -121,6 +122,25 @@ namespace Icons.Catalog
                     "https://tabler.io/icons",
                     "the class attribute and the leading full-canvas path were removed",
                     false)
+            },
+            {
+                IconFamily.FontAwesome,
+                new IconLicence(
+                    IconFamily.FontAwesome,
+                    "Font Awesome Free",
+                    "Fonticons, Inc.",
+                    "CC-BY-4.0",
+                    "https://spdx.org/licenses/CC-BY-4.0.html",
+                    "https://fontawesome.com",
+                    null,
+
+                    // The one set bundled here that asks for more than that its notice travel
+                    // with the software. The package it comes from holds icons, fonts and code
+                    // under three licences; only the drawings are taken, and CC BY 4.0 is what
+                    // the drawings are under. It asks for a credit line and for changes to be
+                    // indicated, which is what the attribution page carries - so an icon of
+                    // this family is not put on a table unless that page goes with it.
+                    true)
             },
         };
 

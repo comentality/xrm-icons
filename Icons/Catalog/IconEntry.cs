@@ -23,7 +23,12 @@ namespace Icons.Catalog
         Fluent,
         Phosphor,
         Lucide,
-        Tabler
+        Tabler,
+
+        // Appended rather than slotted in: IconSearch breaks a tie on this order, so where
+        // a member sits decides where its icons rank against an identical score. Anywhere
+        // but the end would move every result the four older families already give.
+        FontAwesome
     }
 
     /// <summary>

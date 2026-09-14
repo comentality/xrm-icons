@@ -1,18 +1,30 @@
-<#
+﻿<#
 .SYNOPSIS
-    Rebuilds Icons\Catalog\icons.zip from four npm icon sets.
+    Rebuilds Icons\Catalog\icons.zip from five npm icon sets.
 
 .DESCRIPTION
     The tool ships its icon library inside the DLL, so it works with no network and no API key.
     This script is what produces that library. Run it to pick up newer icon releases; the
     result is committed, so a normal build does not need npm, node or an internet connection.
 
-    Four sets go in, each from its own npm package, each under a permissive licence:
+    Five sets go in, each from its own npm package:
 
-        fluent    @fluentui/svg-icons     MIT   regular, filled
-        phosphor  @phosphor-icons/core    MIT   regular, bold, fill
-        lucide    lucide-static           ISC   regular
-        tabler    @tabler/icons           MIT   outline, filled
+        fluent       @fluentui/svg-icons            MIT         regular, filled
+        phosphor     @phosphor-icons/core           MIT         regular, bold, fill
+        lucide       lucide-static                  ISC         regular
+        tabler       @tabler/icons                  MIT         outline, filled
+        fontawesome  @fortawesome/fontawesome-free  CC-BY-4.0   solid, regular
+
+    The first four ask only that their notice travel with the software, which ABOUT.txt
+    below is. Font Awesome asks for a credit line wherever its drawings go, which is a
+    different thing and is why the tool writes an attribution page beside the icons it
+    stores: see IconLicence.RequiresNotice. Its brands weight - 609 logos - is left out,
+    for the reason every logo set is: a table icon is a noun, not a company.
+
+    Font Awesome is also the one set that is not drawn square. Its icons are 512 tall and
+    anywhere from 320 to 640 wide, and they are bundled at the width they were drawn:
+    the renderer fits and centres a viewBox rather than stretching it, and padding one to
+    square would be changing the drawing to make it look like the other four.
 
     The archive layout is <family>/<weight>/<name>.svg plus one ABOUT.txt, and nothing else.
     Weight is the family's own word for it, not a normalised one: Phosphor's fill and Tabler's
@@ -62,7 +74,8 @@ param(
     [string]$Version = "latest",
     [string]$PhosphorVersion = "latest",
     [string]$LucideVersion = "latest",
-    [string]$TablerVersion = "latest"
+    [string]$TablerVersion = "latest",
+    [string]$FontAwesomeVersion = "latest"
 )
 
 $ErrorActionPreference = "Stop"
@@ -105,6 +118,8 @@ $expected = [ordered]@{
     "lucide/regular"   = 2050
     "tabler/outline"   = 5130
     "tabler/filled"    = 1054
+    "fontawesome/solid"   = 1422
+    "fontawesome/regular" = 169
 }
 
 # ---------------------------------------------------------------------------------------------
@@ -169,14 +184,27 @@ function Get-PackageFacts {
         itself. The copyright comes out of the shipped LICENSE rather than from memory, so the
         notice we redistribute says what the package says it should, and follows the package
         when it changes hands. -Fallback covers a package that ships no LICENSE at all.
+
+        -License and -FirstCopyrightOnly cover a package that ships more than what is taken
+        from it. Font Awesome Free is one package holding icons, fonts and code under three
+        different licences, so its package.json says "(CC-BY-4.0 AND OFL-1.1 AND MIT)" and
+        its LICENSE.txt concatenates all three - four lines of which begin with Copyright,
+        two of them the OFL's own boilerplate about what a Copyright Holder may forbid.
+        Only the SVGs are taken, so only the SVGs' licence and the first holder line are
+        what the notice should carry. Stating three licences for a bundle of drawings under
+        one would be less true, not more.
     #>
     param(
         [Parameter(Mandatory)][string]$Dir,
-        [string]$Fallback
+        [string]$Fallback,
+        [string]$License,
+        [switch]$FirstCopyrightOnly
     )
 
     $pkg = Get-Content (Join-Path $Dir "package.json") -Raw -Encoding UTF8 | ConvertFrom-Json
-    $license = if ($pkg.license -is [string]) { $pkg.license } else { [string]$pkg.license.type }
+    $license = if ($License) { $License }
+               elseif ($pkg.license -is [string]) { $pkg.license }
+               else { [string]$pkg.license.type }
 
     $copyright = $null
     foreach ($name in @("LICENSE", "LICENSE.md", "LICENSE.txt", "license", "license.md")) {
@@ -186,9 +214,11 @@ function Get-PackageFacts {
             # holders, so taking one would ship half the attribution. -cmatch rather than
             # -match because PowerShell compares case-insensitively by default and the MIT
             # boilerplate line "copyright notice and this permission notice..." would match.
-            $copyright = (Get-Content $path -Encoding UTF8 |
+            $lines = @(Get-Content $path -Encoding UTF8 |
                 Where-Object { $_ -cmatch '^\s*Copyright' } |
-                ForEach-Object { $_.Trim() }) -join "`n"
+                ForEach-Object { $_.Trim() })
+            if ($FirstCopyrightOnly) { $lines = @($lines | Select-Object -First 1) }
+            $copyright = $lines -join "`n"
             break
         }
     }
@@ -275,6 +305,9 @@ try {
     $tablerRoot = Get-NpmPackage -Name "@tabler/icons" -VersionOrTag $TablerVersion -Root $temp
     $tabler = Get-PackageFacts $tablerRoot
 
+    $fontAwesomeRoot = Get-NpmPackage -Name "@fortawesome/fontawesome-free" -VersionOrTag $FontAwesomeVersion -Root $temp
+    $fontAwesome = Get-PackageFacts $fontAwesomeRoot -License "CC-BY-4.0" -FirstCopyrightOnly
+
     Write-Host ""
     Write-Host "Selecting icons..."
 
@@ -352,6 +385,37 @@ try {
         }
     }
 
+    # --- Font Awesome ---------------------------------------------------------------------
+    # Brands is the third weight in the package and is not taken: 609 company logos, which is
+    # not what a table icon is for, and every one of them a trademark the licence does not
+    # cover. The two that are taken need no renaming and no stripping - a Font Awesome file is
+    # one path and the comment that credits it, and that comment is kept on purpose.
+    #
+    # What they do need is choosing from, the way Fluent does. Font Awesome keeps every name
+    # it has ever used: address-card is also shipped as contact-card and as vcard, three files
+    # holding one drawing. Left in, the grid offers the same picture three times and - because
+    # the tool recognises a stored icon by what it draws - a drawing under more than one name
+    # can be recognised as none of them. The package says which name is the real one, so that
+    # is what is asked.
+    $families = Get-Content (Join-Path $fontAwesomeRoot "metadata\icon-families.json") -Raw -Encoding UTF8 | ConvertFrom-Json
+    $aliases = [System.Collections.Generic.HashSet[string]]::new([StringComparer]::OrdinalIgnoreCase)
+    foreach ($icon in $families.PSObject.Properties) {
+        foreach ($alias in $icon.Value.aliases.names) { [void]$aliases.Add($alias) }
+    }
+    if ($aliases.Count -eq 0) { throw "No aliases found in the Font Awesome metadata - has its shape changed?" }
+
+    $aliasHits = 0
+    foreach ($weight in @("solid", "regular")) {
+        $dir = Join-Path $fontAwesomeRoot "svgs\$weight"
+        if (-not (Test-Path $dir)) { throw "No svgs\$weight under $fontAwesomeRoot" }
+
+        foreach ($file in [System.IO.Directory]::EnumerateFiles($dir, "*.svg")) {
+            $name = [System.IO.Path]::GetFileNameWithoutExtension($file)
+            if ($aliases.Contains($name)) { $aliasHits++; continue }
+            Add-Icon -Entry "fontawesome/$weight/$name.svg" -Path $file
+        }
+    }
+
     # Ordinal, so the archive is in the order a byte-wise reader would put it, not the order the
     # current culture would.
     $records.Sort([System.Comparison[object]] { param($a, $b) [string]::CompareOrdinal($a.Entry, $b.Entry) })
@@ -385,8 +449,13 @@ try {
         # the package actually resolved at build time and what this script changed about it.
         $fallbacks = $sizePreference[1..($sizePreference.Count - 1)] -join ', '
         $about = @"
-Comentality Icons bundles four icon sets, each redistributed under its own licence
+Comentality Icons bundles five icon sets, each redistributed under its own licence
 and unmodified except as noted below.
+
+Four of them ask only that this notice travel with the software, which is what this
+file is. Font Awesome asks for a credit line wherever its drawings go, so the tool
+writes one into every environment it stores a Font Awesome icon in, beside the icon
+itself: see ATTRIBUTION.html in the folder the icons were written to.
 
 Microsoft Fluent UI System Icons
 @fluentui/svg-icons $($fluent.Version)
@@ -423,6 +492,22 @@ Licensed under the $($tabler.License) License. $($tabler.Copyright)
 Repackaged for Comentality Icons by tools\build-catalog.ps1: the class attribute and
 the leading full-canvas <path fill="none" /> removed from every icon, contents
 otherwise unmodified.
+
+Font Awesome Free
+@fortawesome/fontawesome-free $($fontAwesome.Version)
+https://fontawesome.com
+Licensed under $($fontAwesome.License). $($fontAwesome.Copyright)
+
+The package holds icons, fonts and code under three licences; only the icons are
+taken, and CC-BY-4.0 is theirs. That licence asks for attribution and for changes
+to be indicated, and both are given per icon on the attribution page the tool
+writes beside the icons it stores.
+
+Repackaged for Comentality Icons by tools\build-catalog.ps1: the solid and regular
+weights only - brands, being logos, is left out - and one file per drawing, dropping
+the names Font Awesome keeps as aliases of another icon. Contents otherwise
+unmodified, including the licence comment each file carries and the width each icon
+was drawn at, which for this set is not always its height.
 "@
         $entry = $zip.CreateEntry("ABOUT.txt", [System.IO.Compression.CompressionLevel]::Optimal)
         $writer = New-Object System.IO.StreamWriter($entry.Open())
@@ -443,7 +528,7 @@ otherwise unmodified.
     try {
         $furniture = @("ABOUT.txt") + @($check.Entries | Where-Object { $_.FullName -like "drawings.v*.tsv" } | ForEach-Object { $_.FullName })
         $svgs = $check.Entries | Where-Object { $furniture -notcontains $_.FullName }
-        $stray = $svgs | Where-Object { $_.FullName -notmatch '^(fluent|phosphor|lucide|tabler)/[a-z]+/[^/]+\.svg$' }
+        $stray = $svgs | Where-Object { $_.FullName -notmatch '^(fluent|phosphor|lucide|tabler|fontawesome)/[a-z]+/[^/]+\.svg$' }
         if ($stray) { throw "Unexpected entries: $(($stray | Select-Object -First 5 -ExpandProperty FullName) -join ', ')" }
 
         Write-Host ""
@@ -463,6 +548,7 @@ otherwise unmodified.
     Write-Host ""
     foreach ($family in $classHits.Keys | Sort-Object) { Write-Host "Removed a class attribute from $($classHits[$family]) $family icons" }
     foreach ($family in $backdropHits.Keys | Sort-Object) { Write-Host "Removed the backdrop rectangle from $($backdropHits[$family]) $family icons" }
+    Write-Host "Left out $aliasHits fontawesome files that are another icon under an older name"
     if ($backdropMisses -gt 0) { Write-Warning "$backdropMisses Tabler icons did not have exactly one backdrop rectangle" }
     foreach ($note in $notes | Select-Object -First 20) { Write-Warning $note }
     if ($notes.Count -gt 20) { Write-Warning "...and $($notes.Count - 20) more" }

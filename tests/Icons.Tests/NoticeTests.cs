@@ -35,12 +35,27 @@ namespace Icons.Tests
         {
             // The page is still written for these - it is just not a thing worth warning about,
             // and a warning line that is always on is a warning line nobody reads.
-            foreach (var licence in IconLicence.All)
+            foreach (var licence in IconLicence.All.Where(l => !l.RequiresNotice))
             {
                 Assert.That(AttributionNotice.For(licence, "new_/icons/account.svg"), Is.Null,
                             licence.SetName + " asks only that the notice travel with the software");
                 Assert.That(AttributionNotice.Why(licence), Is.Null, licence.SetName);
             }
+        }
+
+        [Test]
+        public void The_bundled_set_that_does_ask_gets_the_real_line()
+        {
+            // Not the made-up set below: the one somebody can actually pick out of the grid.
+            // Everything else here proves the sentence is built right; this proves it is built
+            // at all for the family it exists for.
+            var line = AttributionNotice.For(IconLicence.For(IconFamily.FontAwesome),
+                                             "new_/icons/account.svg");
+
+            Assert.That(line, Does.Contain("Font Awesome Free"));
+            Assert.That(line, Does.Contain("CC-BY-4.0"));
+            Assert.That(line, Does.Contain("new_/icons/ATTRIBUTION.html"));
+            Assert.That(AttributionNotice.Why(IconLicence.For(IconFamily.FontAwesome)), Is.Not.Null);
         }
 
         [Test]

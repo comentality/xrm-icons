@@ -80,7 +80,7 @@ namespace Icons.Logic
         /// <summary>Class tokens that name the family or the weight rather than the icon.</summary>
         private static readonly HashSet<string> NotNames =
             new HashSet<string>(StringComparer.OrdinalIgnoreCase)
-            { "lucide", "icon", "tabler", "outline", "filled", "fill", "regular", "bold" };
+            { "lucide", "icon", "tabler", "outline", "filled", "fill", "regular", "bold", "solid" };
 
         private static readonly Regex Space = new Regex(@"\s+", RegexOptions.Compiled);
 
