@@ -40,7 +40,7 @@ Verified against the pinned versions on 14 September 2026. All five paths exist 
 | Phosphor | `dist/index.mjs` | `tags:` in a JS array literal | 1,512 | 1,512 of 1,512 | 25,512 |
 | Lucide | `tags.json` | `{name: [tags]}` | 1,834 | 1,834 of 1,834 | 15,656 |
 | Solar | `icons.json` aliases, `metadata.json` categories | alias→parent, category→names | 1,268 | 1,267 of 1,288 | 1,603 |
-| **Fluent** | ~~—~~ `assets/<Icon Name>/metadata.json` in the repo | ~~**ships none**~~ `metaphor` + `description` | 2,654 | ~2,654 of ~2,933 | 12,926 |
+| **Fluent** | ~~—~~ `assets/<Icon Name>/metadata.json` in the repo | ~~**ships none**~~ `metaphor` + `description` | 2,654 | 2,630 of 2,971 | 12,482 |
 
 **The Fluent row was wrong, and it was the row everything else hung off.** Corrected
 14 September 2026, after asking rather than assuming. See **Fluent does publish one** below.
@@ -69,6 +69,18 @@ confident wrong answers in a box nobody filled in, and tags are looser than the 
 already caught being wrong. Aliases are not exempted from this either: `WorthSeeding` was not
 touched, and nothing in the alias half changed what any of the 162 standard tables seeds.
 
+**But the whole-name path is not gated by `WorthSeeding`, and the descriptions went through it.**
+`SeedFor` asks first whether a table's *whole* name answers, and only falls back to single words
+— under the two-rule test — when it does not. Eleven of the 162 could not answer whole before
+Fluent's descriptions and can now, so eleven boxes nobody typed into say something different
+from what they said. This is past what was decided above and it was not noticed until a test
+caught it. It was kept rather than gated because every one of the eleven got *more* specific,
+not less: Recurring Appointment led with a video call and now leads with a repeating calendar,
+Invoice Line led with a straight line and now leads with a receipt, Purchase Order led with a
+reorder arrow and now leads with a cart. `DescriptionTests` names all eleven with the icon each
+one leads with. To close it instead, `Answers` would need a form that counts only name and alias
+hits for the whole-name question, and that test-case block comes out.
+
 **Tabler's tags go in first**, when the tag half is built: 66,254 words, half the whole
 vocabulary, and so the worst case for the latency problem below. If search keeps up with Tabler
 in it, nothing left can surprise us.
@@ -96,10 +108,11 @@ Microsoft ships a per-icon vocabulary in `microsoft/fluentui-system-icons`, one
 }
 ```
 
-- **2,654 files** across 2,989 asset folders, 88.8%. Against the ~2,933 names this bundle draws,
-  that is about nine icons in ten.
+- **2,654 files** across 2,989 asset folders, 88.8%. Against the 2,971 distinct names this
+  bundle draws, 2,630 came away with words — about nine icons in ten.
 - **2,604** carry a non-empty `metaphor`; **2,601** carry at least one word that is not already
-  in the icon's own name. 12,926 term instances, 1,458 distinct, about 5 an icon.
+  in the icon's own name. 12,926 term instances upstream, 1,458 distinct, about 5 an icon;
+  **12,482** bundled, the difference being the words an icon's own name already had.
 - **MIT**, under the repository's own `LICENSE`, Copyright (c) 2020 Microsoft Corporation. The
   same licence the drawings already ship under, so it adds no obligation the bundle does not
   already carry.

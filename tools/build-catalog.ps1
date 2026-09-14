@@ -122,7 +122,7 @@ $backdropPattern = '<path\s+stroke="none"\s+d="M0\s*0h24v24H0z"\s+fill="none"\s*
 # Printed beside the real counts as a sanity check. Not asserted: the upstream sets grow, and a
 # build that refuses to run because Lucide gained nine icons would be worse than one that says so.
 $expected = [ordered]@{
-    "fluent"           = 5867
+    "fluent"           = 5887
     "phosphor/regular" = 1512
     "phosphor/bold"    = 1512
     "phosphor/fill"    = 1512
