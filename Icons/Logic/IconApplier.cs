@@ -65,11 +65,11 @@ namespace Icons.Logic
 
         /// <summary>
         /// Whether this icon's licence asks for a credit line, rather than only that its notice
-        /// travel with the software. False for every family bundled today, so the attribution
-        /// page is a courtesy and a failure to write it does not stop the icon being applied.
-        /// True makes the page the price of the icon: if it cannot be written, nothing is,
-        /// because an attributed icon in a customer's environment with nothing crediting it is
-        /// the one outcome this must not produce.
+        /// travel with the software. False for the four sets under MIT and ISC, so for them the
+        /// attribution page is a courtesy and a failure to write it does not stop the icon being
+        /// applied. True for Font Awesome, which makes the page the price of the icon: if it
+        /// cannot be written, nothing is, because a CC BY icon in a customer's environment with
+        /// nothing crediting it is the one outcome this must not produce.
         /// </summary>
         public bool AttributionRequired { get; set; }
     }

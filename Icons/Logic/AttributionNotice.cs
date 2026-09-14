@@ -22,7 +22,8 @@ namespace Icons.Logic
         /// <summary>
         /// The whole of it, for the line under the library: what the licence asks, what gets
         /// written because of it, and what happens if it cannot be. Null when this licence asks
-        /// only that the notice travel with the software, which is every family bundled today.
+        /// only that the notice travel with the software, which is every bundled family but
+        /// Font Awesome.
         ///
         /// Short on purpose. It is one line among three the window can show at once, in a pane
         /// that has to find the height for all of them out of the preview above it, and a
