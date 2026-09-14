@@ -31,14 +31,19 @@ namespace Icons.Logic
         /// every one. A cart handle would come back a triangle.
         /// </param>
         /// <exception cref="FormatException">The path data is not valid SVG.</exception>
-        public static GraphicsPath Parse(string d, bool closeOpenFigures = true)
+        public static GraphicsPath Parse(string d, bool closeOpenFigures = true, bool evenOdd = false)
         {
             if (d == null) throw new ArgumentNullException(nameof(d));
 
-            // SVG fills nonzero by default, and the bundled icons rely on it: a hole is a
-            // subpath wound the other way. Alternate, which is what GDI+ starts with, would
-            // punch holes wherever two shapes merely overlap.
-            var path = new GraphicsPath(FillMode.Winding);
+            // SVG fills nonzero unless the shape says otherwise, and most bundled icons rely on
+            // it: a hole is a subpath wound the other way. Alternate, which is what GDI+ starts
+            // with, would punch holes wherever two shapes merely overlap.
+            //
+            // A shape that says fill-rule="evenodd" wants exactly that, though, and means it:
+            // a set drawn that way puts both rings of a hole the same way round and lets the
+            // rule cut it. Filled nonzero, such an icon comes back a solid blob - a calendar
+            // with no grid, a building with no windows.
+            var path = new GraphicsPath(evenOdd ? FillMode.Alternate : FillMode.Winding);
             try
             {
                 Build(d, path, closeOpenFigures);

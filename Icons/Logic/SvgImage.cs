@@ -311,7 +311,8 @@ namespace Icons.Logic
                     // A subpath the data left open is closed to fill it and left alone to
                     // stroke it. GDI+ closes a figure to fill it regardless, so when a shape is
                     // both, open is right for both.
-                    using (var path = SvgPath.Parse(shape.Data, closeOpenFigures: !stroked))
+                    using (var path = SvgPath.Parse(shape.Data, closeOpenFigures: !stroked,
+                                                    evenOdd: shape.EvenOdd))
                     {
                         if (!shape.Fill.Nothing)
                         {
@@ -591,7 +592,8 @@ namespace Icons.Logic
         /// <summary>Everything about how a shape is painted that an element inherits.</summary>
         private struct Style
         {
-            public Style(Paint fill, Paint stroke, float strokeWidth, LineCap cap, LineJoin join, float? opacity)
+            public Style(Paint fill, Paint stroke, float strokeWidth, LineCap cap, LineJoin join, float? opacity,
+                         bool evenOdd)
             {
                 Fill = fill;
                 Stroke = stroke;
@@ -599,6 +601,7 @@ namespace Icons.Logic
                 Cap = cap;
                 Join = join;
                 Opacity = opacity;
+                EvenOdd = evenOdd;
             }
 
             public Paint Fill { get; }
@@ -608,9 +611,12 @@ namespace Icons.Logic
             public LineJoin Join { get; }
             public float? Opacity { get; }
 
-            /// <summary>What SVG starts with: filled, unstroked, and a stroke width of one.</summary>
+            /// <summary>Whether this shape's holes are cut by the even-odd rule rather than nonzero.</summary>
+            public bool EvenOdd { get; }
+
+            /// <summary>What SVG starts with: filled nonzero, unstroked, and a stroke width of one.</summary>
             public static readonly Style Initial =
-                new Style(Paint.Caller, Paint.None, 1f, LineCap.Flat, LineJoin.Miter, null);
+                new Style(Paint.Caller, Paint.None, 1f, LineCap.Flat, LineJoin.Miter, null, false);
 
             /// <summary>This style, with whatever the element says about it applied over the top.</summary>
             public Style Inherit(XElement element, Stylesheet sheet)
@@ -648,7 +654,23 @@ namespace Icons.Logic
                     ReadJoin(value("stroke-linejoin"), Join),
                     // Not inherited, unlike the rest: SVG opacity is a property of the group or
                     // the shape it is written on, and passing it down would apply it twice.
-                    ParseOpacity(value("opacity")) ?? ParseOpacity(value("fill-opacity")));
+                    ParseOpacity(value("opacity")) ?? ParseOpacity(value("fill-opacity")),
+
+                    // Inherited, like fill: a set that fills even-odd usually says so once, on
+                    // the group the shapes are in.
+                    ReadRule(value("fill-rule"), EvenOdd));
+            }
+
+            /// <summary>Whether this says even-odd, says nonzero, or says nothing and inherits.</summary>
+            private static bool ReadRule(string raw, bool inherited)
+            {
+                if (string.IsNullOrWhiteSpace(raw)) return inherited;
+
+                var said = raw.Trim();
+                if (string.Equals(said, "evenodd", StringComparison.OrdinalIgnoreCase)) return true;
+                if (string.Equals(said, "nonzero", StringComparison.OrdinalIgnoreCase)) return false;
+
+                return inherited;
             }
 
             private static LineCap ReadCap(string raw, LineCap inherited)
@@ -725,11 +747,13 @@ namespace Icons.Logic
                 Cap = style.Cap;
                 Join = style.Join;
                 Opacity = style.Opacity;
+                EvenOdd = style.EvenOdd;
             }
 
             public string Data { get; }
             public Paint Fill { get; }
             public Paint Stroke { get; }
+            public bool EvenOdd { get; }
             public float StrokeWidth { get; }
             public LineCap Cap { get; }
             public LineJoin Join { get; }
