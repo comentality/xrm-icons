@@ -38,8 +38,9 @@ resources, update table definitions and publish customisations.
 - **Icons answer to what they are for, not only to what they are called** — Microsoft writes a
   line about each Fluent icon, and the tool reads it: `keychain` finds the key, `patient` finds
   the person, `sync` finds the cloud. 12,482 of those words, on about nine Fluent icons in ten.
-  A word an icon is *described* by is worth less than a word it is *named* by, so an icon called
-  what you typed still leads the grid.
+  A word an icon is *described* by is worth less than a word it is *named* by, and less than the
+  tool's own map of what Dataverse words look like — so an icon called what you typed still
+  leads the grid, and `account` still offers you a building.
 - **The names a set has retired still work** — Font Awesome ships every name it has ever used,
   so the card it now calls `address-card` used to be `contact-card` and `vcard`. The library
   holds one drawing per icon rather than the same picture three times, but it kept the names:

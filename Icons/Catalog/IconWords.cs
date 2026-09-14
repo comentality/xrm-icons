@@ -12,7 +12,8 @@ namespace Icons.Catalog
     /// address-card still answers to vcard. A <see cref="Tags">description</see> is what the
     /// people who drew it say it is for - Microsoft's own metadata says a shield is about
     /// security, protection and safety - which is a true thing about the icon and still not its
-    /// name. A name hit is worth 100 and a description 60; see <see cref="IconSearch"/>.
+    /// name. A name is worth 100, this tool's own curated word for a Dataverse term 50, and a
+    /// description 45; see <see cref="IconSearch"/> for why that order and not another.
     ///
     /// None of these words reach <see cref="IconEntry.Words"/>, and that is deliberate: that
     /// array is what the grid label is built from and what an icon is charged for when the query

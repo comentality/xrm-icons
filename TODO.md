@@ -216,9 +216,17 @@
       distinct. MIT, the same licence the drawings come under. `Cloud` answers to storage,
       upload, download, save, sync - which is the sort of thing `Synonyms` was hand-written to
       supply. So the order turned round, and Fluent went in the same day rather than being
-      protected: 12,482 words against 2,630 of its drawings, scored at 60 where a name scores
-      100 and a prefix of a name scores the same 60 - a description is true about the drawing
-      and is still not what it is called. The build script grew a seventh source for it and the
+      protected: 12,482 words against 2,630 of its drawings, scored at 45 - under the 100 a name
+      scores, the 60 a name prefix scores and the 50 this tool's own curated Dataverse word
+      scores. A description is true about the drawing, is not what it is called, and is a gloss
+      written for icon browsers rather than for Dataverse. That order was measured rather than
+      argued: the descriptions went in at 60 and 27 of the curated map's 92 words lost their
+      hand-picked answer out of the top of the grid - `account` stopped offering a building, a
+      briefcase or an organization, and `product` ranked a Surface tablet above a box - because
+      the curated tier scored 15, below even a substring match, so a description did not
+      outrank it so much as delete it. At 50 against 45 that is 9 of 92, and the nine are
+      variants rather than answers. Fifty-one searches were read before and after to settle it;
+      `docs/search-vocabulary.md` has the whole measurement. The build script grew a seventh source for it and the
       first that is not a package, a sparse clone of microsoft/fluentui-system-icons pinned by
       commit in ABOUT.txt, because no package ships this and issue #788 asking for one has been
       open since December 2024. Words the icon's own name already has are dropped at bundle

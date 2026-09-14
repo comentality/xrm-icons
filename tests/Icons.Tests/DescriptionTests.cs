@@ -82,13 +82,29 @@ namespace Icons.Tests
         }
 
         [Test]
-        public void A_description_is_worth_what_a_name_that_starts_with_the_word_is_worth()
+        public void A_description_is_worth_less_than_a_name_and_less_than_this_tools_own_word()
         {
-            // 60, which is a prefix of a name. Not 100, which is a name; not 15, which is a
-            // guess this tool made up. The icon is really about the word and is really not
-            // called it.
-            Assert.That(IconSearch.Score(Fluent("shield"), new[] { "security" }), Is.EqualTo(60));
+            // 45, under the 50 a curated Dataverse word scores and the 100 a name scores. The
+            // icon really is about the word, is really not called it, and what its set says
+            // about it is a gloss written for icon browsers rather than for Dataverse.
+            Assert.That(IconSearch.Score(Fluent("shield"), new[] { "security" }), Is.EqualTo(45));
             Assert.That(IconSearch.Score(Fluent("shield"), new[] { "shield" }), Is.EqualTo(100));
+        }
+
+        [Test]
+        public void This_tools_own_vocabulary_still_reaches_the_grid_over_a_description()
+        {
+            // The measurement that set the bands. Descriptions went in at 60, level with a name
+            // prefix, and 27 of the 92 curated words lost their hand-picked answer out of the
+            // top of the grid - the curated tier scored 15, below even a substring match, so a
+            // description did not outrank it so much as delete it. account is the worst of them:
+            // building, briefcase and organization all went, for person icons Microsoft happens
+            // to describe as accounts.
+            var top = IconSearch.Rank(_catalog.Icons, "account").Select(i => i.Name).Distinct().Take(8).ToList();
+
+            Assert.That(top, Does.Contain("building"), "account should still offer a building: " + string.Join(", ", top));
+            Assert.That(top.First(), Does.Contain("account"),
+                "and an icon named for the word still leads it");
         }
 
         [Test]

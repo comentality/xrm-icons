@@ -13,7 +13,7 @@ Two requests are open, and they are the same shape:
    `vocabulary.v1.tsv` beside the icons: 579 of them against 479 icons. See **What was decided**
    below for what a hit on one is worth and why.
 2. **The words the sets already ship.** **Fluent's are in, 14 September 2026** — 12,482 of them
-   against 2,630 of its drawings, scored at 60 where a name scores 100. The other five are not,
+   against 2,630 of its drawings, scored at 45 where a name scores 100. The other five are not,
    and the measurement below is why that is now a decision rather than a formality.
 
 ## What is already there, and is not this
@@ -22,8 +22,9 @@ Two requests are open, and they are the same shape:
 takes a word a Dynamics customiser types — `employee`, `milestone`, `entitlement` — and names
 the words the *library* draws it under. It was built by measuring 162 standard tables and
 finding a third of them seeded nothing at all. It is deliberately one-way, deliberately short,
-and a synonym hit scores 15 against an exact name's 100 so it can never outrank the icon
-actually called that.
+and a curated hit scores 50 against an exact name's 100 and a name prefix's 60, so it can never
+outrank the icon actually called the word. It scored 15 until Fluent's descriptions arrived and
+wiped it out of the grid; see **What the descriptions did to the curated map** below.
 
 Upstream tags are the opposite direction: extra words attached to one icon by the people who
 drew it. `address-book-tabs` answering to *roledex*. The two do not overlap and neither
@@ -55,7 +56,7 @@ Put to the person whose tool it is, 14 September 2026. Three of the four are set
 alias half is built on them; the fourth is the one still open, and it is the one that decides
 whether the tag half can go in at all.
 
-**An alias is worth exactly what a name is worth — 100, not the synonym band's 15.** Because it
+**An alias is worth exactly what a name is worth — 100, not the curated band.** Because it
 *is* a name: one Font Awesome published for that drawing and later stopped leading with, not a
 hint about what the drawing looks like. Scoring it lower would have put the icon somebody asked
 for by name below every icon with the word in it somewhere. The consequence, taken knowingly:
@@ -266,6 +267,52 @@ the shared-drawing bound at 355 and is not affected: this changes names, not dra
 Aliases first — it is small, it is the thing that was actually lost, and it puts the plumbing
 in. Then one family's tags, measured for latency before the other four. Fluent's asymmetry is
 worth settling before the full set goes in, not after.
+
+## What the descriptions did to the curated map, and how the bands were set
+
+Measured 14 September 2026, after the words went in and before this was believed. Fifty-one
+searches were put in front of three readers with the grid before and after, and the result
+counts and top-eights were measured over all 162 standard seeds and all 92 curated words.
+
+**Volume was never the problem.** Median growth over the 162 seeds was 1.2%, and nineteen of
+twenty literal queries - `folder`, `clock`, `key`, `cloud`, `person` - had a byte-identical top
+eight. A name scores 100 and no description can reach it, so a query that already worked could
+not be hurt. Past the fold is a different story: `edit` went from 169 results to 777. That
+costs nothing to somebody who takes the obvious answer and a lot to somebody who browses.
+
+**Ranking was the problem, and it was bad.** Descriptions went in at 60, level with a name
+prefix. `Synonyms` scores 15 - *below* even the 30 a substring match gets - so a description
+did not outrank the curated map so much as delete it. 27 of its 92 words lost a hand-picked
+answer out of the top eight:
+
+- `account` lost `building`, `briefcase` and `organization` - the whole entry - to `person_home`,
+  `person_alert` and `phone_person`. The grid stopped offering a single usable Account icon.
+- `product` lost `box`, `cube` and `tag` to `surface_hub` and `surface_earbuds`. A Surface is a
+  product, so Microsoft hardware ranked above a box for the Product table.
+- and `invoice`, `payment`, `knowledge` (all six books), `goal`, `connection`, `plugin`,
+  `delivery`, `security`, `price` and sixteen more.
+
+That map is the most valuable thing in this file and the only part of it written for Dataverse.
+It was built by running 162 real tables and finding a third of them silent. Losing it to a gloss
+written for icon browsers is the worst trade available.
+
+**So the bands were re-set, and the numbers say by how much.**
+
+| | curated words that lost an answer |
+|---|---|
+| descriptions 60, curated 15 - as first built | 27 of 92 |
+| curated raised to 70 | 11 of 92, and `building` starts beating `person_accounts` |
+| **curated 50, descriptions 45** - what ships | **9 of 92** |
+
+The nine that still slip are variants rather than answers: `star_add`, `book_open`, `mail_add`.
+The order is now name 100, name prefix 60, **curated 50**, **described 45**, substring 30,
+described prefix 25. Both new tiers sit under a name and a name prefix, so nothing that was
+found by being called the right thing moved at all.
+
+**Two things the descriptions fixed that nothing else would have.** `email` used to return seven
+*voicemail* icons, because "email" is a substring of "vo-email" and nothing outranked it; it now
+returns envelopes. `team` used to offer the *Steam* logo. Both were the curated map losing to
+junk substrings, and both are why the answer was not simply to score descriptions below 30.
 
 ## What the first family cost
 

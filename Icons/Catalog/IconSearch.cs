@@ -17,7 +17,8 @@ namespace Icons.Catalog
         /// <summary>
         /// Words a Dynamics customiser types, and the words Fluent draws them under. One-way on
         /// purpose: it exists to stop the obvious searches returning nothing, not to be a
-        /// thesaurus, and a synonym hit never outranks an icon actually called that.
+        /// thesaurus, and a synonym hit never outranks an icon actually called that - nor one
+        /// whose name merely starts with the word.
         ///
         /// It is longer than it looks like it should be because it was measured rather than
         /// guessed. Running 162 standard Dataverse tables through <see cref="SeedFor"/> left a
@@ -313,9 +314,9 @@ namespace Icons.Catalog
 
         /// <summary>
         /// The best any description does against one term. A shorter ladder than a name's, and a
-        /// lower one: named exactly is 60 where a name would score 100, and a description merely
-        /// starting with the word is 30. Nothing for a description that only contains it - an
-        /// icon described as ''accessibility'' is not an answer to ''ilit''.
+        /// lower one: described exactly is 45 where a name would score 100 and a curated word 50,
+        /// and a description merely starting with the word is 25. Nothing for a description that
+        /// only contains it - an icon described as ''accessibility'' is not an answer to ''ilit''.
         /// </summary>
         private static int Described(string[] words, string term, int floor)
         {
@@ -323,8 +324,8 @@ namespace Icons.Catalog
 
             foreach (var word in words)
             {
-                if (string.Equals(word, term, StringComparison.OrdinalIgnoreCase)) best = Math.Max(best, 60);
-                else if (word.StartsWith(term, StringComparison.OrdinalIgnoreCase)) best = Math.Max(best, 30);
+                if (string.Equals(word, term, StringComparison.OrdinalIgnoreCase)) best = Math.Max(best, 45);
+                else if (word.StartsWith(term, StringComparison.OrdinalIgnoreCase)) best = Math.Max(best, 25);
             }
 
             return best;
@@ -347,13 +348,17 @@ namespace Icons.Catalog
             // nothing here, and the picture they name sits in the grid under a third word.
             if (best < 100) best = Ladder(icon.AliasWords, term, best);
 
-            // And a description is worth what a name that starts with the word is worth. It is
-            // a true thing about the drawing said by the people who drew it - Microsoft's own
-            // metadata says a shield is about security, protection and safety - and it is still
-            // not what the icon is called, so it cannot reach the 100 a name reaches. Level with
-            // a prefix is where it sits: above an icon that merely has the letters in it
-            // somewhere, below every icon the word is actually the name of.
-            if (best < 60) best = Described(icon.TagWords, term, best);
+            // And a description is worth less than a name and less than this tool's own
+            // vocabulary. It is a true thing about the drawing, said by the people who drew it -
+            // Microsoft's own metadata says a shield is about security, protection and safety -
+            // so it beats an icon that merely has the letters in it somewhere. It is still a
+            // gloss written for icon browsers rather than for Dataverse, which is why 45 sits
+            // under the 50 a curated word scores. That order was measured rather than argued:
+            // at 60 a description outranked the curated map, and 27 of its 92 words lost their
+            // hand-picked answer out of the top of the grid - account stopped offering a
+            // building, a briefcase or an organization, and product ranked a Surface tablet
+            // above a box. See docs/search-vocabulary.md.
+            if (best < 45) best = Described(icon.TagWords, term, best);
 
             // A term that spans the separators, so "arrowtrending" and "arrow trending" agree,
             // and "shoppingcart" finds shopping-cart.
@@ -366,8 +371,11 @@ namespace Icons.Catalog
                     if (Squashed(alias).IndexOf(term, StringComparison.OrdinalIgnoreCase) >= 0) { best = 20; break; }
             }
 
-            // Only when the icon says nothing about the word itself. A synonym hit is a hint, not
-            // a match, and must never outrank the icon actually called that.
+            // Only when the icon says nothing about the word itself, in its name or in what its
+            // set says about it. This is the tool's own vocabulary rather than anybody else's,
+            // measured against 162 real tables, and it is the best thing here about what a
+            // Dataverse word means - so it outranks a description. It still never outranks the
+            // icon actually called the word, nor one whose name merely starts with it.
             if (best == 0)
             {
                 string[] mapped;
@@ -377,8 +385,8 @@ namespace Icons.Catalog
                     {
                         foreach (var word in icon.Words)
                         {
-                            if (string.Equals(word, alias, StringComparison.OrdinalIgnoreCase)) best = Math.Max(best, 15);
-                            else if (word.StartsWith(alias, StringComparison.OrdinalIgnoreCase)) best = Math.Max(best, 10);
+                            if (string.Equals(word, alias, StringComparison.OrdinalIgnoreCase)) best = Math.Max(best, 50);
+                            else if (word.StartsWith(alias, StringComparison.OrdinalIgnoreCase)) best = Math.Max(best, 35);
                         }
                     }
                 }
