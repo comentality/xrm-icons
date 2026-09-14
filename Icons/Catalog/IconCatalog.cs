@@ -102,7 +102,7 @@ namespace Icons.Catalog
                 return byName != 0 ? byName : string.CompareOrdinal(a.Weight, b.Weight);
             });
 
-            var about = ReadTextEntry(archive, "ABOUT.txt") ?? "Fluent, Phosphor, Lucide, Tabler and Font Awesome icons.";
+            var about = ReadTextEntry(archive, "ABOUT.txt") ?? "Fluent, Phosphor, Lucide, Tabler, Font Awesome and Solar icons.";
             return new IconCatalog(archive, icons, about);
         }
 

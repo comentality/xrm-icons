@@ -71,15 +71,26 @@
       terms that ask for more: share-alike, which the recoloured copy would inherit; a licence
       that forbids redistribution, which is Noun Project's API and Flaticon; or a copyleft set
       inside an MIT DLL. The test for a candidate set is whether a notice is all it wants.
-      Solar was measured on 14 September 2026 and refused, and the reason is worth writing down
-      because the listing that recommends it does not say it: Iconify lists Solar as CC BY 4.0,
-      sourced from its Figma community page, but its author ships it on npm as GPL-3.0
-      (solar-icon-set, github.com/480-Design/Solar-Icon-Set). Upstream's own distribution is the
-      one that counts, copyleft inside an MIT DLL is named below as something this page does not
-      unlock, and an ambiguous licence is worse than a restrictive one for a drawing written into
-      a customer's org. It is 1,268 drawings in six styles and it renders cleanly, so if the two
-      distributions are ever made to agree it is worth re-measuring - from the author, not from
-      the listing.
+      Solar went in on 14 September 2026, after a false start worth recording. It was refused
+      first on a GPL-3.0 licence field read off npm's solar-icon-set - which is not the author's
+      package at all but a third party's React wrapper (chebarash), GPL on their own code. 480
+      Design's repo carries no LICENSE; their distribution is the Figma community file, which
+      Iconify records as CC BY 4.0 and which @iconify-json/solar declares on the package. The
+      lesson is the general one: read the licence off the author's own distribution, and check
+      who published the package the field came from.
+      What is bundled is Iconify's rendition rather than the author's export, because the author
+      publishes no SVGs - Solar is a Figma file, and @iconify-json/solar is what can be fetched
+      and checked at build time. That is a change of hand rather than of drawing, which CC BY
+      asks be indicated, so it is the set's BundleChange and reaches every stored icon.
+      Two of six styles: linear whole, and outline only where it draws something its linear does
+      not. The two are the same outline stroked and filled, so no comparison of the files would
+      ever have matched them - but rendered, 1,146 of the 1,273 drawings that exist in both share
+      more than 95% of their ink, and the grid would have offered the same picture twice. Bold
+      and the duotones are left out the way Phosphor's duotone is, broken because its gapped
+      strokes are a signature rather than a weight.
+      It also paid for fill-rule support: 1,202 of the outline icons punch their holes with
+      even-odd and this renderer filled everything nonzero, which turns a calendar into a black
+      rectangle. No other bundled set says evenodd, so nothing that shipped changed.
       What passes that test today, counted from Iconify's registry on 5 September 2026 and
       filtered to monochrome, current, drawn-for-UI sets: 22 sets, 31,449 icons, against the
       18,637 bundled now. Counts include style variants, as the bundle's own figure does.
