@@ -22,3 +22,6 @@ docs/ui-measurements/*.png
 docs/ui-measurements/*.json
 # The mock harness sheets, regenerated on every run like the other harnesses.
 tests/.mock/
+
+# A throwaway side-by-side of candidate icon sets, pulled live from Iconify.
+tests/.compare/
