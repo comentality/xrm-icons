@@ -274,6 +274,15 @@ namespace Icons
         /// <summary>What is worth knowing about the chosen icon, the solution, and the name.</summary>
         private string _iconConcern;
         private string _licenceConcern;
+
+        /// <summary>
+        /// Where the window asks what a family is licensed under. A field rather than three
+        /// calls to the static table, because no family bundled today asks for a credit line -
+        /// so everything the window does about one is unreachable, and unreachable is how it
+        /// would stay until the first CC BY set is bundled and somebody finds out in a
+        /// customer's org. The harness puts a set that does ask through here instead.
+        /// </summary>
+        private Func<IconFamily, IconLicence> _licences = IconLicence.For;
         private string _nameConcern;
         private string _solutionConcern;
 
@@ -360,7 +369,7 @@ namespace Icons
 
             _licenceConcern = _selectedIcon == null
                 ? null
-                : AttributionNotice.For(IconLicence.For(_selectedIcon.Family), _nameBox.Text.Trim());
+                : AttributionNotice.For(_licences(_selectedIcon.Family), _nameBox.Text.Trim());
             _nameConcern = NameConcern();
             _solutionConcern = SolutionConcern();
             ShowConcerns();
@@ -435,9 +444,32 @@ namespace Icons
         }
 
         /// <summary>
+        /// How tall the warning line has to be to hold what it says, at the width the pane has
+        /// given it. Measured rather than left to the label, which would measure the sentence
+        /// as one line and let the pane cut it off mid-word.
+        ///
+        /// Setting the height brings us back here through SizeChanged, so the guard is what
+        /// makes the second visit the last one.
+        /// </summary>
+        private void SizeWarning()
+        {
+            if (!_warningLabel.Visible || _warningLabel.Width <= 0) return;
+
+            var room = Math.Max(80, _warningLabel.Width - _warningLabel.Padding.Horizontal);
+            var needed = TextRenderer.MeasureText(
+                _warningLabel.Text, _warningLabel.Font, new Size(room, 0), TextFormatFlags.WordBreak);
+
+            var height = needed.Height + _warningLabel.Padding.Vertical + 4;
+            if (_warningLabel.Height == height) return;
+
+            _warningLabel.Height = height;
+            FitForm();
+        }
+
+        /// <summary>
         /// The one place the warning line is written. Two things can be worth saying at once - an
         /// icon that carries its own colours, a name under another publisher's prefix - and a
-        /// fixed-height label would swallow the second.
+        /// label that cannot grow would swallow the second.
         /// </summary>
         private void ShowConcerns()
         {
@@ -446,14 +478,10 @@ namespace Icons
 
             _warningLabel.Text = text;
             _warningLabel.Visible = text.Length > 0;
-            if (text.Length == 0) { FitForm(); return; }
 
-            var room = Math.Max(80, _warningLabel.Width - _warningLabel.Padding.Horizontal);
-            var needed = TextRenderer.MeasureText(
-                text, _warningLabel.Font, new Size(room, 0), TextFormatFlags.WordBreak);
-            _warningLabel.Height = Math.Max(46, needed.Height + _warningLabel.Padding.Vertical + 4);
-
-            // This line comes out of the form's room, so the pane is asked to grow by as much.
+            // What it now says may want more lines than what it said. That height comes out of
+            // the form's room, so the pane is asked to grow by as much.
+            SizeWarning();
             FitForm();
         }
 
@@ -1435,7 +1463,7 @@ namespace Icons
             // Why the second web resource exists, for a licence where it is the condition of
             // using the drawing rather than a courtesy. The library says this while the icon is
             // being chosen; a gate that is about to write the page is not the place to stop.
-            var credit = AttributionNotice.Why(IconLicence.For(icon.Family));
+            var credit = AttributionNotice.Why(_licences(icon.Family));
             if (credit != null) credit = "\n\n" + credit;
 
             var confirm = MessageBox.Show(this,
@@ -1472,7 +1500,7 @@ namespace Icons
                 IncludeRasterIcons = _rasterBox.Checked,
                 Image = image,
                 RasterColour = _colour,
-                AttributionRequired = IconLicence.For(icon.Family).RequiresNotice
+                AttributionRequired = _licences(icon.Family).RequiresNotice
             };
 
             var generation = ++_generation;

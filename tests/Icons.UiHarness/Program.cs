@@ -165,6 +165,7 @@ namespace Icons.UiHarness
                     failures += CheckUnsetOnlyFilter(control, form, outputDir);
                     failures += CheckLockedTablesAreHiddenAndExplained(control, form, outputDir);
                     failures += CheckRasterHelpOffered(control);
+                    failures += CheckCreditLineIsSaidWhileChoosing(control, form, outputDir);
                     failures += CheckTheSearchFollowsTheTable(control, form, outputDir);
                     failures += CheckFamiliesAreShownAndFiltered(control, form, outputDir);
                     failures += CheckFormSurvivesTheNarrowestPane(control, form, outputDir);
@@ -187,6 +188,134 @@ namespace Icons.UiHarness
             Console.WriteLine(failures == 0 ? "All harness checks passed." : failures + " harness check(s) failed.");
             Console.WriteLine("Screenshots in " + Path.GetFullPath(outputDir));
             return failures == 0 ? 0 : 1;
+        }
+
+
+        /// <summary>
+        /// A set whose licence asks for a credit line, and what the window says about it while
+        /// somebody is still choosing.
+
+        /// No bundled family asks for one, so the licence lookup is a field and this puts a set
+        /// that does ask through it. Two things are being checked and the second is the one that
+        /// breaks: that the sentence is there at all, and that the longest line this window can
+        /// show - it is three times the length of any other concern - still fits the pane it has
+        /// to grow.
+        /// </summary>
+        private static int CheckCreditLineIsSaidWhileChoosing(IconsControl control, Form form, string outputDir)
+        {
+            const BindingFlags Private = BindingFlags.Instance | BindingFlags.NonPublic;
+
+            var licences = typeof(IconsControl).GetField("_licences", Private);
+            var warningField = typeof(IconsControl).GetField("_warningLabel", Private);
+            if (licences == null || warningField == null)
+            {
+                Console.WriteLine("FAIL: the licence lookup or the warning line has moved and the harness cannot reach it");
+                return 1;
+            }
+
+            var asking = new IconLicence(
+                IconFamily.Fluent, "Example Icons", "Someone Else", "CC-BY-4.0",
+                "https://spdx.org/licenses/CC-BY-4.0.html", "https://example.invalid/icons", null, true);
+
+            var real = licences.GetValue(control);
+            var search = Find<TextBox>(control, "search");
+            var grid = Descendants(control).OfType<ListView>().FirstOrDefault();
+            var warning = warningField.GetValue(control) as Label;
+
+            if (search == null || grid == null || warning == null)
+            {
+                Console.WriteLine("FAIL: the search box, the grid and the warning line are not all there");
+                return 1;
+            }
+
+            var failures = 0;
+
+            try
+            {
+                licences.SetValue(control, new Func<IconFamily, IconLicence>(family => asking));
+
+                search.Text = "account";
+                Pump();
+
+                if (grid.VirtualListSize == 0)
+                {
+                    Console.WriteLine("FAIL: nothing in the grid, so there is no icon to choose");
+                    return 1;
+                }
+
+                grid.SelectedIndices.Clear();
+                grid.SelectedIndices.Add(0);
+                grid.Focus();
+                Pump();
+
+                if (!warning.Visible || warning.Text.IndexOf("CC-BY-4.0", StringComparison.Ordinal) < 0)
+                {
+                    Console.WriteLine("FAIL: choosing an icon that asks for a credit line says " +
+                                      (warning.Visible ? warning.Text : "nothing") + " under the grid");
+                    failures++;
+                }
+                else if (warning.Text.IndexOf("ATTRIBUTION.html", StringComparison.Ordinal) < 0)
+                {
+                    Console.WriteLine("FAIL: the line says the licence asks for a credit but never names " +
+                                      "the file that carries it: " + warning.Text);
+                    failures++;
+                }
+                else
+                {
+                    Console.WriteLine("OK: the library says what the licence asks and what gets written for it");
+                }
+
+                // What the sentence costs, and whether it is being paid. A line of it is a line
+                // of the form pane, so this is the number to watch when the wording changes.
+                Console.WriteLine("The credit line is " + warning.Text.Length + " characters and " +
+                                  warning.Height + " pixels tall in a " + warning.Width + " pixel pane");
+
+                failures += NothingIsClipped(control, "with the credit line showing");
+                Shoot(form, outputDir, "13-credit-line");
+
+                var width = form.Width;
+                var height = form.Height;
+
+                // The line is at its longest where the pane is at its narrowest, and this is a
+                // sentence about a licence: half of it is not half as good.
+                form.Width = 900;
+                Pump();
+
+                failures += NothingIsClipped(control, "with the credit line in a narrow pane");
+                Shoot(form, outputDir, "14-credit-line-narrow");
+
+                // A window with the height for it must not scroll. Below that height the form
+                // pane does scroll, on purpose: a warning that wraps costs lines, and the
+                // preview above will only give up so many before a sentence would have to be
+                // cut in half again to fit. That trade is the one thing here worth stating out
+                // loud, so it is stated at the height where it is not being made.
+                form.Width = width;
+                form.Height = 1000;
+                Pump();
+
+                failures += NoScrollBars(control, "with the credit line in a window tall enough for it");
+                failures += NothingIsClipped(control, "with the credit line in a window tall enough for it");
+
+                form.Height = height;
+                Pump();
+            }
+            finally
+            {
+                licences.SetValue(control, real);
+
+                // Whatever is chosen now was chosen under a licence this bundle does not have.
+                grid.SelectedIndices.Clear();
+                search.Text = "";
+                Pump();
+            }
+
+            if (warning.Visible && warning.Text.IndexOf("CC-BY-4.0", StringComparison.Ordinal) >= 0)
+            {
+                Console.WriteLine("FAIL: the credit line outlived the licence it was about: " + warning.Text);
+                failures++;
+            }
+
+            return failures;
         }
 
         /// <summary>

@@ -599,11 +599,19 @@ namespace Icons
             _warningLabel = new Label
             {
                 Dock = DockStyle.Top,
-                AutoSize = true,
+                // Not AutoSize: a label that sizes itself measures its text as one line, and
+                // docking then clamps that line to the pane - which is a sentence cut off
+                // mid-word rather than a sentence wrapped. Its height is worked out from the
+                // width it has instead, in SizeWarning.
+                AutoSize = false,
                 Visible = false,
                 ForeColor = Color.FromArgb(0x8A, 0x53, 0x00),
                 Padding = new Padding(8, 2, 8, 4)
             };
+
+            // The pane hands the label its width, and the height follows from it: a drag that
+            // narrows the form turns two lines into three.
+            _warningLabel.SizeChanged += (sender, e) => SizeWarning();
 
             _tableFilterBox = new TextBox { Dock = DockStyle.Fill };
             _tableFilterBox.TextChanged += (s, e) => ShowTables();

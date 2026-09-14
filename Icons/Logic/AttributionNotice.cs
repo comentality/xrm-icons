@@ -1,4 +1,3 @@
-using System;
 using Icons.Catalog;
 
 namespace Icons.Logic
@@ -23,15 +22,17 @@ namespace Icons.Logic
         /// The whole of it, for the line under the library: what the licence asks, what gets
         /// written because of it, and what happens if it cannot be. Null when this licence asks
         /// only that the notice travel with the software, which is every family bundled today.
+        ///
+        /// Short on purpose. It is one line among three the window can show at once, in a pane
+        /// that has to find the height for all of them out of the preview above it, and a
+        /// paragraph here is a scroll bar down the side of the form.
         /// </summary>
         public static string For(IconLicence licence, string iconWebResourceName)
         {
             if (licence == null || !licence.RequiresNotice) return null;
 
             return Asks(licence) + " Applying this icon writes " + PageFor(iconWebResourceName) +
-                   " beside it to carry that credit - naming the set, the copyright holder and what " +
-                   "was changed on the way in - and the icon is not put on the table unless that " +
-                   "page can be written.";
+                   " to carry it; without that page the icon is not put on the table.";
         }
 
         /// <summary>
@@ -42,14 +43,14 @@ namespace Icons.Logic
         {
             if (licence == null || !licence.RequiresNotice) return null;
 
-            return Asks(licence) + " That page is where the credit is given, so the icon is not " +
-                   "put on the table unless it can be written.";
+            return Asks(licence) + " That page carries it, and without it the icon is not " +
+                   "put on the table.";
         }
 
         private static string Asks(IconLicence licence)
         {
             return licence.SetName + " is licensed under " + licence.Licence +
-                   ", which asks for a credit line wherever its drawings go.";
+                   ", which asks for a credit line.";
         }
 
         /// <summary>
@@ -60,16 +61,9 @@ namespace Icons.Logic
         /// </summary>
         private static string PageFor(string iconWebResourceName)
         {
-            if (string.IsNullOrWhiteSpace(iconWebResourceName)) return AttributionPage.FileName;
-
-            try
-            {
-                return AttributionPage.NameFor(iconWebResourceName);
-            }
-            catch (ArgumentException)
-            {
-                return AttributionPage.FileName;
-            }
+            return string.IsNullOrWhiteSpace(iconWebResourceName)
+                ? AttributionPage.FileName
+                : AttributionPage.NameFor(iconWebResourceName);
         }
     }
 }
