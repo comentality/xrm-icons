@@ -21,7 +21,7 @@ namespace Icons.Logic
     /// </summary>
     public sealed class IconProvenance
     {
-        /// <summary>The family's own word for itself: Fluent, Phosphor, Lucide, Tabler, FontAwesome.</summary>
+        /// <summary>The family's own word for itself: Fluent, Phosphor, Lucide, Tabler, FontAwesome, Solar.</summary>
         public string Family { get; set; }
 
         /// <summary>The family's own word for the weight: regular, filled, bold, fill, outline.</summary>

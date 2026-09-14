@@ -1,25 +1,32 @@
 ﻿<#
 .SYNOPSIS
-    Rebuilds Icons\Catalog\icons.zip from five npm icon sets.
+    Rebuilds Icons\Catalog\icons.zip from six npm icon sets.
 
 .DESCRIPTION
     The tool ships its icon library inside the DLL, so it works with no network and no API key.
     This script is what produces that library. Run it to pick up newer icon releases; the
     result is committed, so a normal build does not need npm, node or an internet connection.
 
-    Five sets go in, each from its own npm package:
+    Six sets go in, each from its own npm package:
 
         fluent       @fluentui/svg-icons            MIT         regular, filled
         phosphor     @phosphor-icons/core           MIT         regular, bold, fill
         lucide       lucide-static                  ISC         regular
         tabler       @tabler/icons                  MIT         outline, filled
         fontawesome  @fortawesome/fontawesome-free  CC-BY-4.0   solid, regular
+        solar        @iconify-json/solar            CC-BY-4.0   linear, outline
 
     The first four ask only that their notice travel with the software, which ABOUT.txt
-    below is. Font Awesome asks for a credit line wherever its drawings go, which is a
-    different thing and is why the tool writes an attribution page beside the icons it
-    stores: see IconLicence.RequiresNotice. Its brands weight - 609 logos - is left out,
-    for the reason every logo set is: a table icon is a noun, not a company.
+    below is. Font Awesome and Solar ask for a credit line wherever their drawings go,
+    which is a different thing and is why the tool writes an attribution page beside the
+    icons it stores: see IconLicence.RequiresNotice. Font Awesome brands - 609 logos - is
+    left out, for the reason every logo set is: a table icon is a noun, not a company.
+
+    Solar is the one set that does not arrive as SVG files. Its author publishes it as a
+    Figma community file; what npm carries is Iconify's rendition of that, one JSON holding
+    every icon as a fragment, so this script writes the SVGs back out. That makes the
+    bundled drawings a third party's rendering of the author's work rather than the
+    author's own files, which CC BY asks be said, and ABOUT.txt says it.
 
     Font Awesome is also the one set that is not drawn square. Its icons are 512 tall and
     anywhere from 320 to 640 wide, and they are bundled at the width they were drawn:
@@ -75,7 +82,8 @@ param(
     [string]$PhosphorVersion = "latest",
     [string]$LucideVersion = "latest",
     [string]$TablerVersion = "latest",
-    [string]$FontAwesomeVersion = "latest"
+    [string]$FontAwesomeVersion = "latest",
+    [string]$SolarVersion = "latest"
 )
 
 $ErrorActionPreference = "Stop"
@@ -120,6 +128,8 @@ $expected = [ordered]@{
     "tabler/filled"    = 1054
     "fontawesome/solid"   = 1422
     "fontawesome/regular" = 169
+    "solar/linear"        = 1267
+    "solar/outline"       = 127
 }
 
 # ---------------------------------------------------------------------------------------------
@@ -230,6 +240,69 @@ function Get-PackageFacts {
     [pscustomobject]@{ Version = $pkg.version; License = $license; Copyright = $copyright }
 }
 
+function Get-InkOverlap {
+    <#
+        How much of two drawings is the same drawing, as a fraction between 0 and 1: the ink
+        they share over the ink either of them has. 1 is the same picture, 0 is no overlap at
+        all.
+
+        Rendered rather than compared as text, because two styles of one icon never have the
+        same path data - one states a stroke and the other fills the outline that stroke would
+        have drawn - and a picture is what a duplicate in the grid would be. Drawn through the
+        tool's own renderer for the same reason: it is not a browser, and what it draws is what
+        somebody would be choosing between.
+
+        32 pixels is where this is measured. Smaller and a stroke and its filled twin blur
+        together whatever they really are; larger costs time for a decision that does not move.
+    #>
+    param(
+        [Parameter(Mandatory)][string]$First,
+        [Parameter(Mandatory)][string]$Second
+    )
+
+    $a = Get-InkMask $First
+    $b = Get-InkMask $Second
+
+    $both = 0
+    $either = 0
+    for ($i = 0; $i -lt $a.Length; $i++) {
+        if ($a[$i] -and $b[$i]) { $both++ }
+        if ($a[$i] -or  $b[$i]) { $either++ }
+    }
+
+    if ($either -eq 0) { return 1.0 }
+    return $both / $either
+}
+
+function Get-InkMask {
+    <#
+        Which pixels of a 32x32 rendering of this SVG were painted at all. The colour is
+        whatever was asked for, so alpha is the only channel that says anything.
+    #>
+    param([Parameter(Mandatory)][string]$Svg)
+
+    $size = 32
+    $image = [Icons.Logic.SvgImage]::Parse($Svg)
+    $bitmap = $image.Render($size, [System.Drawing.Color]::Black)
+    try {
+        # One read of the whole bitmap. GetPixel over thousands of icons is minutes of this
+        # script; a single LockBits is seconds of it.
+        $rect = New-Object System.Drawing.Rectangle 0, 0, $size, $size
+        $data = $bitmap.LockBits($rect, [System.Drawing.Imaging.ImageLockMode]::ReadOnly,
+                                 [System.Drawing.Imaging.PixelFormat]::Format32bppArgb)
+        try {
+            $bytes = New-Object byte[] ($data.Stride * $size)
+            [System.Runtime.InteropServices.Marshal]::Copy($data.Scan0, $bytes, 0, $bytes.Length)
+        }
+        finally { $bitmap.UnlockBits($data) }
+    }
+    finally { $bitmap.Dispose() }
+
+    $mask = New-Object bool[] ($size * $size)
+    for ($i = 0; $i -lt $mask.Length; $i++) { $mask[$i] = $bytes[$i * 4 + 3] -gt 32 }
+    return , $mask
+}
+
 function Get-NormalizedSvg {
     <#
         Reads one SVG and applies the two edits described at the top of this file. Reports what
@@ -307,6 +380,12 @@ try {
 
     $fontAwesomeRoot = Get-NpmPackage -Name "@fortawesome/fontawesome-free" -VersionOrTag $FontAwesomeVersion -Root $temp
     $fontAwesome = Get-PackageFacts $fontAwesomeRoot -License "CC-BY-4.0" -FirstCopyrightOnly
+
+    # Iconify's rendition rather than the author's own files, and it ships no LICENSE of its
+    # own - the terms it states are the author's, in info.json and in package.json.
+    $solarRoot = Get-NpmPackage -Name "@iconify-json/solar" -VersionOrTag $SolarVersion -Root $temp
+    $solarInfo = Get-Content (Join-Path $solarRoot "info.json") -Raw -Encoding UTF8 | ConvertFrom-Json
+    $solar = Get-PackageFacts $solarRoot -Fallback "Copyright (c) $($solarInfo.author.name)."
 
     Write-Host ""
     Write-Host "Selecting icons..."
@@ -416,6 +495,86 @@ try {
         }
     }
 
+    # --- Solar --------------------------------------------------------------------------
+    # Two of its six styles. Bold and the two duotones are left out the way Phosphor's
+    # duotone is - beside the rest of the library they read as a different tool - and broken,
+    # whose gapped strokes are a signature rather than a weight.
+    #
+    # Linear and outline are the two kept, and they are very nearly the same set: 1,146 of the
+    # 1,273 drawings that exist in both share more than 95% of their ink once drawn. One is
+    # stroked and the other is the same outline filled, so the path data never matches and
+    # nothing downstream would catch it - the grid would simply offer the same picture twice.
+    # So linear is taken whole and outline only where it draws something else. The test is a
+    # rendering rather than a comparison of the files, because a picture is what the duplicate
+    # would be.
+    $dll = Join-Path $repo "Icons\bin\Debug\net48\Comentality.Icons.dll"
+    if (-not (Test-Path $dll)) { throw "Build the tool first: dotnet build Icons\Icons.csproj" }
+    Add-Type -Path $dll
+    Add-Type -AssemblyName System.Drawing
+
+    $solarJson = Get-Content (Join-Path $solarRoot "icons.json") -Raw -Encoding UTF8 | ConvertFrom-Json
+    $solarBodies = @{}
+    foreach ($icon in $solarJson.icons.PSObject.Properties) { $solarBodies[$icon.Name] = $icon.Value }
+
+    # Its own aliases - 4k-linear is car-battery-linear under another name - are names rather
+    # than drawings, and are left out for the reason Font Awesome's are.
+    $solarAliases = [System.Collections.Generic.HashSet[string]]::new([StringComparer]::OrdinalIgnoreCase)
+    if ($solarJson.aliases) {
+        foreach ($alias in $solarJson.aliases.PSObject.Properties) { [void]$solarAliases.Add($alias.Name) }
+    }
+
+    $solarDir = Join-Path $temp "solar-svg"
+    New-Item -ItemType Directory -Path $solarDir | Out-Null
+
+    $solarUndrawable = 0
+    $solarSame = 0
+    $solarLinear = @{}
+
+    foreach ($style in @("linear", "outline")) {
+        foreach ($name in $solarBodies.Keys) {
+            if (-not $name.EndsWith("-$style")) { continue }
+            if ($solarAliases.Contains($name)) { continue }
+
+            $body = $solarBodies[$name].body
+
+            $stem = $name.Substring(0, $name.Length - ($style.Length + 1))
+            $w = if ($solarBodies[$name].width)  { $solarBodies[$name].width }  else { $solarJson.width }
+            $h = if ($solarBodies[$name].height) { $solarBodies[$name].height } else { $solarJson.height }
+            $svg = "<svg xmlns=""http://www.w3.org/2000/svg"" viewBox=""0 0 $w $h"">$body</svg>"
+
+            # Only what this tool can actually draw, asked of the thing that will draw it
+            # rather than guessed at from the text. The other five sets are their authors
+            # own SVGs and have always parsed; this one is somebody else rendering somebody
+            # else's Figma file, and a few of them use a mask, or a transform, or are a
+            # zero-length line meant to come out as a dot under a round cap - which a browser
+            # draws and this renderer does not. Bundled, each would be a blank cell in the
+            # grid and a blank icon on a table.
+            $drawing = [Icons.Logic.SvgImage]::Parse($svg)
+            if ($drawing.Unsupported.Count -gt 0) {
+                $solarUndrawable++
+                if ($notes.Count -lt 200) { $notes.Add("solar/$style/$stem.svg: $($drawing.Unsupported[0])") }
+                continue
+            }
+
+            $painted = 0
+            foreach ($lit in (Get-InkMask $svg)) { if ($lit) { $painted++ } }
+            if ($painted -lt 8) {
+                $solarUndrawable++
+                if ($notes.Count -lt 200) { $notes.Add("solar/$style/$stem.svg: draws nothing") }
+                continue
+            }
+
+            if ($style -eq "outline" -and $solarLinear.ContainsKey($stem)) {
+                if ((Get-InkOverlap -First $solarLinear[$stem] -Second $svg) -ge 0.95) { $solarSame++; continue }
+            }
+
+            $file = Join-Path $solarDir "$style-$stem.svg"
+            [System.IO.File]::WriteAllText($file, $svg, (New-Object System.Text.UTF8Encoding $false))
+            Add-Icon -Entry "solar/$style/$stem.svg" -Path $file
+            if ($style -eq "linear") { $solarLinear[$stem] = $svg }
+        }
+    }
+
     # Ordinal, so the archive is in the order a byte-wise reader would put it, not the order the
     # current culture would.
     $records.Sort([System.Comparison[object]] { param($a, $b) [string]::CompareOrdinal($a.Entry, $b.Entry) })
@@ -449,13 +608,13 @@ try {
         # the package actually resolved at build time and what this script changed about it.
         $fallbacks = $sizePreference[1..($sizePreference.Count - 1)] -join ', '
         $about = @"
-Comentality Icons bundles five icon sets, each redistributed under its own licence
+Comentality Icons bundles six icon sets, each redistributed under its own licence
 and unmodified except as noted below.
 
 Four of them ask only that this notice travel with the software, which is what this
-file is. Font Awesome asks for a credit line wherever its drawings go, so the tool
-writes one into every environment it stores a Font Awesome icon in, beside the icon
-itself: see ATTRIBUTION.html in the folder the icons were written to.
+file is. Font Awesome and Solar ask for a credit line wherever their drawings go, so
+the tool writes one into every environment it stores one of their icons in, beside the
+icon itself: see ATTRIBUTION.html in the folder the icons were written to.
 
 Microsoft Fluent UI System Icons
 @fluentui/svg-icons $($fluent.Version)
@@ -508,6 +667,22 @@ weights only - brands, being logos, is left out - and one file per drawing, drop
 the names Font Awesome keeps as aliases of another icon. Contents otherwise
 unmodified, including the licence comment each file carries and the width each icon
 was drawn at, which for this set is not always its height.
+
+Solar
+@iconify-json/solar $($solar.Version)
+$($solarInfo.author.url)
+Licensed under $($solar.License). $($solar.Copyright)
+
+Drawn by $($solarInfo.author.name) and published as a Figma community file. What is
+bundled here is Iconify's rendition of that file rather than the author's own export:
+@iconify-json/solar carries every icon as an SVG fragment in one JSON, and this script
+writes those fragments back out as SVGs.
+
+Repackaged for Comentality Icons by tools\build-catalog.ps1: the linear and outline
+styles only, of the six the set draws. Outline is kept only where it draws something
+its linear does not - the two are the same outline stroked and filled, and most of the
+set renders identically either way - and icons this tool cannot draw are left out rather
+than bundled blank. Contents otherwise unmodified.
 "@
         $entry = $zip.CreateEntry("ABOUT.txt", [System.IO.Compression.CompressionLevel]::Optimal)
         $writer = New-Object System.IO.StreamWriter($entry.Open())
@@ -528,7 +703,7 @@ was drawn at, which for this set is not always its height.
     try {
         $furniture = @("ABOUT.txt") + @($check.Entries | Where-Object { $_.FullName -like "drawings.v*.tsv" } | ForEach-Object { $_.FullName })
         $svgs = $check.Entries | Where-Object { $furniture -notcontains $_.FullName }
-        $stray = $svgs | Where-Object { $_.FullName -notmatch '^(fluent|phosphor|lucide|tabler|fontawesome)/[a-z]+/[^/]+\.svg$' }
+        $stray = $svgs | Where-Object { $_.FullName -notmatch '^(fluent|phosphor|lucide|tabler|fontawesome|solar)/[a-z]+/[^/]+\.svg$' }
         if ($stray) { throw "Unexpected entries: $(($stray | Select-Object -First 5 -ExpandProperty FullName) -join ', ')" }
 
         Write-Host ""
@@ -549,6 +724,8 @@ was drawn at, which for this set is not always its height.
     foreach ($family in $classHits.Keys | Sort-Object) { Write-Host "Removed a class attribute from $($classHits[$family]) $family icons" }
     foreach ($family in $backdropHits.Keys | Sort-Object) { Write-Host "Removed the backdrop rectangle from $($backdropHits[$family]) $family icons" }
     Write-Host "Left out $aliasHits fontawesome files that are another icon under an older name"
+    Write-Host "Left out $solarSame solar outline icons that draw what their linear already draws"
+    Write-Host "Left out $solarUndrawable solar icons this renderer cannot draw"
     if ($backdropMisses -gt 0) { Write-Warning "$backdropMisses Tabler icons did not have exactly one backdrop rectangle" }
     foreach ($note in $notes | Select-Object -First 20) { Write-Warning $note }
     if ($notes.Count -gt 20) { Write-Warning "...and $($notes.Count - 20) more" }

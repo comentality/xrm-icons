@@ -66,18 +66,24 @@ namespace Icons.Tests
         }
 
         [Test]
-        public void Font_Awesome_is_the_one_set_that_asks_for_a_credit_line()
+        public void Exactly_the_CC_BY_sets_ask_for_a_credit_line()
         {
-            // Named rather than counted. Every other set here asks only that its notice travel
-            // with the software, and the day a second one asks for more is the day somebody has
-            // to go and read what the tool promises in docs/clean-room.md and the README - both
-            // of which now say an obligation lands on the attribution page rather than on the
+            // Named rather than counted. The other four ask only that their notice travel with
+            // the software, and the day one of them starts asking for more is the day somebody
+            // has to go and read what the tool promises in docs/clean-room.md and the README -
+            // both of which say an obligation lands on the attribution page rather than on the
             // customer, and both of which were written when the answer to this was none.
             var asking = IconLicence.All.Where(l => l.RequiresNotice).Select(l => l.Family).ToList();
 
-            Assert.That(asking, Is.EquivalentTo(new[] { IconFamily.FontAwesome }));
-            Assert.That(IconLicence.For(IconFamily.FontAwesome).Licence, Is.EqualTo("CC-BY-4.0"),
-                        "which is the licence the credit line is owed to");
+            Assert.That(asking, Is.EquivalentTo(new[] { IconFamily.FontAwesome, IconFamily.Solar }));
+
+            // The two are not the same obligation by coincidence: it is the licence that asks,
+            // so a set under it asks and a set not under it does not.
+            foreach (var licence in IconLicence.All)
+            {
+                Assert.That(licence.RequiresNotice, Is.EqualTo(licence.Licence == "CC-BY-4.0"),
+                            licence.SetName + " is " + licence.Licence);
+            }
         }
 
         /// <summary>What ABOUT.txt says about one set, up to where it starts on the next.</summary>

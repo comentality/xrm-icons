@@ -66,8 +66,8 @@ namespace Icons.Catalog
         /// Whether this licence's demand is a credit line - CC BY and its relatives - rather
         /// than only that the notice travel with the software. False for the four sets under
         /// MIT and ISC, whose notice is <c>ABOUT.txt</c> and for whom the attribution page is
-        /// a courtesy. True for Font Awesome, where the page is the price of the icon rather
-        /// than a kindness. When it is true, an icon of that family must not be applied unless the
+        /// a courtesy. True for Font Awesome and Solar, where the page is the price of the icon
+        /// rather than a kindness. When it is true, an icon of that family must not be applied unless the
         /// page goes with it.
         /// </summary>
         public bool RequiresNotice { get; }
@@ -140,6 +140,25 @@ namespace Icons.Catalog
                     // the drawings are under. It asks for a credit line and for changes to be
                     // indicated, which is what the attribution page carries - so an icon of
                     // this family is not put on a table unless that page goes with it.
+                    true)
+            },
+            {
+                IconFamily.Solar,
+                new IconLicence(
+                    IconFamily.Solar,
+                    "Solar",
+                    "480 Design",
+                    "CC-BY-4.0",
+                    "https://spdx.org/licenses/CC-BY-4.0.html",
+                    "https://www.figma.com/community/file/1166831539721848736",
+
+                    // Not a change to a drawing but a change of hand, which is the sort of thing
+                    // CC BY asks be indicated. The author publishes Solar as a Figma community
+                    // file; what is bundled is Iconify's rendition of that file, because that is
+                    // what can be fetched and checked at build time. Somebody reading the credit
+                    // should know whose SVG they are actually looking at.
+                    "the drawing is Iconify's rendition of the author's Figma file rather than " +
+                    "an export of the author's own",
                     true)
             },
         };
