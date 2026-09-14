@@ -829,6 +829,14 @@ namespace Icons
             _formHost = new Panel { Dock = DockStyle.Fill, AutoScroll = true };
             _formHost.Controls.Add(form);
 
+            // Inside the pane that scrolls, above the form, rather than pinned in the chrome
+            // over it. A warning that wraps is three or four lines, and pinned it took them off
+            // the form every time - on a screen XrmToolBox is running unaware of, that is most
+            // screens. Here the lines it takes are lines of the same scroll as the rest, and a
+            // pane too short for both is a pane somebody scrolls rather than a form squeezed by
+            // a sentence. It is added after the form, because what is added last docks first.
+            _formHost.Controls.Add(_warningLabel);
+
             // Right, because that is the corner a window that fills something in keeps its last
             // button in, and its own strip below everything else so the red line that says why a
             // write failed reads above the button that would try it again.
@@ -859,7 +867,6 @@ namespace Icons
             // the strip above.
             var below = new Panel { Dock = DockStyle.Fill };
             below.Controls.Add(_formHost);
-            below.Controls.Add(_warningLabel);
             below.Controls.Add(_iconLabel);
 
             // The preview above, the form below, and a splitter between them, because how much

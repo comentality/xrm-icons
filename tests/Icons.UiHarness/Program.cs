@@ -270,33 +270,25 @@ namespace Icons.UiHarness
                 Console.WriteLine("The credit line is " + warning.Text.Length + " characters and " +
                                   warning.Height + " pixels tall in a " + warning.Width + " pixel pane");
 
+                // Three lines of warning, and the form still whole under it: the lines come out
+                // of the preview above rather than off the bottom of the form, which is what
+                // moving the label inside the pane that scrolls bought.
+                failures += NoScrollBars(control, "with the credit line showing");
                 failures += NothingIsClipped(control, "with the credit line showing");
                 Shoot(form, outputDir, "13-credit-line");
 
                 var width = form.Width;
-                var height = form.Height;
 
                 // The line is at its longest where the pane is at its narrowest, and this is a
                 // sentence about a licence: half of it is not half as good.
                 form.Width = 900;
                 Pump();
 
+                failures += NoScrollBars(control, "with the credit line in a narrow pane");
                 failures += NothingIsClipped(control, "with the credit line in a narrow pane");
                 Shoot(form, outputDir, "14-credit-line-narrow");
 
-                // A window with the height for it must not scroll. Below that height the form
-                // pane does scroll, on purpose: a warning that wraps costs lines, and the
-                // preview above will only give up so many before a sentence would have to be
-                // cut in half again to fit. That trade is the one thing here worth stating out
-                // loud, so it is stated at the height where it is not being made.
                 form.Width = width;
-                form.Height = 1000;
-                Pump();
-
-                failures += NoScrollBars(control, "with the credit line in a window tall enough for it");
-                failures += NothingIsClipped(control, "with the credit line in a window tall enough for it");
-
-                form.Height = height;
                 Pump();
             }
             finally
