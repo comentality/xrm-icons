@@ -273,6 +273,7 @@ namespace Icons
 
         /// <summary>What is worth knowing about the chosen icon, the solution, and the name.</summary>
         private string _iconConcern;
+        private string _licenceConcern;
         private string _nameConcern;
         private string _solutionConcern;
 
@@ -357,6 +358,9 @@ namespace Icons
             // The preview is showing what is chosen now, not what was chosen a change ago.
             RefreshContextIcon();
 
+            _licenceConcern = _selectedIcon == null
+                ? null
+                : AttributionNotice.For(IconLicence.For(_selectedIcon.Family), _nameBox.Text.Trim());
             _nameConcern = NameConcern();
             _solutionConcern = SolutionConcern();
             ShowConcerns();
@@ -437,7 +441,7 @@ namespace Icons
         /// </summary>
         private void ShowConcerns()
         {
-            var text = string.Join("  ", new[] { _iconConcern, _solutionConcern, _nameConcern }
+            var text = string.Join("  ", new[] { _iconConcern, _licenceConcern, _solutionConcern, _nameConcern }
                 .Where(concern => !string.IsNullOrEmpty(concern)));
 
             _warningLabel.Text = text;
@@ -1428,11 +1432,17 @@ namespace Icons
             var concern = NameConcern();
             if (concern != null) concern = "\n\n" + concern;
 
+            // Why the second web resource exists, for a licence where it is the condition of
+            // using the drawing rather than a courtesy. The library says this while the icon is
+            // being chosen; a gate that is about to write the page is not the place to stop.
+            var credit = AttributionNotice.Why(IconLicence.For(icon.Family));
+            if (credit != null) credit = "\n\n" + credit;
+
             var confirm = MessageBox.Show(this,
                 "Set " + icon.DisplayName + " as the icon for " + table.DisplayName + "?\n\n" +
                 "This writes the web resource " + name + " and the attribution page beside it, " +
                 AttributionPage.NameFor(name) + ", adding whichever is new to " + solution.FriendlyName +
-                ", and publishes the table." + replacing + handover + concern,
+                ", and publishes the table." + credit + replacing + handover + concern,
                 "Set table icon", MessageBoxButtons.OKCancel, MessageBoxIcon.Question);
             if (confirm != DialogResult.OK) return;
 

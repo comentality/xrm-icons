@@ -14,7 +14,13 @@ namespace Icons.Catalog
     /// </summary>
     public sealed class IconLicence
     {
-        private IconLicence(
+        /// <summary>
+        /// Internal rather than private so that a test can build a licence this bundle does not
+        /// contain. Everything here asks only that the notice travel with the software; the code
+        /// that handles a licence demanding a credit line has nothing real to run against until
+        /// such a set is bundled, and untested is how that code would stay.
+        /// </summary>
+        internal IconLicence(
             IconFamily family, string setName, string holder, string licence,
             string licenceUrl, string sourceUrl, string bundleChange, bool requiresNotice)
         {
