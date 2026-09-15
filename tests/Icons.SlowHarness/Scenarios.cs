@@ -430,7 +430,7 @@ namespace Icons.SlowHarness
                     r.Check(r.Probe.Search.Text.Length == 0,
                         "with nothing in the search box, since that table name says nothing to the library");
                 })
-                .At(2300, "widen the weight filter", r => r.Probe.Weight.SelectedIndex = 0)
+                .At(2300, "widen the weight filter", r => r.Probe.ShowWeights(true, true))
                 .At(2600, "pick a table the library does know a word for", r =>
                 {
                     r.Probe.PickTable("contoso_account");

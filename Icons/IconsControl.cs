@@ -234,8 +234,11 @@ namespace Icons
         private ToolStripLabel _statusLabel;
 
         private TextBox _searchBox;
-        private ComboBox _familyBox;
-        private ComboBox _styleBox;
+
+        /// <summary>One toggle per family, in the order <see cref="IconFamily"/> declares them.</summary>
+        private readonly List<CheckBox> _familyButtons = new List<CheckBox>();
+        private CheckBox _outlineButton;
+        private CheckBox _solidButton;
         private CheckBox _familyToggle;
         private ListView _grid;
         private ListBox _tableBox;
@@ -588,8 +591,10 @@ namespace Icons
             _refiltering = true;
             try
             {
-                _familyBox.SelectedItem = icon.Family;
-                _styleBox.SelectedIndex = 0;
+                foreach (var button in _familyButtons)
+                    button.Checked = (IconFamily)button.Tag == icon.Family;
+                _outlineButton.Checked = true;
+                _solidButton.Checked = true;
                 _seededSearch = icon.Name.Replace('_', ' ').Replace('-', ' ');
                 _seededFor = (_tableBox.SelectedItem as TableItem)?.LogicalName;
                 _searchBox.Text = _seededSearch;
@@ -1279,17 +1284,67 @@ namespace Icons
         {
             var wanted = _library;
 
-            if (_familyBox.SelectedItem is IconFamily)
+            // Both filters are a set of lit toggles rather than one choice, and an empty set
+            // means the filter is not being used - which is what the old "All families" entry
+            // said, without needing a row in a list to say it. Lighting every family says the
+            // same thing and is allowed to: a filter you have to un-tick one at a time should
+            // not refuse to arrive back where it started.
+            var families = _familyButtons
+                .Where(b => b.Checked)
+                .Select(b => (IconFamily)b.Tag)
+                .ToList();
+
+            if (families.Count > 0 && families.Count < _familyButtons.Count)
+                wanted = wanted.Where(i => families.Contains(i.Family)).ToList();
+
+            var outline = _outlineButton.Checked;
+            var solid = _solidButton.Checked;
+            if (outline != solid)
             {
-                var family = (IconFamily)_familyBox.SelectedItem;
-                wanted = wanted.Where(i => i.Family == family).ToList();
+                var only = outline ? IconStyle.Regular : IconStyle.Filled;
+                wanted = wanted.Where(i => i.Style == only).ToList();
             }
 
-            var style = _styleBox.SelectedIndex;
-            if (style == 1) wanted = wanted.Where(i => i.Style == IconStyle.Regular).ToList();
-            else if (style == 2) wanted = wanted.Where(i => i.Style == IconStyle.Filled).ToList();
-
             return wanted;
+        }
+
+        /// <summary>
+        /// Lights the given families and no others; none of them for the whole library, which is
+        /// the state the window opens in. Does not touch the weight toggles.
+        /// </summary>
+        /// <remarks>For the test harnesses, which used to drive a combo box by index.</remarks>
+        internal void ShowFamilies(params IconFamily[] families)
+        {
+            _refiltering = true;
+            try
+            {
+                foreach (var button in _familyButtons)
+                    button.Checked = families.Contains((IconFamily)button.Tag);
+            }
+            finally
+            {
+                _refiltering = false;
+            }
+
+            ApplyFilter();
+        }
+
+        /// <summary>Lights the weights asked for. Neither and both are the same library.</summary>
+        /// <remarks>For the test harnesses, which used to drive a combo box by index.</remarks>
+        internal void ShowWeights(bool outline, bool solid)
+        {
+            _refiltering = true;
+            try
+            {
+                _outlineButton.Checked = outline;
+                _solidButton.Checked = solid;
+            }
+            finally
+            {
+                _refiltering = false;
+            }
+
+            ApplyFilter();
         }
 
         private void ApplyFilter()

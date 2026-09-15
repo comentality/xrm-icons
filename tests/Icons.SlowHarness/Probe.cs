@@ -117,8 +117,13 @@ namespace Icons.SlowHarness
         public ComboBox Solutions { get { return Field<ComboBox>("_solutionBox"); } }
         public TextBox Name { get { return Field<TextBox>("_nameBox"); } }
         public TextBox Search { get { return Field<TextBox>("_searchBox"); } }
-        public ComboBox Family { get { return Field<ComboBox>("_familyBox"); } }
-        public ComboBox Weight { get { return Field<ComboBox>("_styleBox"); } }
+        /// <summary>The weight toggles, lit or not: outline first, solid second.</summary>
+        public void ShowWeights(bool outline, bool solid)
+        {
+            typeof(IconsControl)
+                .GetMethod("ShowWeights", BindingFlags.Instance | BindingFlags.NonPublic)
+                .Invoke(_control, new object[] { outline, solid });
+        }
         public ListView Grid { get { return Field<ListView>("_grid"); } }
 
         /// <summary>What the in-context preview is saying about the navigation it is drawing.</summary>

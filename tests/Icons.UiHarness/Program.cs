@@ -213,12 +213,9 @@ namespace Icons.UiHarness
             var search = Find<TextBox>(control, "search");
             var grid = Descendants(control).OfType<ListView>().FirstOrDefault();
             var warning = warningField.GetValue(control) as Label;
-            var familyBox = Descendants(control).OfType<ComboBox>()
-                .FirstOrDefault(c => c.Items.Count > 0 && c.Items[0] as string == "All families");
-
-            if (search == null || grid == null || warning == null || familyBox == null)
+            if (search == null || grid == null || warning == null)
             {
-                Console.WriteLine("FAIL: the search box, the grid, the family filter and the warning line are not all there");
+                Console.WriteLine("FAIL: the search box, the grid and the warning line are not all there");
                 return 1;
             }
 
@@ -227,7 +224,7 @@ namespace Icons.UiHarness
 
             try
             {
-                familyBox.SelectedItem = IconFamily.FontAwesome;
+                control.ShowFamilies(IconFamily.FontAwesome);
                 search.Text = "folder";
                 Pump();
 
@@ -284,7 +281,7 @@ namespace Icons.UiHarness
             finally
             {
                 grid.SelectedIndices.Clear();
-                familyBox.SelectedIndex = 0;
+                control.ShowFamilies();
                 search.Text = "";
                 Pump();
             }
@@ -311,12 +308,10 @@ namespace Icons.UiHarness
             var search = Find<TextBox>(control, "search");
             var grid = Descendants(control).OfType<ListView>().FirstOrDefault();
             var toggle = Descendants(control).OfType<CheckBox>().FirstOrDefault(c => c.Text == "Show family");
-            var familyBox = Descendants(control).OfType<ComboBox>()
-                .FirstOrDefault(c => c.Items.Count > 0 && c.Items[0] as string == "All families");
 
-            if (search == null || grid == null || toggle == null || familyBox == null)
+            if (search == null || grid == null || toggle == null)
             {
-                Console.WriteLine("FAIL: the family toggle or the family filter is not in the window");
+                Console.WriteLine("FAIL: the family tick or the search box is not in the window");
                 return 1;
             }
 
@@ -338,20 +333,22 @@ namespace Icons.UiHarness
             // Every family should have a folder, so narrowing to one has to leave something
             // and take something away.
             var narrowed = new List<string>();
-            for (var i = 1; i < familyBox.Items.Count; i++)
+            var alone = new Dictionary<IconFamily, int>();
+            foreach (IconFamily family in Enum.GetValues(typeof(IconFamily)))
             {
-                familyBox.SelectedIndex = i;
+                control.ShowFamilies(family);
                 Pump();
-                narrowed.Add(familyBox.Items[i] + ": " + grid.VirtualListSize);
+                narrowed.Add(family + ": " + grid.VirtualListSize);
+                alone[family] = grid.VirtualListSize;
 
                 if (grid.VirtualListSize == 0)
                 {
-                    Console.WriteLine("FAIL: " + familyBox.Items[i] + " has no folder, so that family is not in the bundle");
+                    Console.WriteLine("FAIL: " + family + " has no folder, so that family is not in the bundle");
                     failures++;
                 }
                 if (grid.VirtualListSize >= everyFamily)
                 {
-                    Console.WriteLine("FAIL: filtering to " + familyBox.Items[i] + " did not narrow anything");
+                    Console.WriteLine("FAIL: filtering to " + family + " did not narrow anything");
                     failures++;
                 }
             }
@@ -359,7 +356,43 @@ namespace Icons.UiHarness
             Console.WriteLine("Folders per family - " + string.Join(", ", narrowed) + " (all families: " + everyFamily + ")");
             Shoot(form, outputDir, "08-one-family");
 
-            familyBox.SelectedIndex = 0;
+            // Two families at once, which no drop-down could be asked for: the pair has to be
+            // more than either of them and less than the whole library.
+            control.ShowFamilies(IconFamily.Fluent, IconFamily.Lucide);
+            Pump();
+            Shoot(form, outputDir, "08-two-families");
+
+            var pair = grid.VirtualListSize;
+            var biggest = Math.Max(alone[IconFamily.Fluent], alone[IconFamily.Lucide]);
+            if (pair <= biggest || pair >= everyFamily)
+            {
+                Console.WriteLine("FAIL: Fluent and Lucide together show " + pair + " folders, against " +
+                                  biggest + " for the bigger of them alone and " + everyFamily + " for all six");
+                failures++;
+            }
+            else
+            {
+                Console.WriteLine("OK: Fluent and Lucide together show " + pair + " folders, more than " +
+                                  "either alone and fewer than every family");
+            }
+
+            // Lighting every one of them is the same library as lighting none, and the filter
+            // has to be able to arrive back there the way a person would: by turning them on.
+            control.ShowFamilies((IconFamily[])Enum.GetValues(typeof(IconFamily)));
+            Pump();
+
+            if (grid.VirtualListSize != everyFamily)
+            {
+                Console.WriteLine("FAIL: every family lit shows " + grid.VirtualListSize +
+                                  " icons and none lit shows " + everyFamily);
+                failures++;
+            }
+            else
+            {
+                Console.WriteLine("OK: every family lit is the same library as none lit");
+            }
+
+            control.ShowFamilies();
             toggle.Checked = false;
             Pump();
 
@@ -861,18 +894,15 @@ namespace Icons.UiHarness
             var filterBox = RowControl(control, "Find table") as TextBox;
             var search = Find<TextBox>(control, "search");
             var grid = Descendants(control).OfType<ListView>().FirstOrDefault();
-            var familyBox = Descendants(control).OfType<ComboBox>()
-                .FirstOrDefault(c => c.Items.Count > 0 && c.Items[0] as string == "All families");
-
-            if (tableBox == null || filterBox == null || search == null || grid == null || familyBox == null)
+            if (tableBox == null || filterBox == null || search == null || grid == null)
             {
-                Console.WriteLine("FAIL: the table row, the search box, the grid and the family filter are not all there");
+                Console.WriteLine("FAIL: the table row, the search box and the grid are not all there");
                 return 1;
             }
 
             // Whatever the checks before left on screen. An empty search box is the state this
             // is about, and a narrowed family would rank a different grid under it.
-            familyBox.SelectedIndex = 0;
+            control.ShowFamilies();
             filterBox.Text = "";
             search.Text = "";
             showTables.Invoke(control, null);

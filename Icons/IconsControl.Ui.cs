@@ -28,18 +28,23 @@ namespace Icons
         /// </summary>
         private int _familyLineHeight = 15;
 
-        /// <summary>The row of boxes that narrows the library, kept because its columns are sized
-        /// to the words in them and have to be re-sized when the font changes.</summary>
-        private TableLayoutPanel _libraryHeader;
+        /// <summary>Everything above the grid: the search box and the two rows of filter buttons.</summary>
+        private Panel _libraryHeader;
+
+        /// <summary>
+        /// The two rows in the header that do not wrap, which are what the library pane's width
+        /// is asked of. The row of families is left out on purpose: it is as wide as six spelled
+        /// out names and it is built to fold rather than to be given the room, so letting it
+        /// have a say would hand the library a third of the window it does not need.
+        /// </summary>
+        private Control _searchRow;
+        private Control _weightRow;
 
         /// <summary>Where the two rows the form has to be told the height of sit among its rows,
         /// so they can be told again in a new font. Every other row is as tall as what stands
         /// in it.</summary>
         private const int TableRow = 3;
         private const int SolutionRow = 6;
-
-        /// <summary>The family filter's first entry, which is not a family.</summary>
-        private const string AllFamilies = "All families";
 
         private void BuildUi()
         {
@@ -116,11 +121,12 @@ namespace Icons
                 _familyLineHeight = Font.Height;
                 _thumbnailSize = (int)Math.Round(40 * DeviceDpi / 96f);
 
-                // Wide enough for the longest thing either box offers, in the font it is drawn
-                // in, rather than the 110 pixels that was wide enough for it in mine.
-                var boxWidth = TextRenderer.MeasureText("Both weights", Font).Width + Font.Height + 24;
-                _libraryHeader.ColumnStyles[3].Width = boxWidth;
-                _libraryHeader.ColumnStyles[5].Width = boxWidth;
+                // The filter buttons, each as wide as the word standing on it. This is the same
+                // job the two boxes' columns used to be given here and an easier one: a
+                // drop-down had to be made wide enough for a word it was not showing.
+                foreach (var button in _familyButtons) SizeToggle(button);
+                SizeToggle(_outlineButton);
+                SizeToggle(_solidButton);
 
                 // Seven rows of list - see where the row is added for why seven.
                 _form.RowStyles[TableRow].Height = Font.Height * 7 + 6;
@@ -201,7 +207,13 @@ namespace Icons
             // whichever is more. The numbers alone were right in one font: the filter row and the
             // form are both as wide as their own words, and in a bigger font they are wider than
             // any minimum written down here.
-            var wantsLibrary = Math.Max(320, _libraryHeader.PreferredSize.Width);
+            //
+            // The rows that wrap are not asked. A row of six families would say it wants about
+            // 470 pixels and mean it, and every one of them would be a pixel taken off the
+            // target side to spare the filter a second line it is built to take.
+            var wantsLibrary = Math.Max(320, Math.Max(
+                _searchRow.PreferredSize.Width,
+                _weightRow.PreferredSize.Width) + 12);
             var wantsTarget = Math.Max(340, _form.PreferredSize.Width + 16);
 
             // Whether the window is laid out at all is still the old question asked of the old
@@ -469,41 +481,103 @@ namespace Icons
             }
         }
 
+        /// <summary>
+        /// One filter button: a check box drawn as a button, which is the one control in this
+        /// toolkit that is lit or not lit and says so from across the room.
+        ///
+        /// Not AutoSize, which for this control is a trap: it measures the word and ignores
+        /// the Padding meant to keep the word off the edges, so the button comes out the width
+        /// of the text and then the text is drawn inside the padding and clipped. Fluent came
+        /// out reading "Flu". <see cref="SizeToggle"/> measures it instead.
+        /// </summary>
+        private static CheckBox Toggle(string text)
+        {
+            return new CheckBox
+            {
+                Text = text,
+                AutoSize = false,
+                Appearance = Appearance.Button,
+                TextAlign = ContentAlignment.MiddleCenter,
+                Margin = new Padding(0, 3, 4, 3)
+            };
+        }
+
+        /// <summary>A filter button as wide as the word on it, in the font it is drawn in.</summary>
+        private void SizeToggle(CheckBox button)
+        {
+            button.Size = new Size(
+                TextRenderer.MeasureText(button.Text, Font).Width + Font.Height + 8,
+                Font.Height + 10);
+        }
+
+        /// <summary>The word in front of a row of filter buttons, sat on the same line as they are.</summary>
+        private static Label Caption(string text)
+        {
+            return new Label
+            {
+                Text = text,
+                AutoSize = true,
+                Anchor = AnchorStyles.Left,
+                Padding = new Padding(0, 4, 6, 0)
+            };
+        }
+
+        /// <summary>
+        /// A row of filter buttons that wraps rather than runs off the edge of a narrow pane.
+        /// </summary>
+        private static FlowLayoutPanel FilterRow()
+        {
+            return new FlowLayoutPanel
+            {
+                Dock = DockStyle.Top,
+                AutoSize = true,
+                AutoSizeMode = AutoSizeMode.GrowAndShrink,
+                WrapContents = true,
+                Margin = Padding.Empty,
+                Padding = Padding.Empty
+            };
+        }
+
         private Control BuildLibraryPane()
         {
             _searchBox = new TextBox { Dock = DockStyle.Fill };
             _searchBox.TextChanged += (s, e) => ApplyFilter();
             _searchBox.KeyDown += Search_KeyDown;
 
-            _familyBox = new ComboBox
+            // Six families and two weights is few enough to put them all on the wall rather
+            // than behind a list each. A list of eight things costs a click to find out what
+            // is in it and a second to change your mind; eight buttons say what the library
+            // holds without being asked, and say which of it you are looking at from across
+            // the room. It also makes the filter a set rather than a choice - Fluent and
+            // Lucide together was not something a drop-down could be asked for.
+            _familyButtons.Clear();
+            foreach (IconFamily family in Enum.GetValues(typeof(IconFamily)))
             {
-                Dock = DockStyle.Fill,
-                DropDownStyle = ComboBoxStyle.DropDownList
-            };
-            _familyBox.Items.Add(AllFamilies);
-            foreach (IconFamily family in Enum.GetValues(typeof(IconFamily))) _familyBox.Items.Add(family);
-            _familyBox.SelectedIndex = 0;
-            _familyBox.SelectedIndexChanged += (s, e) => ApplyFilter();
+                var button = Toggle(family.ToString());
+                button.Tag = family;
+                button.CheckedChanged += (s, e) => ApplyFilter();
+                _familyButtons.Add(button);
+            }
 
-            _styleBox = new ComboBox
-            {
-                Dock = DockStyle.Fill,
-                DropDownStyle = ComboBoxStyle.DropDownList
-            };
-            _styleBox.Items.AddRange(new object[] { "Both weights", "Outline", "Solid" });
-            // Outline rather than both, because both means every icon twice: the same drawing
-            // filled and unfilled, adjacent in the ranking, and a grid where half the cells are
-            // the alternative to the cell beside them is a worse first look at the library than
-            // one weight of it. Outline is the one a site map is drawn in.
-            _styleBox.SelectedIndex = 1;
-            _styleBox.SelectedIndexChanged += (s, e) => ApplyFilter();
+            _outlineButton = Toggle("Outline");
+            _solidButton = Toggle("Solid");
 
+            // Outline alone rather than both, because both means every icon twice: the same
+            // drawing filled and unfilled, adjacent in the ranking, and a grid where half the
+            // cells are the alternative to the cell beside them is a worse first look at the
+            // library than one weight of it. Outline is the one a site map is drawn in.
+            _outlineButton.Checked = true;
+            _outlineButton.CheckedChanged += (s, e) => ApplyFilter();
+            _solidButton.CheckedChanged += (s, e) => ApplyFilter();
+
+            // A tick rather than one of the toggles beside it, and deliberately: the toggles
+            // say what is in the grid and this says how it is drawn. Two questions that look
+            // alike is how you end up clicking the wrong one.
             _familyToggle = new CheckBox
             {
                 Text = "Show family",
                 AutoSize = true,
-                Anchor = AnchorStyles.Left,
-                Padding = new Padding(0, 2, 0, 0)
+                Anchor = AnchorStyles.Left
             };
             _familyToggle.CheckedChanged += (s, e) => ShowFamilyChanged();
 
@@ -526,42 +600,58 @@ namespace Icons
             _grid.SelectedIndexChanged += Grid_SelectedIndexChanged;
             _grid.ItemActivate += (s, e) => { if (_applyButton.Enabled) Apply(); };
 
-            // Two rows: the search on its own, and the three things that narrow what it searches
-            // under it. On one row the search box is the only control that can give up width,
-            // and with five families to choose between there is not enough of it to give.
-            // Two rows as tall as what stands in them, rather than two rows of 27 and a panel of
-            // 58 that has to be kept equal to them. The two boxes' columns are the one thing here
-            // that cannot be measured out of a control - they hold words that are not in them
-            // yet - so ApplyMetrics gives those a width.
-            var header = new TableLayoutPanel
+            // Three rows: the search on its own, the families, and the weights beside the one
+            // thing here that changes how the grid is drawn rather than what is in it.
+            //
+            // The search row is a table, because a box that fills the pane has to be told to.
+            // The other two are flow panels that wrap, and that is the whole reason the rows
+            // are apart: six families spelled out is wider than this pane is ever guaranteed
+            // to be, and a filter with two of its families off the right edge is worse than a
+            // filter two rows tall. Each is docked to the top of a plain panel rather than
+            // sitting in a table cell, because a flow panel only wraps against a width it has
+            // been given, and docking is what gives it one.
+            var searchRow = new TableLayoutPanel
             {
                 Dock = DockStyle.Top,
                 AutoSize = true,
                 AutoSizeMode = AutoSizeMode.GrowAndShrink,
-                ColumnCount = 6,
-                RowCount = 2,
+                ColumnCount = 2,
+                RowCount = 1
+            };
+            searchRow.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
+            searchRow.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
+            searchRow.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+            searchRow.Controls.Add(Caption("Search"), 0, 0);
+            searchRow.Controls.Add(_searchBox, 1, 0);
+
+            var familyRow = FilterRow();
+            familyRow.Controls.Add(Caption("Family"));
+            foreach (var button in _familyButtons) familyRow.Controls.Add(button);
+
+            var weightRow = FilterRow();
+            weightRow.Controls.Add(Caption("Weight"));
+            weightRow.Controls.Add(_outlineButton);
+            weightRow.Controls.Add(_solidButton);
+            _familyToggle.Margin = new Padding(16, 3, 0, 3);
+            weightRow.Controls.Add(_familyToggle);
+
+            var header = new Panel
+            {
+                Dock = DockStyle.Top,
+                AutoSize = true,
+                AutoSizeMode = AutoSizeMode.GrowAndShrink,
                 Padding = new Padding(6, 3, 6, 3)
             };
-            header.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
-            header.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
-            header.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
-            header.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 110));
-            header.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
-            header.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 110));
-            header.RowStyles.Add(new RowStyle(SizeType.AutoSize));
-            header.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+
+            // Added bottom row first: a docked control takes its edge from whatever is left
+            // after the ones added after it, so the last one added is the topmost.
+            header.Controls.Add(weightRow);
+            header.Controls.Add(familyRow);
+            header.Controls.Add(searchRow);
 
             _libraryHeader = header;
-
-            header.Controls.Add(new Label { Text = "Search", AutoSize = true, Anchor = AnchorStyles.Left, Padding = new Padding(0, 4, 6, 0) }, 0, 0);
-            header.Controls.Add(_searchBox, 1, 0);
-            header.SetColumnSpan(_searchBox, 5);
-
-            header.Controls.Add(_familyToggle, 1, 1);
-            header.Controls.Add(new Label { Text = "Family", AutoSize = true, Anchor = AnchorStyles.Left, Padding = new Padding(10, 4, 6, 0) }, 2, 1);
-            header.Controls.Add(_familyBox, 3, 1);
-            header.Controls.Add(new Label { Text = "Weight", AutoSize = true, Anchor = AnchorStyles.Left, Padding = new Padding(10, 4, 6, 0) }, 4, 1);
-            header.Controls.Add(_styleBox, 5, 1);
+            _searchRow = searchRow;
+            _weightRow = weightRow;
 
             var pane = new Panel { Dock = DockStyle.Fill };
             pane.Controls.Add(_grid);
