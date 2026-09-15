@@ -217,11 +217,11 @@ namespace Icons
             var wantsTarget = Math.Max(340, _form.PreferredSize.Width + 16);
 
             // Whether the window is laid out at all is still the old question asked of the old
-            // two numbers. What the panes would like is bigger than those - 484 and 355 in the
-            // font this was written in, and half as much again in a larger one - and a window
-            // too narrow for the sum of that is a window to divide up as well as it can be, not
-            // one to leave at a SplitContainer's fifty-pixel default. A restored-down
-            // XrmToolBox is exactly that window.
+            // two numbers. What the panes would like is at least as much as those - the target
+            // side wants 355 in the font this was written in, and half as much again in a
+            // larger one - and a window too narrow for the sum of that is a window to divide up
+            // as well as it can be, not one to leave at a SplitContainer's fifty-pixel default.
+            // A restored-down XrmToolBox is exactly that window.
             if (!_splitterLaid && _body.Width >= 320 + 340 + _body.SplitterWidth)
             {
                 var spare = _body.Width - _body.SplitterWidth;
