@@ -47,14 +47,21 @@ namespace Icons
         private const int SolutionRow = 0;
 
         /// <summary>
-        /// The four shades of the one button in this window that is filled in: Fluent's
-        /// communication blue at rest, its two darker steps under the pointer and under the
-        /// press, and the same blue at 65% over a white window for when the button is shut.
+        /// The one button in this window that is filled in, in the five colours Fluent gives a
+        /// primary button. Named for the slots they are rather than for the blue they are, so
+        /// that the next person can check them against the palette instead of against a guess:
+        /// themePrimary, themeDarkAlt under the pointer and themeDark under the press, and for
+        /// a button that is shut, neutralLighter behind neutralQuaternary - which is Fluent's
+        /// own answer, and greyer than it is tempting to make it.
+        ///
+        /// The same palette as the red on this form, which is its errorText. One window, one
+        /// set of colours, and not one of them chosen here.
         /// </summary>
-        private static readonly Color ApplyRest = Color.FromArgb(0x00, 0x78, 0xD4);
-        private static readonly Color ApplyHover = Color.FromArgb(0x10, 0x6E, 0xBE);
-        private static readonly Color ApplyPressed = Color.FromArgb(0x00, 0x5A, 0x9E);
-        private static readonly Color ApplyOff = Color.FromArgb(0x59, 0xA7, 0xE3);
+        private static readonly Color ThemePrimary = Color.FromArgb(0x00, 0x78, 0xD4);
+        private static readonly Color ThemeDarkAlt = Color.FromArgb(0x10, 0x6E, 0xBE);
+        private static readonly Color ThemeDark = Color.FromArgb(0x00, 0x5A, 0x9E);
+        private static readonly Color NeutralLighter = Color.FromArgb(0xF3, 0xF2, 0xF1);
+        private static readonly Color NeutralQuaternary = Color.FromArgb(0xD2, 0xD0, 0xCE);
 
         private void BuildUi()
         {
@@ -159,8 +166,8 @@ namespace Icons
                 _colourButton.Size = new Size(Font.Height * 2 + 10, Font.Height + 7);
 
                 // The filled button at the foot of the pane. It is as wide as the words on it,
-                // which the layout works out - but the air around those words is a line of text
-                // either side and half a line above and below, and a line of text has just
+                // which the layout works out - but Fluent's air around those words is a line of
+                // text either side and half a line above and below, and a line of text has just
                 // changed height.
                 _applyButton.Padding =
                     new Padding(Font.Height, Font.Height / 2, Font.Height, Font.Height / 2);
@@ -520,13 +527,15 @@ namespace Icons
         }
 
         /// <summary>
-        /// The Apply button's blue, following whether it is open for business. Hooked to
-        /// EnabledChanged rather than called from SyncEnabled, so that every way the button
-        /// can close - including the frame disabling the whole pane - is a way it dims.
+        /// The Apply button's colours, following whether it is open for business. Hooked to
+        /// EnabledChanged rather than called from SyncEnabled, so that every way the button can
+        /// close - including the frame disabling the whole pane - is a way it goes grey.
         /// </summary>
         private void ShowApplyState()
         {
-            _applyButton.BackColor = _applyButton.Enabled ? ApplyRest : ApplyOff;
+            var open = _applyButton.Enabled;
+            _applyButton.BackColor = open ? ThemePrimary : NeutralLighter;
+            _applyButton.ForeColor = open ? Color.White : NeutralQuaternary;
         }
 
         /// <summary>A filter button as wide as the word on it, in the font it is drawn in.</summary>
@@ -926,23 +935,25 @@ namespace Icons
             // without being looked for, from the other side of the window and at whatever
             // stretch XrmToolBox is running the screen at.
             //
-            // Bootstrap's shape, Fluent's blue. The red two rows up is Fluent's error colour
-            // already, and a window should not wear two vendors' palettes for the sake of a
-            // hex nobody will name from across the room.
+            // Filled in Fluent's colours rather than in anybody's, because the red on this
+            // form is already Fluent's errorText and a window should not wear two vendors'
+            // palettes. Every shade this button has is a slot in that palette, taken rather
+            // than picked: see the five of them at the top of this file.
             _applyButton = new Button
             {
                 Text = "Set as table icon",
                 AutoSize = true,
                 AutoSizeMode = AutoSizeMode.GrowAndShrink,
-                // Bootstrap's own .375rem by .75rem, said in the font this is drawn in rather
-                // than in pixels: half a line above and below, a whole one either side. A
-                // filled button has no border to stand the word off, so the room is the
-                // padding's to give, and it is what makes this read as a button rather than
-                // as a coloured word.
+                // Fluent stands a button's words 16 pixels off each end and makes the whole
+                // thing 32 tall, which in the font this is drawn in is a line of text either
+                // side and half a line above and below - and put that way it is still those
+                // proportions in a font this was never measured in. A filled button has no
+                // border to stand the word off, so the room is the padding's to give, and it
+                // is what makes this read as a button rather than as a coloured word.
                 Padding = new Padding(Font.Height, Font.Height / 2, Font.Height, Font.Height / 2),
                 Margin = new Padding(0),
                 FlatStyle = FlatStyle.Flat,
-                BackColor = ApplyRest,
+                BackColor = ThemePrimary,
                 ForeColor = Color.White,
                 UseVisualStyleBackColor = false
             };
@@ -951,18 +962,21 @@ namespace Icons
             // Half of the good feeling is that it answers the mouse. A flat button does not
             // unless it is told these two, and a filled button that sits still under the
             // pointer reads as a label somebody coloured in.
-            _applyButton.FlatAppearance.MouseOverBackColor = ApplyHover;
-            _applyButton.FlatAppearance.MouseDownBackColor = ApplyPressed;
+            _applyButton.FlatAppearance.MouseOverBackColor = ThemeDarkAlt;
+            _applyButton.FlatAppearance.MouseDownBackColor = ThemeDark;
 
             // A flat button with its own BackColor keeps that colour when it is disabled - the
-            // frame greys nothing it was not left to paint - so a button this loud would spend
-            // the session shouting at somebody it will not answer. Shut is this window's
-            // opening state and its commonest one: SyncEnabled holds Apply closed until an
-            // icon, a table, a solution and a legal name are all in, which is four things and
-            // a few minutes. Dimmed to the same blue at 65% over a white window - Bootstrap's
-            // own disabled primary, arrived at by its own arithmetic - it reads as this button
-            // not yet, rather than as a different button or a broken one. Enabled is still
-            // nobody's to set but SyncEnabled; this only follows it.
+            // frame greys nothing it was not left to paint - so left alone, a button this loud
+            // would spend the session shouting at somebody it will not answer. Shut is this
+            // window's opening state and its commonest one: SyncEnabled holds Apply closed
+            // until an icon, a table, a solution and a legal name are all in, which is four
+            // things and a few minutes.
+            //
+            // So it goes grey, which is what Fluent does to a primary button with nothing to
+            // offer - rather than to a dimmed blue, which is the tempting answer and the wrong
+            // one: the colour that means "this is the thing to press" has no business on a
+            // thing that cannot be pressed. Enabled is still nobody's to set but SyncEnabled;
+            // this only follows it.
             _applyButton.EnabledChanged += (s, e) => ShowApplyState();
             ShowApplyState();
 
