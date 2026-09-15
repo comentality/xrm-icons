@@ -237,6 +237,11 @@ namespace Icons
 
         /// <summary>One toggle per family, in the order <see cref="IconFamily"/> declares them.</summary>
         private readonly List<CheckBox> _familyButtons = new List<CheckBox>();
+
+        /// <summary>The two words at the end of the family row that move every toggle at once.</summary>
+        private LinkLabel _allFamilies;
+        private LinkLabel _noFamilies;
+
         private CheckBox _outlineButton;
         private CheckBox _solidButton;
         private CheckBox _familyToggle;
@@ -1312,7 +1317,11 @@ namespace Icons
         /// Lights the given families and no others; none of them for the whole library, which is
         /// the state the window opens in. Does not touch the weight toggles.
         /// </summary>
-        /// <remarks>For the test harnesses, which used to drive a combo box by index.</remarks>
+        /// <remarks>
+        /// What the All and None links do, and what the test harnesses drive the filter with.
+        /// The toggles are moved behind <see cref="_refiltering"/> so that six of them changing
+        /// re-ranks the grid once rather than six times.
+        /// </remarks>
         internal void ShowFamilies(params IconFamily[] families)
         {
             _refiltering = true;
@@ -1325,6 +1334,23 @@ namespace Icons
             {
                 _refiltering = false;
             }
+
+            FamilyChanged();
+        }
+
+        /// <summary>
+        /// A family toggle has moved: the grid is re-ranked, and the two words that move every
+        /// toggle at once are told whether there is anything left for them to do.
+        ///
+        /// Hung off every toggle rather than called from the places that set them, so that a
+        /// family lit by the window itself - following an icon back into the library - greys
+        /// the same word a family lit by hand would.
+        /// </summary>
+        private void FamilyChanged()
+        {
+            var lit = _familyButtons.Count(b => b.Checked);
+            _allFamilies.Enabled = lit < _familyButtons.Count;
+            _noFamilies.Enabled = lit > 0;
 
             ApplyFilter();
         }

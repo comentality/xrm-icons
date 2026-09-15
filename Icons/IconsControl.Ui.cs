@@ -510,6 +510,24 @@ namespace Icons
                 Font.Height + 10);
         }
 
+        /// <summary>
+        /// One of the two words at the end of the family row that move every button at once.
+        ///
+        /// A link rather than a button, because it is not one of the things being chosen: the
+        /// buttons say what the grid is showing and hold their state, and these do something
+        /// and are finished. Sat eight pixels down, which is where the middle of a word lands
+        /// beside a button five pixels taller than the word in it.
+        /// </summary>
+        private static LinkLabel MoveAll(string text, int left)
+        {
+            return new LinkLabel
+            {
+                Text = text,
+                AutoSize = true,
+                Margin = new Padding(left, 8, 0, 3)
+            };
+        }
+
         /// <summary>The word in front of a row of filter buttons, sat on the same line as they are.</summary>
         private static Label Caption(string text)
         {
@@ -555,9 +573,24 @@ namespace Icons
             {
                 var button = Toggle(family.ToString());
                 button.Tag = family;
-                button.CheckedChanged += (s, e) => ApplyFilter();
+                button.CheckedChanged += (s, e) => FamilyChanged();
                 _familyButtons.Add(button);
             }
+
+            // Six buttons is few enough to read and a lot to click through. These are the two
+            // ends of the row, and each is the first half of a gesture: All and then unclick
+            // one is "everything but that family", None and then click one is "only that
+            // family". Both leave the whole library showing, because a full set and an empty
+            // one are both no filter - what they leave behind is what is lit for the next
+            // click, which is the point of pressing one.
+            _allFamilies = MoveAll("All", 10);
+            _noFamilies = MoveAll("None", 6);
+            _allFamilies.LinkClicked += (s, e) => ShowFamilies((IconFamily[])Enum.GetValues(typeof(IconFamily)));
+            _noFamilies.LinkClicked += (s, e) => ShowFamilies();
+
+            // The window opens on none of them lit, so None has nothing to do yet and says so.
+            // Every move after this one is FamilyChanged's to report.
+            _noFamilies.Enabled = false;
 
             _outlineButton = Toggle("Outline");
             _solidButton = Toggle("Solid");
@@ -627,6 +660,8 @@ namespace Icons
             var familyRow = FilterRow();
             familyRow.Controls.Add(Caption("Family"));
             foreach (var button in _familyButtons) familyRow.Controls.Add(button);
+            familyRow.Controls.Add(_allFamilies);
+            familyRow.Controls.Add(_noFamilies);
 
             var weightRow = FilterRow();
             weightRow.Controls.Add(Caption("Weight"));

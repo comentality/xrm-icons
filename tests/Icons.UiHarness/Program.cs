@@ -295,6 +295,22 @@ namespace Icons.UiHarness
             return failures;
         }
 
+        /// <summary>The family toggles, which are every button-drawn check box in the window.</summary>
+        private static List<CheckBox> _familyToggles(IconsControl control)
+        {
+            return Descendants(control).OfType<CheckBox>()
+                .Where(c => c.Appearance == Appearance.Button && c.Text != "Outline" && c.Text != "Solid")
+                .ToList();
+        }
+
+        /// <summary>Presses a link the way a person would, rather than calling what it calls.</summary>
+        private static void Follow(LinkLabel link)
+        {
+            typeof(LinkLabel)
+                .GetMethod("OnLinkClicked", BindingFlags.Instance | BindingFlags.NonPublic)
+                .Invoke(link, new object[] { new LinkLabelLinkClickedEventArgs(link.Links[0]) });
+        }
+
         /// <summary>
         /// Four families draw a folder and all four are called Folder, so the grid has to be
         /// able to say which is which, and the search has to be able to be asked for one family
@@ -377,19 +393,54 @@ namespace Icons.UiHarness
             }
 
             // Lighting every one of them is the same library as lighting none, and the filter
-            // has to be able to arrive back there the way a person would: by turning them on.
-            control.ShowFamilies((IconFamily[])Enum.GetValues(typeof(IconFamily)));
+            // has to be able to arrive back there the way a person would: by pressing All.
+            var all = Descendants(control).OfType<LinkLabel>().FirstOrDefault(l => l.Text == "All");
+            var none = Descendants(control).OfType<LinkLabel>().FirstOrDefault(l => l.Text == "None");
+
+            if (all == null || none == null)
+            {
+                Console.WriteLine("FAIL: the All and None links are not in the family row");
+                return failures + 1;
+            }
+
+            Follow(all);
             Pump();
+            Shoot(form, outputDir, "08-every-family");
 
             if (grid.VirtualListSize != everyFamily)
             {
-                Console.WriteLine("FAIL: every family lit shows " + grid.VirtualListSize +
-                                  " icons and none lit shows " + everyFamily);
+                Console.WriteLine("FAIL: All lights every family and shows " + grid.VirtualListSize +
+                                  " icons, where none lit shows " + everyFamily);
+                failures++;
+            }
+            else if (_familyToggles(control).Any(b => !b.Checked))
+            {
+                Console.WriteLine("FAIL: All left a family unlit");
+                failures++;
+            }
+            else if (all.Enabled)
+            {
+                Console.WriteLine("FAIL: All is still offered with every family already lit");
                 failures++;
             }
             else
             {
-                Console.WriteLine("OK: every family lit is the same library as none lit");
+                Console.WriteLine("OK: All lights every family, which is the same library as none lit, " +
+                                  "and stops offering itself");
+            }
+
+            Follow(none);
+            Pump();
+
+            if (_familyToggles(control).Any(b => b.Checked) || none.Enabled || !all.Enabled)
+            {
+                Console.WriteLine("FAIL: None left " + _familyToggles(control).Count(b => b.Checked) +
+                                  " families lit, or the two links did not swap over");
+                failures++;
+            }
+            else
+            {
+                Console.WriteLine("OK: None puts every family out and hands the offer back to All");
             }
 
             control.ShowFamilies();
