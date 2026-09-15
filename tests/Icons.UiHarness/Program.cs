@@ -169,6 +169,7 @@ namespace Icons.UiHarness
                     failures += CheckTheSearchFollowsTheTable(control, form, outputDir);
                     failures += CheckFamiliesAreShownAndFiltered(control, form, outputDir);
                     failures += CheckFormSurvivesTheNarrowestPane(control, form, outputDir);
+                    failures += CheckTheSolutionLineStandsBesideTheBox(control, form, outputDir);
                     failures += CheckApplyStaysInTheWindowAsItShrinks(control, form, outputDir);
                     failures += CheckChosenRowStaysInViewAsItShrinks(control, form, outputDir);
 
@@ -1276,6 +1277,104 @@ namespace Icons.UiHarness
         /// before a table is chosen, and it is what an environment with no preferred solution
         /// opens on - which is how this was found.
         /// </summary>
+        /// <summary>
+        /// The line that asks for a solution stands directly above the box it is asking about.
+        ///
+        /// That line is docked to the top of the target pane, over the form rather than in it,
+        /// because it wraps to three or four lines and a row that did that would shove the form
+        /// about. So the only way it can read as being about the solution is for the solution to
+        /// be the first row of the form - which is also where it belongs, being the first choice
+        /// somebody makes. Two things are checked, and they are the two halves of that: that the
+        /// box is row nought, and that nothing has got in between the two on the screen.
+        /// </summary>
+        private static int CheckTheSolutionLineStandsBesideTheBox(IconsControl control, Form form, string outputDir)
+        {
+            const BindingFlags Private = BindingFlags.Instance | BindingFlags.NonPublic;
+
+            var solutionsField = typeof(IconsControl).GetField("_solutions", Private);
+            var solutionType = typeof(IconsControl).GetNestedType("SolutionItem", BindingFlags.NonPublic);
+            var syncEnabled = typeof(IconsControl).GetMethod("SyncEnabled", Private);
+
+            if (solutionsField == null || solutionType == null || syncEnabled == null)
+            {
+                Console.WriteLine("FAIL: the solution plumbing is not where the harness expects it");
+                return 1;
+            }
+
+            var solutionBox = RowControl(control, "Solution") as ComboBox;
+            if (solutionBox == null)
+            {
+                Console.WriteLine("FAIL: no solution box on the form");
+                return 1;
+            }
+
+            var grid = solutionBox.Parent as TableLayoutPanel;
+            var row = grid == null ? -1 : grid.GetPositionFromControl(solutionBox).Row;
+            if (row != 0)
+            {
+                Console.WriteLine("FAIL: the solution box is row " + row + " of the form, not the first row");
+                return 1;
+            }
+
+            // Solutions to offer and none of them chosen, which is the one state that puts the
+            // sentence asking for one above the form.
+            var solutions = (IList)Activator.CreateInstance(typeof(List<>).MakeGenericType(solutionType));
+            var solution = Activator.CreateInstance(solutionType, true);
+            solutionType.GetField("Id").SetValue(solution, Guid.NewGuid());
+            solutionType.GetField("UniqueName").SetValue(solution, "contoso");
+            solutionType.GetField("FriendlyName").SetValue(solution, "Contoso");
+            solutionType.GetField("Prefix").SetValue(solution, "new");
+            solutions.Add(solution);
+            solutionsField.SetValue(control, solutions);
+
+            solutionBox.Items.Clear();
+            solutionBox.Items.Add(solution);
+            solutionBox.SelectedIndex = -1;
+            syncEnabled.Invoke(control, null);
+            Pump();
+
+            var warning = Descendants(control)
+                .OfType<Label>()
+                .FirstOrDefault(l => l.Visible &&
+                                     l.Text.IndexOf("Choose the solution", StringComparison.Ordinal) >= 0);
+
+            if (warning == null)
+            {
+                Console.WriteLine("FAIL: nothing on screen asks for a solution when none is chosen");
+                return 1;
+            }
+
+            // Both in the control's own coordinates, so the panes and the scroll between them
+            // are already accounted for.
+            var lineBottom = control.PointToClient(warning.Parent.PointToScreen(new Point(0, warning.Bottom))).Y;
+            var boxTop = control.PointToClient(solutionBox.Parent.PointToScreen(new Point(0, solutionBox.Top))).Y;
+            var gap = boxTop - lineBottom;
+
+            var failures = 0;
+            if (gap < 0 || gap > 24)
+            {
+                Console.WriteLine("FAIL: the line asking for a solution is " + gap +
+                                  " pixels from the box it is about, which is not beside it");
+                failures++;
+            }
+            else
+            {
+                Console.WriteLine("OK: the line asking for a solution stands " + gap +
+                                  " pixels above the first row of the form, which is the solution");
+            }
+
+            Shoot(form, outputDir, "16-solution-first");
+
+            // Back to an unconnected window, which is what every check after this one assumes.
+            solutionBox.Items.Clear();
+            solutionsField.SetValue(control,
+                Activator.CreateInstance(typeof(List<>).MakeGenericType(solutionType)));
+            syncEnabled.Invoke(control, null);
+            Pump();
+
+            return failures;
+        }
+
         private static int CheckApplyStaysInTheWindowAsItShrinks(IconsControl control, Form form, string outputDir)
         {
             const BindingFlags Private = BindingFlags.Instance | BindingFlags.NonPublic;

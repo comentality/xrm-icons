@@ -43,8 +43,8 @@ namespace Icons
         /// <summary>Where the two rows the form has to be told the height of sit among its rows,
         /// so they can be told again in a new font. Every other row is as tall as what stands
         /// in it.</summary>
-        private const int TableRow = 3;
-        private const int SolutionRow = 6;
+        private const int TableRow = 4;
+        private const int SolutionRow = 0;
 
         private void BuildUi()
         {
@@ -888,7 +888,7 @@ namespace Icons
             _rasterHelp.LinkClicked += (s, e) => ShowRasterHelp();
 
             // At the end of the form rather than the top of the window, because it is the last
-            // thing done to what the form says: a table, a solution, a name and a colour, and
+            // thing done to what the form says: a solution, a table, a name and a colour, and
             // then this. Bottom right is where a window that fills something in puts the button
             // that sends it.
             _applyButton = new Button
@@ -932,17 +932,23 @@ namespace Icons
             form.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
             form.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
 
-            AddRow(form, 0, "Find table", _tableFilterBox);
-            AddRow(form, 1, "", _unsetOnlyBox);
-            AddRow(form, 2, "", _hideLockedBox);
+            // First, because it is the first thing chosen. Which solution a web resource goes
+            // into is not a detail of writing one - it decides whether anything you ship can
+            // see it, and what it is allowed to be called. And the one line this form has that
+            // asks for a choice rather than reports one is the warning above it, which is
+            // docked to the top of the pane: the row it is usually about has to be the row
+            // under it, or it reads as a caption for the table list.
+            AddRow(form, 0, "Solution", _solutionBox);
+            AddRow(form, 1, "Find table", _tableFilterBox);
+            AddRow(form, 2, "", _unsetOnlyBox);
+            AddRow(form, 3, "", _hideLockedBox);
             // Seven rows of list, measured in the font it will be drawn in rather than written
             // down in pixels - see FitForm for why a number here would be right on one machine.
             // Seven is enough to show a filter narrowed to a handful as a handful, and few
             // enough that the navigation above it keeps most of the height.
-            AddRow(form, 3, _loadButton, "Table", _tableBox, Font.Height * 7 + 6);
-            AddNoteRow(form, 4, _lockedLabel);
-            AddNoteRow(form, 5, _currentLabel);
-            AddRow(form, 6, "Solution", _solutionBox);
+            AddRow(form, 4, _loadButton, "Table", _tableBox, Font.Height * 7 + 6);
+            AddNoteRow(form, 5, _lockedLabel);
+            AddNoteRow(form, 6, _currentLabel);
             AddRow(form, 7, "Web resource", _nameBox);
             AddRow(form, 8, "Colour", _themeColour);
             AddRow(form, 9, "", Beside(_fixedColour, _colourButton, last: false));
