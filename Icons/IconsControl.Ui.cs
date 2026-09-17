@@ -885,7 +885,9 @@ namespace Icons
 
             // The swatch sits on the same line as the radio button that turns it on, because it
             // is what "fixed colour" means: which colour, right there, rather than a row below
-            // it reading as one more setting of its own.
+            // it reading as one more setting of its own - and <see cref="ColourRows"/> is what
+            // keeps that from costing the pair its exclusion, because a radio button excludes
+            // the buttons it shares a parent with and no others.
             _fixedColour = new RadioButton
             {
                 Text = "Fixed colour",
@@ -1004,7 +1006,7 @@ namespace Icons
                 AutoSize = true,
                 AutoSizeMode = AutoSizeMode.GrowAndShrink,
                 ColumnCount = 2,
-                RowCount = 11,
+                RowCount = 10,
                 Padding = new Padding(8, 6, 8, 6)
             };
             // The captions' column is as wide as the longest caption, whatever font that is in.
@@ -1031,9 +1033,8 @@ namespace Icons
             AddNoteRow(form, 5, _lockedLabel);
             AddNoteRow(form, 6, _currentLabel);
             AddRow(form, 7, "Web resource", _nameBox);
-            AddRow(form, 8, "Colour", _themeColour);
-            AddRow(form, 9, "", Beside(_fixedColour, _colourButton, last: false));
-            AddWrappingRow(form, 10, Beside(_rasterBox, _rasterHelp, last: true, wrap: true));
+            AddRow(form, 8, "Colour", ColourRows());
+            AddWrappingRow(form, 9, Beside(_rasterBox, _rasterHelp, last: true, wrap: true));
 
             _form = form;
             _form.SizeChanged += (s, e) => FitForm();
@@ -1193,6 +1194,45 @@ namespace Icons
             pair.Controls.Add(first);
             pair.Controls.Add(second);
             return pair;
+        }
+
+        /// <summary>
+        /// The two ways an icon can be coloured, and the swatch that belongs to the second of
+        /// them, in one control.
+        ///
+        /// One control because a radio button excludes the buttons it shares a parent with and
+        /// nothing else. These two spent a release in separate cells of the form - the first
+        /// straight in its cell, the second inside the little panel that holds it beside its
+        /// swatch - which made them two groups of one, and a group of one has nothing to turn
+        /// off. Both could be lit at once, and then the form said the icon would follow the app
+        /// theme and be a fixed colour, while only one of them was true.
+        ///
+        /// So the swatch's panel is gone and the grid is the thing that puts it beside the
+        /// button: both buttons are children of this table, and the swatch is the cell to the
+        /// right of the second one.
+        /// </summary>
+        private Control ColourRows()
+        {
+            var rows = new TableLayoutPanel
+            {
+                AutoSize = true,
+                AutoSizeMode = AutoSizeMode.GrowAndShrink,
+                ColumnCount = 2,
+                RowCount = 2,
+                Margin = new Padding(0),
+                Padding = new Padding(0),
+                Anchor = AnchorStyles.Left | AnchorStyles.Top
+            };
+            rows.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
+            rows.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
+            rows.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+            rows.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+
+            rows.Controls.Add(_themeColour, 0, 0);
+            rows.SetColumnSpan(_themeColour, 2);
+            rows.Controls.Add(_fixedColour, 0, 1);
+            rows.Controls.Add(_colourButton, 1, 1);
+            return rows;
         }
 
         /// <summary>
