@@ -10,6 +10,7 @@ using System.Threading.Tasks;
 using System.Windows.Forms;
 using Icons.Catalog;
 using Icons.Logic;
+using Icons.Ui;
 using McTools.Xrm.Connection;
 using Microsoft.Xrm.Sdk;
 using Microsoft.Xrm.Sdk.Messages;
@@ -1524,35 +1525,34 @@ namespace Icons
                 return;
             }
 
-            var replacing = string.IsNullOrEmpty(table.CurrentIcon)
-                ? ""
-                : "\n\nThis replaces its current icon, " + table.CurrentIcon + ".";
+            var confirm = ConfirmApply.Ask(this, new ApplyConfirmation
+            {
+                IconName = icon.DisplayName,
+                TableName = table.DisplayName,
+                SolutionName = solution.FriendlyName,
+                WebResourceName = name,
+                AttributionName = AttributionPage.NameFor(name),
 
-            // Only when the PNGs are being written: nothing happens to the classic slots
-            // otherwise, and an unasked-for opinion about the table's older icons is not this
-            // tool's to give.
-            var handover = _rasterBox.Checked
-                ? RasterIcons.Handover(name, table.CurrentSmall, table.CurrentMedium, table.CurrentLarge)
-                : null;
-            if (handover != null) handover = "\n\n" + handover;
+                // Why the second web resource exists, for a licence where it is the condition of
+                // using the drawing rather than a courtesy. The library says this while the icon
+                // is being chosen; a gate that is about to write the page is not the place to stop.
+                Credit = AttributionNotice.Why(IconLicence.For(icon.Family)),
 
-            // The last gate before the round trip is the place to say it again: from here on it
-            // is the platform's answer rather than this window's.
-            var concern = NameConcern();
-            if (concern != null) concern = "\n\n" + concern;
+                Replacing = string.IsNullOrEmpty(table.CurrentIcon)
+                    ? null
+                    : "This replaces its current icon, " + table.CurrentIcon + ".",
 
-            // Why the second web resource exists, for a licence where it is the condition of
-            // using the drawing rather than a courtesy. The library says this while the icon is
-            // being chosen; a gate that is about to write the page is not the place to stop.
-            var credit = AttributionNotice.Why(IconLicence.For(icon.Family));
-            if (credit != null) credit = "\n\n" + credit;
+                // Only when the PNGs are being written: nothing happens to the classic slots
+                // otherwise, and an unasked-for opinion about the table's older icons is not this
+                // tool's to give.
+                Handover = _rasterBox.Checked
+                    ? RasterIcons.Handover(name, table.CurrentSmall, table.CurrentMedium, table.CurrentLarge)
+                    : null,
 
-            var confirm = MessageBox.Show(this,
-                "Set " + icon.DisplayName + " as the icon for " + table.DisplayName + "?\n\n" +
-                "This writes the web resource " + name + " and the attribution page beside it, " +
-                AttributionPage.NameFor(name) + ", adding whichever is new to " + solution.FriendlyName +
-                ", and publishes the table." + credit + replacing + handover + concern,
-                "Set table icon", MessageBoxButtons.OKCancel, MessageBoxIcon.Question);
+                // The last gate before the round trip is the place to say it again: from here on
+                // it is the platform's answer rather than this window's.
+                Concern = NameConcern()
+            });
             if (confirm != DialogResult.OK) return;
 
             var mode = _fixedColour.Checked ? IconColourMode.Fixed : IconColourMode.Theme;
