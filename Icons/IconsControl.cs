@@ -125,9 +125,15 @@ namespace Icons
             /// </summary>
             public bool Preferred;
 
+            /// <summary>
+            /// What the box shows, closed and open. The one the environment named says so in
+            /// words rather than by a symbol beside it: this list is read once, by somebody who
+            /// has never been told what a star in it would mean, and a row that sorts first and
+            /// opens chosen is already saying something a mark only has to confirm.
+            /// </summary>
             public override string ToString()
             {
-                return FriendlyName + "  [" + Prefix + "_]";
+                return FriendlyName + "  [" + Prefix + "_]" + (Preferred ? "  - preferred" : "");
             }
         }
 

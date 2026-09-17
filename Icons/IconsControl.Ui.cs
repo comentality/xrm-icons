@@ -63,6 +63,13 @@ namespace Icons
         private static readonly Color NeutralLighter = Color.FromArgb(0xF3, 0xF2, 0xF1);
         private static readonly Color NeutralQuaternary = Color.FromArgb(0xD2, 0xD0, 0xCE);
 
+        /// <summary>
+        /// The ink this tool's own tile is drawn in - the PrimaryFontColor of the plugin's
+        /// export metadata, and what tools\make-tool-icon.ps1 is run with. The only place in
+        /// the window wearing it is the mark in front of About, which is that same tile.
+        /// </summary>
+        private static readonly Color HouseInk = Color.FromArgb(0x22, 0x25, 0x12);
+
         private void BuildUi()
         {
             SuspendLayout();
@@ -420,9 +427,13 @@ namespace Icons
             };
             _cancelButton.Click += (s, e) => CancelWorker();
 
+            // The word stays and the mark goes in front of it. This is the one button in the
+            // window that is about who made the tool rather than about the table in it, and the
+            // mark is what says so before the word is read - it is the drawing on the tile
+            // XrmToolBox was picked from, in the colour that tile is drawn in.
             _aboutButton = new ToolStripButton("About")
             {
-                DisplayStyle = ToolStripItemDisplayStyle.Text,
+                DisplayStyle = ToolStripItemDisplayStyle.ImageAndText,
                 Alignment = ToolStripItemAlignment.Right,
                 ToolTipText = "What this is, which build you have, and where to say it is wrong."
             };
@@ -471,6 +482,35 @@ namespace Icons
 
             Dress(_undoButton, "arrow_undo");
             Dress(_redoButton, "arrow_redo");
+
+            // And the mark in front of About, which keeps its word - see the button.
+            var mark = Mark();
+            if (mark != null) _aboutButton.Image = mark;
+        }
+
+        /// <summary>
+        /// The drawing on this tool's own tile, at the size a toolbar button wants it, or null
+        /// when the library will not open.
+        ///
+        /// The same icon, weight and colour that tools\make-tool-icon.ps1 draws the tile with,
+        /// because that is the whole point of it: the thing beside About in the window is the
+        /// thing the tool was picked by in the list. Stated here rather than read from the
+        /// plugin's metadata, which is a base64 PNG sized for a tile and would come back blurred
+        /// at sixteen pixels.
+        /// </summary>
+        private Image Mark()
+        {
+            if (_catalog == null) return null;
+
+            try
+            {
+                var entry = new IconEntry(IconFamily.Fluent, "color_fill", "filled", IconStyle.Filled);
+                return SvgImage.Parse(_catalog.ReadSvg(entry)).Render(16, HouseInk);
+            }
+            catch
+            {
+                return null;
+            }
         }
 
         private void Dress(ToolStripButton button, string name)
