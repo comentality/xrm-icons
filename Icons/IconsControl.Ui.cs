@@ -703,7 +703,9 @@ namespace Icons
                 BackColor = SystemColors.Window,
                 // No images ever go in this list. It is here because the cell size in an icon
                 // view comes from the image list, and owner drawing does not change that.
-                LargeImageList = CellSizer(false)
+                // The toggle above is already built, so the first cell is sized by the same
+                // answer SpaceCells will read rather than by a second copy of it.
+                LargeImageList = CellSizer(_familyToggle.Checked)
             };
             _grid.RetrieveVirtualItem += Grid_RetrieveVirtualItem;
             _grid.DrawItem += Grid_DrawItem;
