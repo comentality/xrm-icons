@@ -4,6 +4,7 @@ using System.Drawing;
 using System.Drawing.Imaging;
 using System.IO;
 using System.Linq;
+using System.ServiceModel;
 using System.Text;
 using Microsoft.Crm.Sdk.Messages;
 using Microsoft.Xrm.Sdk;
@@ -171,6 +172,49 @@ namespace Icons.Logic
             public CancelledException() : base("Cancelled before the change was finished.") { }
         }
 
+        /// <summary>
+        /// The platform's own refusal to put an icon on one of its tables: error code
+        /// -2147158445, which the SDK's error list calls CannotUpdateSystemEntityIcons and
+        /// spells out as "System entity icons cannot be updated."
+        ///
+        /// It is not the same thing as a table locked against customisation, which the tool
+        /// already knows about before it writes anything: Attribute reports IsCustomizable true
+        /// and is refused anyway. Nothing in the definition this tool reads says in advance
+        /// which tables these are, so the refusal is caught rather than predicted, and the
+        /// window remembers the table so the second attempt never leaves.
+        /// </summary>
+        public const int SystemTableRefusal = -2147158445;
+
+        /// <summary>
+        /// Thrown instead of the raw fault, so the window can tell this refusal from every other
+        /// way a write fails and say something different about it.
+        /// </summary>
+        public sealed class SystemTableException : Exception
+        {
+            public SystemTableException(string tableLogicalName, string message) : base(message)
+            {
+                TableLogicalName = tableLogicalName;
+            }
+
+            public string TableLogicalName { get; private set; }
+        }
+
+        /// <summary>
+        /// What this apply had already written when the table refused it. The drawing goes in
+        /// before the table is pointed at it - it has to - so a refusal at the last step leaves
+        /// a web resource in the solution with nothing naming it, and saying so is the
+        /// difference between a failed write and a mess somebody finds later.
+        /// </summary>
+        private static string WhatWasLeft(IconApplyResult result)
+        {
+            if (result.WebResourceIds.Count == 0) return "Nothing was written.";
+
+            return "The drawing was written first, as it has to be, so " +
+                   (result.WebResourceIds.Count == 1 ? "one web resource is" : "the web resources are") +
+                   " in the solution with nothing pointing at " +
+                   (result.WebResourceIds.Count == 1 ? "it" : "them") + ".";
+        }
+
         public static IconApplyResult Apply(
             IOrganizationService service,
             IconApplyRequest request,
@@ -279,7 +323,25 @@ namespace Icons.Logic
             if (!string.IsNullOrWhiteSpace(request.SolutionUniqueName))
                 update.SolutionUniqueName = request.SolutionUniqueName;
 
-            service.Execute(update);
+            try
+            {
+                service.Execute(update);
+            }
+            catch (FaultException<OrganizationServiceFault> fault)
+                when (fault.Detail != null && fault.Detail.ErrorCode == SystemTableRefusal)
+            {
+                // The one refusal worth telling apart from every other way a write can fail: the
+                // platform will not take an icon on this table at all, from this tool or from
+                // anything else, so trying again is not what to do next. What was written before
+                // the table was reached is named, because it is still there.
+                throw new SystemTableException(
+                    request.TableLogicalName,
+                    "Dataverse will not put an icon on " + request.TableLogicalName +
+                    ": it is one of the platform's own tables, and it refuses the change - " +
+                    "\"System entity icons cannot be updated.\" Nothing about this tool or this " +
+                    "connection would change that. " + WhatWasLeft(result));
+            }
+
             result.Steps.Add("Set the icon on " + request.TableLogicalName);
 
             // 5. Both components, one publish. Either alone leaves the app looking at the old

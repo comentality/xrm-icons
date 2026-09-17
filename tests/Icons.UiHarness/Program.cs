@@ -164,6 +164,7 @@ namespace Icons.UiHarness
                     failures += CheckNameSurvivesRebuild(control, form, outputDir);
                     failures += CheckUnsetOnlyFilter(control, form, outputDir);
                     failures += CheckLockedTablesAreHiddenAndExplained(control, form, outputDir);
+                    failures += CheckASetTableKeepsItsPlaceAndIsMarked(control, form, outputDir);
                     failures += CheckRasterHelpOffered(control);
                     failures += CheckCreditLineIsSaidWhileChoosing(control, form, outputDir);
                     failures += CheckTheSearchFollowsTheTable(control, form, outputDir);
@@ -1184,6 +1185,139 @@ namespace Icons.UiHarness
                 ? "nothing"
                 : string.Join(", ", box.Items.Cast<object>().Select(i => i.ToString()));
         }
+        /// <summary>
+        /// What "only tables with no icon yet" does with a table this session has just given one,
+        /// and what the row looks like once it has one.
+        ///
+        /// There is no connection here, so the apply itself cannot be driven - what the apply
+        /// leaves behind is seeded instead: the icon on the table, and its name in the set of
+        /// tables the window is keeping. Both halves are checked, because either alone is the
+        /// old behaviour: without the set the row vanishes, and without the icon there is
+        /// nothing to mark.
+        ///
+        /// The mark is read off the pixels rather than off a property, because it is drawn
+        /// rather than spelled - a gutter with ink in it on the row that carries an icon, and
+        /// none on the row that does not.
+        /// </summary>
+        private static int CheckASetTableKeepsItsPlaceAndIsMarked(IconsControl control, Form form, string outputDir)
+        {
+            const BindingFlags Private = BindingFlags.Instance | BindingFlags.NonPublic;
+
+            var tablesField = typeof(IconsControl).GetField("_tables", Private);
+            var keptField = typeof(IconsControl).GetField("_setThisSession", Private);
+            var showTables = typeof(IconsControl).GetMethod("ShowTables", Private);
+            var itemType = typeof(IconsControl).GetNestedType("TableItem", BindingFlags.NonPublic);
+            if (tablesField == null || keptField == null || showTables == null || itemType == null)
+            {
+                Console.WriteLine("FAIL: the control's table plumbing has moved and the harness cannot seed it");
+                return 1;
+            }
+
+            var tables = (IList)Activator.CreateInstance(typeof(List<>).MakeGenericType(itemType));
+            tables.Add(SeededTable(itemType, "account", "Account"));
+            tables.Add(SeededTable(itemType, "contact", "Contact", "new_/icons/contact.svg"));
+            tablesField.SetValue(control, tables);
+
+            var kept = (HashSet<string>)keptField.GetValue(control);
+            kept.Clear();
+
+            var tableBox = RowControl(control, "Table") as ListBox;
+            var unsetOnly = Descendants(control)
+                .OfType<CheckBox>()
+                .FirstOrDefault(c => c.Text.StartsWith("Only tables", StringComparison.Ordinal));
+            if (tableBox == null || unsetOnly == null)
+            {
+                Console.WriteLine("FAIL: could not find the table row and the unset-only box");
+                return 1;
+            }
+
+            var failures = 0;
+
+            unsetOnly.Checked = true;
+            showTables.Invoke(control, null);
+            Pump();
+
+            if (tableBox.Items.Count != 1 || !tableBox.Items[0].ToString().Contains("(account)"))
+            {
+                Console.WriteLine("FAIL: a table already carrying an icon should be out of the unset-only " +
+                                  "list, and the list holds " + Listed(tableBox));
+                failures++;
+            }
+
+            kept.Add("contact");
+            showTables.Invoke(control, null);
+            Pump();
+
+            if (tableBox.Items.Count != 2)
+            {
+                Console.WriteLine("FAIL: a table this session set should keep its place whatever the " +
+                                  "filters say, and the list holds " + Listed(tableBox));
+                failures++;
+            }
+            else
+            {
+                Console.WriteLine("OK: a table set this session keeps its place in the unset-only list");
+            }
+
+            if (failures == 0)
+            {
+                failures += CheckOnlyTheCarryingRowIsMarked(tableBox);
+            }
+
+            Shoot(form, outputDir, "24-set-table-kept-and-marked");
+
+            kept.Clear();
+            return failures;
+        }
+
+        /// <summary>
+        /// Ink in the gutter of the row that carries an icon, and none in the gutter of the row
+        /// that does not. The gutter is a row's own height wide and the dot is drawn in the
+        /// middle of it, so a column one third of the way across it is where to look.
+        /// </summary>
+        private static int CheckOnlyTheCarryingRowIsMarked(ListBox tableBox)
+        {
+            var account = IndexOfTable(tableBox, "account");
+            var contact = IndexOfTable(tableBox, "contact");
+
+            // Nothing chosen, or the chosen row is painted the highlight colour end to end and
+            // every pixel of its gutter differs from the background whether it is marked or not.
+            tableBox.SelectedIndex = -1;
+            Pump();
+
+            using (var bitmap = new Bitmap(tableBox.Width, tableBox.Height))
+            {
+                tableBox.DrawToBitmap(bitmap, new Rectangle(0, 0, tableBox.Width, tableBox.Height));
+
+                var background = tableBox.BackColor;
+                var height = tableBox.ItemHeight;
+
+                Func<int, bool> marked = index =>
+                {
+                    var box = tableBox.GetItemRectangle(index);
+                    for (var x = 1; x < height - 1 && x < bitmap.Width; x++)
+                        for (var y = box.Top + 1; y < box.Bottom - 1 && y < bitmap.Height; y++)
+                            if (bitmap.GetPixel(x, y).ToArgb() != background.ToArgb()) return true;
+                    return false;
+                };
+
+                if (!marked(contact))
+                {
+                    Console.WriteLine("FAIL: the row carrying an icon has nothing in its gutter");
+                    return 1;
+                }
+
+                if (marked(account))
+                {
+                    Console.WriteLine("FAIL: a row carrying no icon has something in its gutter");
+                    return 1;
+                }
+            }
+
+            Console.WriteLine("OK: the dot is on the row carrying an icon and on no other");
+            return 0;
+        }
+
         private static object SeededTable(Type itemType, string logicalName, string displayName,
                                           string currentIcon = null, bool customizable = true)
         {

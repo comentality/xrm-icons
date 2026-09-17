@@ -316,6 +316,19 @@ namespace Icons
         private readonly HashSet<string> _setThisSession =
             new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
+        /// <summary>
+        /// The tables this environment has refused an icon on, learned the only way there is to
+        /// learn it - by being told. See <see cref="IconApplier.SystemTableRefusal"/>: the
+        /// definition a table hands over says nothing about this, and Attribute reports itself
+        /// customisable and is refused anyway.
+        ///
+        /// Kept so the refusal is paid for once. A second attempt would write the drawing again
+        /// before reaching the table that will refuse it again, so once told, Apply is dead for
+        /// that table and the line under the box says why.
+        /// </summary>
+        private readonly HashSet<string> _refusedIcons =
+            new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
         /// <summary>Set while several filters are being moved at once, so the grid is ranked once.</summary>
         private bool _refiltering;
 
@@ -379,7 +392,7 @@ namespace Icons
                 !Busy &&
                 _selectedIcon != null &&
                 table != null &&
-                table.Customizable &&
+                WhyNot(table) == null &&
                 _solutionBox.SelectedItem is SolutionItem &&
                 WebResourceName.Validate(_nameBox.Text) == null;
 
@@ -510,17 +523,31 @@ namespace Icons
         /// <summary>
         /// Why the table just chosen cannot take an icon, said under the box it was chosen in.
         /// It is not an error and does not go in the red line at the foot of the pane: nothing
-        /// was attempted and nothing failed. With the hiding box ticked no such table is in the
-        /// list to choose, so this is what somebody who unticked it sees.
+        /// was attempted and nothing failed this time. With the hiding box ticked no locked
+        /// table is in the list to choose, so that half of this is what somebody who unticked it
+        /// sees; the other half is what the environment has already refused once.
         /// </summary>
         private void ShowLocked(TableItem table)
         {
-            var locked = table != null && !table.Customizable;
+            _lockedLabel.Text = WhyNot(table) ?? "";
+            _lockedLabel.Visible = _lockedLabel.Text.Length > 0;
+        }
 
-            _lockedLabel.Text = locked
-                ? table.DisplayName + " is locked against customisation, so its icon cannot be changed."
-                : "";
-            _lockedLabel.Visible = locked;
+        /// <summary>Why this table will not take an icon, or null when it will.</summary>
+        private string WhyNot(TableItem table)
+        {
+            if (table == null) return null;
+
+            if (!table.Customizable)
+                return table.DisplayName + " is locked against customisation, so its icon cannot be changed.";
+
+            if (_refusedIcons.Contains(table.LogicalName))
+                return "This environment refused an icon on " + table.DisplayName +
+                       " - it is one of the platform's own tables, and Dataverse will not take one " +
+                       "on it from anything. Apply is off for it rather than writing another " +
+                       "drawing nothing can point at.";
+
+            return null;
         }
 
         /// <summary>
@@ -1274,7 +1301,7 @@ namespace Icons
         private bool WaitingForAnIcon(int index)
         {
             var table = _tableBox.Items[index] as TableItem;
-            return table != null && table.Customizable && table.HasNoIcon;
+            return table != null && table.HasNoIcon && WhyNot(table) == null;
         }
 
         // ===== the icon library =====
@@ -1673,6 +1700,19 @@ namespace Icons
 
                     if (args.Error != null)
                     {
+                        // A table the platform refuses is not a write that went wrong, it is a
+                        // table that will never take one. Remembered, so the offer is withdrawn
+                        // rather than left there to be taken up again - and the table is kept in
+                        // the list, because the line saying why is under the box it is chosen in.
+                        var refusal = args.Error as IconApplier.SystemTableException;
+                        if (refusal != null)
+                        {
+                            _refusedIcons.Add(refusal.TableLogicalName);
+                            _setThisSession.Add(refusal.TableLogicalName);
+                            ShowTables();
+                            ShowLocked(_tableBox.SelectedItem as TableItem);
+                        }
+
                         _trouble = "Could not set the icon: " + args.Error.Message;
                         SyncEnabled();
                         MessageBox.Show(this, args.Error.Message, "Could not set the icon",
@@ -2105,8 +2145,11 @@ namespace Icons
             // to share a name.
             _undoable.Clear();
             _redoable.Clear();
-            // And the tables kept in the list because this session set them were that org's.
+            // And the tables kept in the list because this session set them were that org's, as
+            // were the refusals - the rule behind them is the platform's, but what has actually
+            // been heard is this connection's.
             _setThisSession.Clear();
+            _refusedIcons.Clear();
             // Where the last org kept its icons says nothing about where this one does, and
             // neither does the folder somebody chose for a table that is not in this one.
             _locations = IconLocations.None;
