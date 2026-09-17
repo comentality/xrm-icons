@@ -286,7 +286,11 @@
       `sdkmessagerequestfield` rows say two, and the five tools in the decompiled corpus that call
       it pass those two. Entity is accepted — asked for `Entity` with a guid that cannot exist it
       answers that it cannot find the component "and Component Type 1", where a name it does not
-      know answers "Invalid Platform Name", so the type resolved and only the lookup failed.
+      know answers "Invalid Platform Name", so the type resolved and only the lookup failed. That
+      is the name resolving rather than a removal completing — the platform gates some types after
+      the lookup, which is how it refuses SLA — but Solution Layers Explorer and Unmanaged Layer
+      Bulk Remover both take entity layers off through this same message, so the gate is not on
+      Entity.
       Which makes it a table's whole unmanaged layer or nothing. There is no way to name the icon,
       so every other unmanaged change to that table's own metadata goes with it; Microsoft's
       warning on it is that it "can't be reversed or undone", which puts it outside what the undo
