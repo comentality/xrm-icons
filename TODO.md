@@ -249,3 +249,32 @@
       `docs/search-vocabulary.md` has the numbers, the traps - the data is December 2024 vintage,
       case-inconsistent and holds duplicates, and its `keyword` field is which Microsoft product
       the icon belongs to rather than a search word - and what else the search turned up.
+- [ ] Make the table filter a three-way choice rather than a tick box: no icon, has one, all.
+      The box from the item above asks one of the three questions and hides the other — there
+      is no way to ask for the tables that already have something, which is the list you want
+      when you have come to change one rather than to fill one in. The default stays the no-icon
+      list, for the reason that box was ticked to begin with. Locked stays on its own box: it is
+      a different question and it crosses all three.
+      In the `all` state the row has to say which kind it is, because the code knows three and
+      the list shows none of them — stored, where `CurrentIcon` names a web resource; stock,
+      where an app draws one and nothing is stored, which is every standard table; and neither,
+      which is what `HasNoIcon` is. The marking is a word rather than a symbol: four ways of
+      marking an icon's family with a glyph were tried in the grid and all four reverted, and
+      `_tableBox` is a plain ListBox drawing `TableItem.ToString`, so a word costs nothing and a
+      glyph costs an owner-draw.
+- [ ] A button that takes a table's icon off, for a table this session never applied to. Undo
+      already does the write — an `IconRestoreRequest` with an empty `VectorName`, which is the
+      one thing about it that had to be measured rather than assumed: empty clears and null means
+      leave this one alone, and `tests/e2e.ps1` asks the platform that on every run. What is
+      missing is the way in when there is nothing on the undo stack.
+      Remove and uncustomize are the same action here, with one exception to check. There is no
+      state where a table has no icon at all: clearing sends a standard table back to the font
+      glyph the app draws for it and a custom one back to the placeholder, so the button's words
+      have to say which of those the table lands on rather than promise it will have none. The
+      web resource stays where it is, which is the rule undo already follows. Settle whether the
+      three classic PNG slots go with the vector — `RestoreRasterIcons` is already on the request.
+      The exception is a managed layer holding the icon, where removing writes empty over the top
+      and uncustomising would drop the unmanaged layer and let the managed value reappear.
+      Whether the platform offers that for entity metadata at all is not known here and is not to
+      be guessed: ask the org what `RemoveActiveCustomizations` takes. In an org with no managed
+      layer over the table the two are one action.
