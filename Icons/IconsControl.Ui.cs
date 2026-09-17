@@ -866,8 +866,21 @@ namespace Icons
             // that is the answer. Open, how much is left to do is readable without a click, the
             // arrow keys walk it, and the filter survives being pointed at, which is what lets
             // the unset-only list be worked down one table at a time.
-            _tableBox = new ListBox { Dock = DockStyle.Fill, IntegralHeight = false };
+            _tableBox = new ListBox
+            {
+                Dock = DockStyle.Fill,
+                IntegralHeight = false,
+                // Drawn rather than listed, for the one thing a row has to say beyond its name:
+                // whether this table is already carrying an icon of its own. See Table_DrawItem.
+                DrawMode = DrawMode.OwnerDrawFixed
+            };
             _tableBox.SelectedIndexChanged += Table_SelectedIndexChanged;
+            _tableBox.DrawItem += Table_DrawItem;
+            _hints.SetToolTip(_tableBox,
+                "A dot marks a table already carrying an icon of its own.\r\n" +
+                "A table given one here keeps its place in the list until the\r\n" +
+                "tables are read again, even when the filters above no longer\r\n" +
+                "have room for it.");
 
             // Beside the list it fills, rather than a caption at the top of the window. Reading
             // the environment is what puts tables in that box and nothing else does, so this is
@@ -1620,6 +1633,62 @@ namespace Icons
 
             var index = _grid.SelectedIndices[0];
             SelectIcon(index >= 0 && index < _shown.Count ? _shown[index] : null);
+        }
+
+        /// <summary>
+        /// One row of the table list: a gutter with a dot in it when the table is carrying an
+        /// icon of its own, then the name.
+        ///
+        /// The gutter is on every row whether it is marked or not, so the names line up and the
+        /// marked ones read as a column rather than as rows that start further along. It is a
+        /// row's own height wide, which is the font's - the pane has no fixed sizes in it
+        /// anywhere else either.
+        ///
+        /// The dot means stored: a web resource this table names. Not the stock drawing an app
+        /// puts beside a standard table, which every one of them has and which would make a mark
+        /// on 160 rows that says nothing - and which the line under the box already says in
+        /// words, for the one table somebody is actually looking at.
+        /// </summary>
+        private void Table_DrawItem(object sender, DrawItemEventArgs e)
+        {
+            e.DrawBackground();
+            if (e.Index < 0 || e.Index >= _tableBox.Items.Count) return;
+
+            var table = _tableBox.Items[e.Index] as TableItem;
+            if (table == null) return;
+
+            var chosen = (e.State & DrawItemState.Selected) == DrawItemState.Selected;
+            var colour = chosen
+                ? SystemColors.HighlightText
+                : _tableBox.Enabled ? _tableBox.ForeColor : SystemColors.GrayText;
+
+            var gutter = e.Bounds.Height;
+
+            if (!string.IsNullOrEmpty(table.CurrentIcon))
+            {
+                var size = Math.Max(5, gutter / 3);
+                var dot = new Rectangle(
+                    e.Bounds.X + (gutter - size) / 2,
+                    e.Bounds.Y + (e.Bounds.Height - size) / 2,
+                    size, size);
+
+                var was = e.Graphics.SmoothingMode;
+                e.Graphics.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.AntiAlias;
+                using (var brush = new SolidBrush(chosen ? colour : SystemColors.GrayText))
+                    e.Graphics.FillEllipse(brush, dot);
+                e.Graphics.SmoothingMode = was;
+            }
+
+            TextRenderer.DrawText(
+                e.Graphics,
+                table.ToString(),
+                e.Font ?? _tableBox.Font,
+                new Rectangle(e.Bounds.X + gutter, e.Bounds.Y, e.Bounds.Width - gutter, e.Bounds.Height),
+                colour,
+                TextFormatFlags.Left | TextFormatFlags.VerticalCenter | TextFormatFlags.EndEllipsis
+                | TextFormatFlags.NoPrefix);
+
+            e.DrawFocusRectangle();
         }
 
         private void Table_SelectedIndexChanged(object sender, EventArgs e)

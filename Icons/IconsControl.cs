@@ -303,6 +303,19 @@ namespace Icons
         /// <summary>What the chosen table is already carrying, once it has been worked out.</summary>
         private IconIdentity _currentIdentity;
 
+        /// <summary>
+        /// The tables this session has written an icon to, kept in the list whatever the filters
+        /// say. A table that has just been given an icon stops qualifying for "only tables with
+        /// no icon yet" the instant it is given one, and the row somebody was looking at when
+        /// they pressed Apply would vanish out from under them - so the one thing they want to
+        /// see the result of is the one thing they cannot.
+        ///
+        /// Names rather than the TableItem: a reload builds new ones, and a table set before the
+        /// reload is still a table set this session.
+        /// </summary>
+        private readonly HashSet<string> _setThisSession =
+            new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
         /// <summary>Set while several filters are being moved at once, so the grid is ranked once.</summary>
         private bool _refiltering;
 
@@ -552,7 +565,14 @@ namespace Icons
             // nothing on screen is somebody else's: a search they typed, or an icon they picked
             // before any table was up, which is the icon this table is being picked for. An
             // icon picked with another table up is that table's, and is left behind with it.
-            if (mine && _currentIdentity?.Entry != null) Choose(_currentIdentity.Entry);
+            //
+            // And it follows it through the filters rather than only when they happen to be
+            // showing it. The word the table just seeded is a guess about what the table should
+            // carry; the icon it is carrying is not a guess, so it is worth more than the search
+            // that was written for it a line ago. When the filters are somebody's own the link
+            // is still what moves them - see ShowCurrentIconInLibrary.
+            if (mine && _currentIdentity?.Entry != null && !Choose(_currentIdentity.Entry))
+                GoToInLibrary(_currentIdentity.Entry, focusGrid: false);
 
             string said;
             if (_currentIdentity != null) said = "Carrying " + _currentIdentity.Described + ".";
@@ -600,6 +620,21 @@ namespace Icons
             var icon = _currentIdentity?.Entry;
             if (icon == null) return;
 
+            GoToInLibrary(icon, focusGrid: true);
+        }
+
+        /// <summary>
+        /// Widens whatever is hiding one icon - its own family, both weights, its own name in
+        /// the search box - and puts the grid on it.
+        ///
+        /// The grid is focused when a click asked for this and not when the window did it on its
+        /// own: taking the caret out of the table list while somebody is arrowing down it would
+        /// end the walk they are in the middle of.
+        /// </summary>
+        private void GoToInLibrary(IconEntry icon, bool focusGrid)
+        {
+            if (icon == null) return;
+
             _refiltering = true;
             try
             {
@@ -619,8 +654,8 @@ namespace Icons
             ApplyFilter();
 
             // The search is the icon's own name, so it is in the grid - but a name that ranks
-            // below the fold of nothing would leave the link doing nothing, and an empty box
-            // shows the whole library, where it certainly is.
+            // below the fold of nothing would leave this doing nothing, and an empty box shows
+            // the whole library, where it certainly is.
             if (!Choose(icon))
             {
                 _searchBox.Text = "";
@@ -629,7 +664,7 @@ namespace Icons
             }
 
             ShowCurrentIcon(_tableBox.SelectedItem as TableItem, false);
-            _grid.Focus();
+            if (focusGrid) _grid.Focus();
         }
 
         /// <summary>
@@ -698,6 +733,10 @@ namespace Icons
             // load is what refills it. Cleared here rather than there, so a load whose preview
             // link is skipped cannot leave the previous load's drawings standing.
             _stored.Clear();
+            // A reload is somebody asking for the org as it is now. The tables this session set
+            // are stored icons in that answer like any other, so they stop being kept in a list
+            // they no longer qualify for - which is what reloading is for.
+            _setThisSession.Clear();
             _trouble = null;
             _outcome = null;
             _outcomeSteps = null;
@@ -1167,7 +1206,12 @@ namespace Icons
                 // stored on it and never has had, and the errand this box is for - find the
                 // tables that look unfinished - is not served by listing every standard table in
                 // the org alongside the ones that really are blank.
-                (!unsetOnly || t.HasNoIcon) &&
+                //
+                // Except for the ones this session has just finished. They stop qualifying the
+                // moment the icon lands, and dropping them out is the tool clearing away the
+                // only evidence of what it did - so they stay, marked, until the list is
+                // reloaded or the connection changes.
+                (!unsetOnly || t.HasNoIcon || _setThisSession.Contains(t.LogicalName)) &&
                 (!hideLocked || t.Customizable) &&
                 (filter.Length == 0 ||
                  t.DisplayName.IndexOf(filter, StringComparison.OrdinalIgnoreCase) >= 0 ||
@@ -1197,44 +1241,40 @@ namespace Icons
         }
 
         /// <summary>
-        /// The table to carry on with, once the one just applied to has left the list.
+        /// The table to carry on with, once one has just been applied to.
         ///
-        /// Only while the unset-only list is showing. That list is a working list and it has
-        /// just got shorter, so whatever took the applied table's place is the next one waiting
-        /// for an icon, and a run down it is pick, apply, pick, apply. With the box unticked
-        /// nothing dropped out and the selection still stands: that is somebody working in their
-        /// own order, and moving it under them would be a guess about what they meant next.
+        /// Only while the unset-only list is showing. That list is a working list and one more
+        /// row of it is finished, so the next row still waiting is where the next apply starts,
+        /// and a run down it is pick, apply, pick, apply. With the box unticked nothing is a
+        /// working list: that is somebody working in their own order, and moving the selection
+        /// under them would be a guess about what they meant next.
+        ///
+        /// The finished row no longer leaves the list - it is kept and marked - so the walk
+        /// starts past it rather than at the index it used to vacate, and it skips whatever else
+        /// is a dead end: a table locked against customisation, and the rows this session has
+        /// already finished and is keeping. Landing on one costs the click it was meant to save.
         /// </summary>
         private void AdvanceToNextTable(int wasAt)
         {
             if (!_unsetOnlyBox.Checked) return;
-
-            // The rebuild put the selection back, so nothing left the list and there is nothing
-            // to advance past.
-            if (_tableBox.SelectedIndex >= 0) return;
             if (_tableBox.Items.Count == 0) return;
 
-            // The row that took its index, or the last one when it was the end of the list -
-            // skipping the tables locked against customisation. With the hiding box ticked there
-            // are none to skip; with it unticked the unset-only list is where they gather, since
-            // a table that will never take an icon has never been given one. Landing on a dead
-            // end costs the click it was meant to save.
-            var start = Math.Min(Math.Max(wasAt, 0), _tableBox.Items.Count - 1);
+            var start = Math.Max(wasAt, -1) + 1;
 
             for (var i = start; i < _tableBox.Items.Count; i++)
-                if (Customizable(i)) { _tableBox.SelectedIndex = i; return; }
+                if (WaitingForAnIcon(i)) { _tableBox.SelectedIndex = i; return; }
 
-            for (var i = start - 1; i >= 0; i--)
-                if (Customizable(i)) { _tableBox.SelectedIndex = i; return; }
+            for (var i = Math.Min(start, _tableBox.Items.Count) - 1; i >= 0; i--)
+                if (WaitingForAnIcon(i)) { _tableBox.SelectedIndex = i; return; }
 
-            // Nothing left in the list that can be given an icon. Leave the box empty rather
-            // than land on something that cannot be applied to.
+            // Nothing left in the list that is waiting for one. The table just applied to stays
+            // chosen, which is where somebody looking at what just happened wants to be.
         }
 
-        private bool Customizable(int index)
+        private bool WaitingForAnIcon(int index)
         {
             var table = _tableBox.Items[index] as TableItem;
-            return table != null && table.Customizable;
+            return table != null && table.Customizable && table.HasNoIcon;
         }
 
         // ===== the icon library =====
@@ -1659,6 +1699,7 @@ namespace Icons
                     // and so does what the window believes is stored under that name - which is
                     // what it will say the table is carrying the next time it is chosen.
                     table.CurrentIcon = name;
+                    _setThisSession.Add(table.LogicalName);
                     _stored[name] = request.Svg;
                     if (request.IncludeRasterIcons)
                     {
@@ -2014,6 +2055,10 @@ namespace Icons
             var table = _tables.FirstOrDefault(t => t.LogicalName == logicalName);
             if (table != null)
             {
+                // Undone or done again, it is still a table this session wrote to, and it keeps
+                // its place in the list either way - an undo that dropped the row would hide the
+                // thing it had just put back.
+                _setThisSession.Add(table.LogicalName);
                 table.CurrentIcon = vector;
                 if (raster)
                 {
@@ -2060,6 +2105,8 @@ namespace Icons
             // to share a name.
             _undoable.Clear();
             _redoable.Clear();
+            // And the tables kept in the list because this session set them were that org's.
+            _setThisSession.Clear();
             // Where the last org kept its icons says nothing about where this one does, and
             // neither does the folder somebody chose for a table that is not in this one.
             _locations = IconLocations.None;
