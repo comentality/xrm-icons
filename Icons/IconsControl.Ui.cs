@@ -1,5 +1,6 @@
 using System;
 using System.Drawing;
+using System.Runtime.InteropServices;
 using System.Windows.Forms;
 using Icons.Catalog;
 using Icons.Logic;
@@ -706,6 +707,9 @@ namespace Icons
             };
             _grid.RetrieveVirtualItem += Grid_RetrieveVirtualItem;
             _grid.DrawItem += Grid_DrawItem;
+            // The spacing is a message to a window, so it cannot be said until there is one -
+            // and it has to be said again every time the control is given a new one.
+            _grid.HandleCreated += (s, e) => SpaceCells();
             _grid.SelectedIndexChanged += Grid_SelectedIndexChanged;
             _grid.ItemActivate += (s, e) => { if (_applyButton.Enabled) Apply(); };
 
@@ -1351,21 +1355,92 @@ namespace Icons
         }
 
         /// <summary>
+        /// How many lines of the icon's name a cell holds. Two, because at the width these cells
+        /// are, one line loses about a quarter of the library's names and three would buy the
+        /// last one per cent of them a line of air under every other name in the grid.
+        /// </summary>
+        private const int CaptionLines = 2;
+
+        /// <summary>
+        /// The air left under the last line of a cell, which is also what separates a row of
+        /// cells from the row under it.
+        /// </summary>
+        private const int CellGap = 4;
+
+        /// <summary>
+        /// How wide a cell is: enough for the name rather than enough for the drawing, because
+        /// the drawing is forty pixels and the names run to "Arrow bidirectional left right".
+        /// Measured in lines of the font it will be drawn in, so it follows the font instead of
+        /// being right at one size.
+        ///
+        /// Seven and a half of them is where the two things this width is between settle: it is
+        /// narrower than the cell the control used to hand out, which is a column more of icons
+        /// in the same pane and less air around each of them, and it still holds all but 57 of
+        /// the library's 11,888 names on two lines. Seven would save another pixel column and
+        /// cost twice as many names an ellipsis.
+        /// </summary>
+        private int CellWidth
+        {
+            get { return Math.Max(_thumbnailSize + 20, Font.Height * 15 / 2); }
+        }
+
+        /// <summary>How tall a cell is: the drawing, its air, the name's lines, and the family's.</summary>
+        private int CellHeight(bool withFamily)
+        {
+            return _thumbnailSize + 6 + CaptionLines * Font.Height +
+                   (withFamily ? _familyLineHeight : 0) + CellGap;
+        }
+
+        /// <summary>
         /// A ListView in icon view takes its cell size from the image list, and no icon of this
-        /// tool's ever goes in one - so the list is here purely to say how big a cell is, and
-        /// showing the family means handing the control a taller one. Owner drawing does not
-        /// get a say in it.
+        /// tool's ever goes in one - so the list is here purely to say how big a cell is.
+        ///
+        /// It is only half of saying it. On top of the image the control adds a label row of its
+        /// own, which it measures per item from the item's own text - so a name that wraps to two
+        /// lines makes that one cell taller than its neighbours, and a name that wraps to three
+        /// makes it taller again. That is what the grid used to be: rows of cells of unequal
+        /// height, each drawn from its own Bounds, so the family line sat at a different place in
+        /// every cell and the longer names were cut off by the bottom of theirs - while the rows
+        /// themselves stood twenty-three pixels apart, because the control spaces them by a
+        /// system metric that knows nothing about any of this.
+        ///
+        /// So the image is the whole cell, which makes every Bounds at least a cell tall, and
+        /// <see cref="SpaceCells"/> sets the distance from one cell to the next by hand. What is
+        /// drawn is a cell of exactly this size at the corner the control puts it at, and the
+        /// label row the control still adds is slack nothing draws into.
         /// </summary>
         private ImageList CellSizer(bool withFamily)
         {
-            // The drawing, the air around it, and the line under the name when it is showing.
-            // The name's own line is added by the control on top of this.
-            return new ImageList
-            {
-                ImageSize = new Size(
-                    _thumbnailSize + 24,
-                    _thumbnailSize + 12 + (withFamily ? _familyLineHeight : 0))
-            };
+            return new ImageList { ImageSize = new Size(CellWidth, CellHeight(withFamily)) };
+        }
+
+        /// <summary>LVM_SETICONSPACING - how far apart the control puts one cell and the next.</summary>
+        private const int SetIconSpacing = 0x1000 + 53;
+
+        [DllImport("user32.dll", CharSet = CharSet.Auto)]
+        private static extern IntPtr SendMessage(IntPtr window, int message, IntPtr wparam, IntPtr lparam);
+
+        /// <summary>
+        /// Puts the cells exactly one cell apart, across and down.
+        ///
+        /// Left alone the control spaces them by SM_CXICONSPACING and SM_CYICONSPACING, which are
+        /// the metrics the desktop arranges its own icons by: at the size these cells are, that
+        /// is forty-two pixels of nothing beside every cell and twenty-three under every row,
+        /// while the names in them are being cut for want of a line. This is the one message that
+        /// takes it back, and it has to be said again after every image list - assigning one puts
+        /// the spacing back to the system's.
+        /// </summary>
+        private void SpaceCells()
+        {
+            if (_grid == null || !_grid.IsHandleCreated) return;
+
+            var width = CellWidth;
+            var height = CellHeight(_familyToggle != null && _familyToggle.Checked);
+
+            SendMessage(_grid.Handle, SetIconSpacing, IntPtr.Zero,
+                (IntPtr)((height << 16) | (width & 0xFFFF)));
+
+            _grid.Invalidate();
         }
 
         /// <summary>
@@ -1384,10 +1459,48 @@ namespace Icons
             _grid.LargeImageList = CellSizer(_familyToggle.Checked);
             if (replacing != null) replacing.Dispose();
 
+            // After the image list, never before: assigning one puts the spacing back to the
+            // system's, so this is what the cell size is actually worth.
+            SpaceCells();
+
             // The control keeps the old cell metrics until something makes it lay out again.
             _grid.Invalidate();
 
             if (_grid.SelectedIndices.Count > 0) _grid.EnsureVisible(_grid.SelectedIndices[0]);
+        }
+
+        /// <summary>How a cell's name is laid out: centred, wrapped, and never read as a mnemonic.</summary>
+        private const TextFormatFlags CaptionFormat =
+            TextFormatFlags.HorizontalCenter | TextFormatFlags.WordBreak | TextFormatFlags.NoPrefix;
+
+        /// <summary>
+        /// An icon's name, cut to the lines a cell has for it, with an ellipsis where it was cut.
+        ///
+        /// The ellipsis has to be put there by hand. EndEllipsis is a single-line flag: hand it
+        /// WordBreak as well and GDI wraps the text and then drops the lines that do not fit,
+        /// silently - so "Arrow bidirectional up down" came out as "Arrow bidirectional up",
+        /// which is not a shortened name, it is a different icon's name. Nine names in a thousand
+        /// are this long; the other nine hundred and ninety-one never reach the loop.
+        /// </summary>
+        private string Caption(string name, int width)
+        {
+            var room = new Size(width, 0);
+            var lines = CaptionLines * Font.Height;
+            if (TextRenderer.MeasureText(name, Font, room, CaptionFormat).Height <= lines) return name;
+
+            // Back off a word at a time while there is more than one left, then a letter at a
+            // time - a single word too long for two lines is cut mid-word or not at all.
+            var cut = name;
+            while (cut.Length > 1)
+            {
+                var space = cut.LastIndexOf(' ');
+                cut = space > 0 ? cut.Substring(0, space) : cut.Substring(0, cut.Length - 1);
+
+                if (TextRenderer.MeasureText(cut + "...", Font, room, CaptionFormat).Height <= lines)
+                    return cut + "...";
+            }
+
+            return name;
         }
 
         private void Grid_DrawItem(object sender, DrawListViewItemEventArgs e)
@@ -1401,33 +1514,39 @@ namespace Icons
             // otherwise. The selection the control actually keeps is the one to ask.
             var selected = _grid.SelectedIndices.Count > 0 && _grid.SelectedIndices[0] == e.ItemIndex;
 
+            var showFamily = _familyToggle.Checked;
+
+            // The cell this tool drew, not the one the control measured. Bounds is as wide as a
+            // cell - the spacing message says so - but as tall as the image plus however many
+            // lines the control made of this item's own name, which is one cell in three taller
+            // than its neighbours. Taking the height from here instead is what makes every cell
+            // in the grid the same, and it is always inside Bounds, never past it.
+            var cell = new Rectangle(
+                e.Bounds.X, e.Bounds.Y, e.Bounds.Width, CellHeight(showFamily) - CellGap);
+
             if (selected)
             {
                 using (var brush = new SolidBrush(SystemColors.Highlight))
-                    e.Graphics.FillRectangle(brush, e.Bounds);
+                    e.Graphics.FillRectangle(brush, cell);
             }
 
             var thumbnail = Thumbnail(icon, _thumbnailSize, selected ? SystemColors.HighlightText : _colour);
-            var x = e.Bounds.X + (e.Bounds.Width - _thumbnailSize) / 2;
-            e.Graphics.DrawImage(thumbnail, x, e.Bounds.Y + 6, _thumbnailSize, _thumbnailSize);
-
-            var showFamily = _familyToggle.Checked;
-            var captionHeight = e.Bounds.Height - _thumbnailSize - 10 - (showFamily ? _familyLineHeight : 0);
+            var x = cell.X + (cell.Width - _thumbnailSize) / 2;
+            e.Graphics.DrawImage(thumbnail, x, cell.Y + 4, _thumbnailSize, _thumbnailSize);
 
             var caption = new Rectangle(
-                e.Bounds.X + 2,
-                e.Bounds.Y + _thumbnailSize + 8,
-                e.Bounds.Width - 4,
-                captionHeight);
+                cell.X + 2,
+                cell.Y + _thumbnailSize + 6,
+                cell.Width - 4,
+                CaptionLines * Font.Height);
 
             TextRenderer.DrawText(
                 e.Graphics,
-                icon.DisplayName,
+                Caption(icon.DisplayName, caption.Width),
                 Font,
                 caption,
                 selected ? SystemColors.HighlightText : SystemColors.ControlText,
-                TextFormatFlags.HorizontalCenter | TextFormatFlags.WordBreak |
-                TextFormatFlags.EndEllipsis | TextFormatFlags.NoPrefix);
+                CaptionFormat);
 
             if (!showFamily) return;
 
