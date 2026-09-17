@@ -274,7 +274,23 @@
       web resource stays where it is, which is the rule undo already follows. Settle whether the
       three classic PNG slots go with the vector — `RestoreRasterIcons` is already on the request.
       The exception is a managed layer holding the icon, where removing writes empty over the top
-      and uncustomising would drop the unmanaged layer and let the managed value reappear.
-      Whether the platform offers that for entity metadata at all is not known here and is not to
-      be guessed: ask the org what `RemoveActiveCustomizations` takes. In an org with no managed
-      layer over the table the two are one action.
+      and uncustomising would drop the unmanaged layer and let the managed value reappear. That
+      was measured against a real org on 17 September 2026, and it settles the question the other
+      way round from how it was asked: uncustomising a table is real, and it is not what this
+      button should do.
+      `RemoveActiveCustomizations` is in the org's `sdkmessage` and is public. The docs describe
+      only the singular `RemoveActiveCustomization`, which is a different message taking
+      `LogicalName` and `Id`, and neither has an SDK class — every caller sends an untyped
+      `OrganizationRequest` by name, which is how `SetPreferredSolution` is already called here.
+      It takes `SolutionComponentName` and `ComponentId` and nothing else: the org's own
+      `sdkmessagerequestfield` rows say two, and the five tools in the decompiled corpus that call
+      it pass those two. Entity is accepted — asked for `Entity` with a guid that cannot exist it
+      answers that it cannot find the component "and Component Type 1", where a name it does not
+      know answers "Invalid Platform Name", so the type resolved and only the lookup failed.
+      Which makes it a table's whole unmanaged layer or nothing. There is no way to name the icon,
+      so every other unmanaged change to that table's own metadata goes with it; Microsoft's
+      warning on it is that it "can't be reversed or undone", which puts it outside what the undo
+      stack can cover; and it refuses outright when the unmanaged layer is the only one, which is
+      every custom table made in the org you are looking at. The button writes the empty string.
+      Uncustomising is a bigger and one-way operation, and this tool is not where it should be
+      reached from.
