@@ -290,7 +290,8 @@
       Which makes it a table's whole unmanaged layer or nothing. There is no way to name the icon,
       so every other unmanaged change to that table's own metadata goes with it; Microsoft's
       warning on it is that it "can't be reversed or undone", which puts it outside what the undo
-      stack can cover; and it refuses outright when the unmanaged layer is the only one, which is
-      every custom table made in the org you are looking at. The button writes the empty string.
+      stack can cover; and it is documented, though this was not measured here, to refuse outright
+      when the unmanaged layer is the only one — which is every custom table made in the org you
+      are looking at. The button writes the empty string.
       Uncustomising is a bigger and one-way operation, and this tool is not where it should be
       reached from.
