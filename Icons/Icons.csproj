@@ -42,5 +42,8 @@
   <ItemGroup>
     <!-- The icon library travels inside the assembly. tools\build-catalog.ps1 rebuilds it. -->
     <EmbeddedResource Include="Catalog\icons.zip" />
+    <!-- And so does the org mark on the About button. tools\make-house-mark.ps1 rebuilds it
+         from the brand repository, which is where the logo is actually decided. -->
+    <EmbeddedResource Include="About\comentality-16.png" />
   </ItemGroup>
 </Project>
