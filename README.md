@@ -67,13 +67,18 @@ resources, update table definitions and publish customisations.
   glyph, so the tool asks and leaves Account out. Without that, every standard table in the
   environment was in the list — 196 against 31 in a stock one, which is not a short list. The box
   is ticked when the window opens, because that list is the errand; the full one is a click away,
-  and picking Account there says why it was not in the short one. A table leaves the narrowed list
-  the moment you give it an icon, so it stays a working list rather than something to re-read.
+  and picking Account there says why it was not in the short one. A table stops qualifying the
+  moment you give it an icon, so the list stays a working list rather than something to re-read —
+  except for the ones you gave an icon to in this session, which keep their place with a dot
+  beside them until the tables are read again. The row you were looking at when you pressed the
+  button is the only evidence the button did anything.
   An environment that will not answer — a proxy in the way, an on-premise deployment that serves
   none of this — falls back to listing every empty table, which is what the tool did before.
 - **Names the icon a table already has** — picking a table that is not empty says which of the
   bundled icons it is carrying, under the box you picked it in, and puts the library on that
-  icon so you can see what it is beside what it could be. Three things can say which one it is,
+  icon so you can see what it is beside what it could be — turning its family back on and
+  searching for its name when the filters were hiding it, rather than naming an icon it will not
+  show you. A search you typed is yours, and there a link goes to it instead. Three things can say which one it is,
   and the first that can is believed: the comment this tool writes into every icon it stores,
   then the drawing itself matched shape for shape against all 21,698, then the CSS class Lucide
   and Tabler ship theirs with. So an icon somebody pasted in by hand is recognised as surely as
@@ -152,9 +157,10 @@ resources, update table definitions and publish customisations.
    window lands on it again with the library still open. **Ctrl+Y** puts it back. Inside a text
    box Ctrl+Z is left alone: there it still means the name you were halfway through typing.
 
-With *Only tables with no icon yet* ticked — which is how the window opens — applying drops
-that table out of the list and lands on the next one waiting — a name suggested for it, a search already made for it — so a run down the
-list is pick an icon, apply, pick an icon, apply.
+With *Only tables with no icon yet* ticked — which is how the window opens — applying marks that
+table with a dot, leaves it where it is, and lands on the next one waiting — a name suggested for
+it, a search already made for it — so a run down the list is pick an icon, apply, pick an icon,
+apply, with the ones you have done still in view behind you.
 
 Running it a second time on the same table updates the same web resource rather than leaving a
 trail of near-duplicates.
@@ -166,6 +172,13 @@ after it:
 
 - A table locked against customisation is called out the moment you select it, and cannot be
   applied to.
+- A table the environment has already refused an icon on cannot be applied to a second time.
+  Dataverse will not put an icon on some of its own tables — *System entity icons cannot be
+  updated* — and nothing in the definition says in advance which, so the first refusal is where
+  it is learned. After that the line under the table box says so and the button is dead. That
+  first attempt does leave a web resource behind: the drawing has to exist before the table can
+  name it, so the refusal comes after it is written, and the message says so rather than leaving
+  it to be found.
 - An apply with no unmanaged solution chosen is not offered at all, and a solutions load that
   fails says so and stops there rather than quietly writing to the default solution.
 - A web resource name Dataverse would reject is caught with the offending character named — the

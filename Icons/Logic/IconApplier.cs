@@ -179,9 +179,10 @@ namespace Icons.Logic
         ///
         /// It is not the same thing as a table locked against customisation, which the tool
         /// already knows about before it writes anything: Attribute reports IsCustomizable true
-        /// and is refused anyway. Nothing in the definition this tool reads says in advance
-        /// which tables these are, so the refusal is caught rather than predicted, and the
-        /// window remembers the table so the second attempt never leaves.
+        /// and is refused anyway. What does separate Attribute from every table measured to
+        /// carry an icon is IsCustomEntity, and that is a candidate rather than a finding - see
+        /// the open item in TODO.md. Until it is measured the refusal is caught rather than
+        /// predicted, and the window remembers the table so the second attempt never leaves.
         /// </summary>
         public const int SystemTableRefusal = -2147158445;
 

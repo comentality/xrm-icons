@@ -318,9 +318,9 @@ namespace Icons
 
         /// <summary>
         /// The tables this environment has refused an icon on, learned the only way there is to
-        /// learn it - by being told. See <see cref="IconApplier.SystemTableRefusal"/>: the
-        /// definition a table hands over says nothing about this, and Attribute reports itself
-        /// customisable and is refused anyway.
+        /// learn it - by being told. See <see cref="IconApplier.SystemTableRefusal"/>: Attribute
+        /// reports itself customisable and is refused anyway, and what might separate it from
+        /// the tables that take one has not been measured yet.
         ///
         /// Kept so the refusal is paid for once. A second attempt would write the drawing again
         /// before reaching the table that will refuse it again, so once told, Apply is dead for
@@ -599,7 +599,7 @@ namespace Icons
             // that was written for it a line ago. When the filters are somebody's own the link
             // is still what moves them - see ShowCurrentIconInLibrary.
             if (mine && _currentIdentity?.Entry != null && !Choose(_currentIdentity.Entry))
-                GoToInLibrary(_currentIdentity.Entry, focusGrid: false);
+                GoToInLibrary(_currentIdentity.Entry, byHand: false);
 
             string said;
             if (_currentIdentity != null) said = "Carrying " + _currentIdentity.Described + ".";
@@ -647,26 +647,45 @@ namespace Icons
             var icon = _currentIdentity?.Entry;
             if (icon == null) return;
 
-            GoToInLibrary(icon, focusGrid: true);
+            GoToInLibrary(icon, byHand: true);
         }
 
         /// <summary>
         /// Widens whatever is hiding one icon - its own family, both weights, its own name in
         /// the search box - and puts the grid on it.
         ///
-        /// The grid is focused when a click asked for this and not when the window did it on its
-        /// own: taking the caret out of the table list while somebody is arrowing down it would
-        /// end the walk they are in the middle of.
+        /// A click means it: the link says show me this one, so the families narrow to the one
+        /// the icon is from and the grid is focused, which is where the eye is going next.
+        ///
+        /// The window doing it on its own means less. It happens at every table that turns out
+        /// to be carrying a bundled icon, so narrowing the families would leave the library on
+        /// one set for the rest of the session because somebody arrowed past a table once - and
+        /// taking the caret out of the table list would end the walk they are in the middle of.
+        /// There it only turns the icon's own family back on, which is the least that can be
+        /// done and still show the icon.
         /// </summary>
-        private void GoToInLibrary(IconEntry icon, bool focusGrid)
+        private void GoToInLibrary(IconEntry icon, bool byHand)
         {
             if (icon == null) return;
 
             _refiltering = true;
             try
             {
-                foreach (var button in _familyButtons)
-                    button.Checked = (IconFamily)button.Tag == icon.Family;
+                if (byHand)
+                {
+                    foreach (var button in _familyButtons)
+                        button.Checked = (IconFamily)button.Tag == icon.Family;
+                }
+                else
+                {
+                    // Only when a family filter is actually on and this icon is outside it.
+                    // Nothing lit is no filter at all - see Narrowed - so lighting one there
+                    // would narrow the library to a single family in the name of widening it.
+                    var mine = _familyButtons.FirstOrDefault(b => (IconFamily)b.Tag == icon.Family);
+                    if (mine != null && !mine.Checked && _familyButtons.Any(b => b.Checked))
+                        mine.Checked = true;
+                }
+
                 _outlineButton.Checked = true;
                 _solidButton.Checked = true;
                 _seededSearch = icon.Name.Replace('_', ' ').Replace('-', ' ');
@@ -691,7 +710,7 @@ namespace Icons
             }
 
             ShowCurrentIcon(_tableBox.SelectedItem as TableItem, false);
-            if (focusGrid) _grid.Focus();
+            if (byHand) _grid.Focus();
         }
 
         /// <summary>

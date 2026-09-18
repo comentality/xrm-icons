@@ -358,29 +358,33 @@ namespace Icons.SlowHarness
                 })
                 .At(7000, "pick the one whose icon the filters are hiding", r =>
                 {
+                    // Nothing on screen is anybody's - the search box holds what the window last
+                    // put there - so the window goes through its own filters to reach the icon
+                    // rather than naming one it will not show. A window that can say which icon
+                    // a table is wearing and will not show it is answering half the question.
                     r.Probe.PickTable("contoso_solid");
 
                     r.Check((r.Probe.Carrying ?? "").IndexOf(hiddenDescribed, StringComparison.Ordinal) >= 0,
                         "it should still be named - \"" + hiddenDescribed + "\" - and it says \""
                         + (r.Probe.Carrying ?? "nothing") + "\"");
-                    r.Check(r.Probe.SelectedIcon != "folder" || r.Probe.SelectedWeight != "filled",
-                        "but the window must not go behind the weight filter to reach it");
-                    r.Check((r.Probe.Carrying ?? "").IndexOf("Show it in the library",
-                                StringComparison.Ordinal) >= 0,
-                        "it should offer to go there instead, and it says \""
-                        + (r.Probe.Carrying ?? "nothing") + "\"");
-                })
-                .At(7400, "follow the link", r =>
-                {
-                    r.Probe.FollowCarryingLink();
-
                     r.Check(r.Probe.SelectedIcon == "folder" && r.Probe.SelectedWeight == "filled",
-                        "which should put the grid on the solid folder, and it is on \""
+                        "and the grid should have gone to it behind the weight filter, and it is on \""
                         + (r.Probe.SelectedIcon ?? "nothing") + " " + (r.Probe.SelectedWeight ?? "") + "\"");
                     r.Check((r.Probe.Carrying ?? "").IndexOf("Show it in the library",
                                 StringComparison.Ordinal) < 0,
-                        "and there is nowhere left to offer to go, but it says \""
+                        "so there is nowhere left to offer to go, and it says \""
                         + (r.Probe.Carrying ?? "nothing") + "\"");
+                })
+                .At(7400, "and the families are widened rather than narrowed", r =>
+                {
+                    // The window does this at every table that turns out to be carrying a
+                    // bundled icon. Narrowing to one family would leave the library on one set
+                    // for the rest of the session because somebody arrowed past a table once, so
+                    // the automatic path only turns the icon's own family back on. Nothing was
+                    // lit to begin with, which is no filter at all, and nothing is lit now.
+                    r.Check(r.Probe.LitFamilies().Length == 0,
+                        "no family button was lit and none should be, and these are: "
+                        + string.Join(", ", r.Probe.LitFamilies()));
                 });
         }
 
@@ -1020,17 +1024,21 @@ namespace Icons.SlowHarness
 
         /// <summary>
         /// "Only tables with no icon yet" is a working list, and the point of a working list is
-        /// that it gets shorter. A table that already carries an icon is never in it, and one
-        /// that has just been given an icon leaves it the moment the write lands - not at the
-        /// next reload, which on a slow link is the difference between a list you can work down
-        /// and one you have to keep re-reading.
+        /// that it gets shorter. A table that already carries an icon is never in it - not at
+        /// the next reload but from the moment the tables are read, which on a slow link is the
+        /// difference between a list you can work down and one you have to keep re-reading.
+        ///
+        /// With one exception, and it is what the second half of this is about: a table this
+        /// session has just written to stays where it is, marked, and the selection moves on
+        /// past it. It stops qualifying the instant the icon lands, and the row somebody was
+        /// looking at when they pressed the button is the only evidence the button did anything.
         /// </summary>
         private static Scenario UnsetOnlyFilter()
         {
             return new Scenario
             {
                 Name = "unset-only-filter",
-                Why = "the unset-only list must leave out what has an icon, and drop what just got one",
+                Why = "the unset-only list must leave out what has an icon, and keep what just got one",
                 Wire = s =>
                 {
                     s.Tables.Add(SlowService.Table("contoso_settled", "Contoso Settled",
@@ -1088,19 +1096,23 @@ namespace Icons.SlowHarness
                     r.Check(r.Probe.TableNames().Any(n => n.Contains("(contoso_account)")),
                         "nothing has landed yet, so the table must still be listed, and the list holds: "
                         + string.Join(", ", r.Probe.TableNames())))
-                .At(5200, "the table it was given to leaves the list", r =>
+                .At(5200, "the table it was given to keeps its place, and the next one is waiting", r =>
                 {
                     r.Check(r.Probe.Status.IndexOf("Set ", StringComparison.Ordinal) >= 0,
                         "the write should have landed, and the status line says \"" + r.Probe.Status + "\"");
-                    r.Check(!r.Probe.TableNames().Any(n => n.Contains("(contoso_account)")),
-                        "the table just given an icon should have left the unset list, which holds: "
+                    // It no longer qualifies for this list, and it stays in it anyway: the row
+                    // somebody was looking at when they pressed the button is the one piece of
+                    // evidence that the button did anything, and dropping it clears that away.
+                    r.Check(r.Probe.TableNames().Any(n => n.Contains("(contoso_account)")),
+                        "the table just given an icon should have kept its place, and the list holds: "
                         + string.Join(", ", r.Probe.TableNames()));
                     r.Check(r.Probe.TableNames().Any(n => n.Contains("(contoso_case)")),
                         "the tables still waiting for one must stay, and the list holds: "
                         + string.Join(", ", r.Probe.TableNames()));
-                    // The list got shorter, so the row that took the applied table's place is
-                    // the next one waiting for an icon. Landing on it is what makes a working
-                    // list something you can work down rather than re-pick your way through.
+                    // The selection still moves on, from past the finished row rather than into
+                    // the hole it used to leave. Landing on the next one waiting is what makes a
+                    // working list something you can work down rather than re-pick your way
+                    // through.
                     var now = r.Probe.Tables.SelectedItem;
                     r.Check(now != null && now.ToString().Contains("(contoso_case)"),
                         "the next table without an icon should be waiting selected, and the box holds \""
@@ -1117,19 +1129,21 @@ namespace Icons.SlowHarness
                     r.Probe.PickFirstIcon();
                     r.Probe.PressApply();
                 })
-                .At(8000, "and stop at the one that cannot take an icon", r =>
+                .At(8000, "and stop short of the one that cannot take an icon", r =>
                 {
-                    // What is left in the list is locked against customisation. It is in the
-                    // unset-only list honestly - it has no icon and never will - but landing on
-                    // it would cost the click the advance is there to save.
+                    // What is left in the list is locked against customisation, and the two rows
+                    // this run finished. The locked one is in the unset-only list honestly - it
+                    // has no icon and never will - but landing on it would cost the click the
+                    // advance is there to save, and neither is landing back on a finished row.
                     r.Check(r.Probe.TableNames().Any(n => n.Contains("(contoso_frozen)")),
                         "the locked table should still be listed, and the list holds: "
                         + string.Join(", ", r.Probe.TableNames()));
-                    r.Check(r.Probe.Tables.SelectedItem == null,
-                        "but nothing may land on it, and the box holds \""
-                        + r.Probe.Tables.SelectedItem + "\"");
-                    r.Check(!r.Probe.Apply.Enabled,
-                        "so with nothing left to apply to, Apply has to be dead again");
+
+                    var now = r.Probe.Tables.SelectedItem;
+                    r.Check(now != null && now.ToString().Contains("(contoso_case)"),
+                        "and with nothing left waiting, the window stays on the table it just "
+                        + "finished rather than moving onto a dead end, and the box holds \""
+                        + (now == null ? "nothing" : now.ToString()) + "\"");
                 });
         }
 

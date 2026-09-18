@@ -1667,7 +1667,7 @@ namespace Icons
 
             if (!string.IsNullOrEmpty(table.CurrentIcon))
             {
-                var size = Math.Max(5, gutter / 3);
+                var size = Math.Max(6, gutter / 3);
                 var dot = new Rectangle(
                     e.Bounds.X + (gutter - size) / 2,
                     e.Bounds.Y + (e.Bounds.Height - size) / 2,

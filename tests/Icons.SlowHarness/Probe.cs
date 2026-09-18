@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
 using System.Windows.Forms;
@@ -88,6 +89,15 @@ namespace Icons.SlowHarness
                 var icon = Field<object>("_selectedIcon");
                 return icon == null ? null : (string)icon.GetType().GetProperty("Weight").GetValue(icon, null);
             }
+        }
+
+        /// <summary>Which family buttons are lit, by their captions. None lit means no filter.</summary>
+        public string[] LitFamilies()
+        {
+            return Field<List<CheckBox>>("_familyButtons")
+                .Where(b => b.Checked)
+                .Select(b => b.Text)
+                .ToArray();
         }
 
         /// <summary>Clicks the link in the line saying what the table is carrying.</summary>

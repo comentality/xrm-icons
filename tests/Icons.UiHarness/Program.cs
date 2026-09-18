@@ -1266,7 +1266,77 @@ namespace Icons.UiHarness
 
             Shoot(form, outputDir, "24-set-table-kept-and-marked");
 
+            failures += CheckARefusedTableSaysSoAndGoesDead(control, form, outputDir, tableBox);
+
             kept.Clear();
+            return failures;
+        }
+
+        /// <summary>
+        /// What the window does with a table this environment has refused an icon on.
+        ///
+        /// The refusal only ever arrives from the org, so it is seeded the way the apply's own
+        /// result would leave it: the table's name in the refused set. What is checked is what
+        /// the user sees afterwards - the line under the box saying why, and Apply dead for that
+        /// table rather than offering a write that would leave another drawing pointing at
+        /// nothing.
+        /// </summary>
+        private static int CheckARefusedTableSaysSoAndGoesDead(
+            IconsControl control, Form form, string outputDir, ListBox tableBox)
+        {
+            const BindingFlags Private = BindingFlags.Instance | BindingFlags.NonPublic;
+
+            var refusedField = typeof(IconsControl).GetField("_refusedIcons", Private);
+            var lockedLabel = typeof(IconsControl).GetField("_lockedLabel", Private);
+            var sync = typeof(IconsControl).GetMethod("SyncEnabled", Private);
+            if (refusedField == null || lockedLabel == null || sync == null)
+            {
+                Console.WriteLine("FAIL: the refusal plumbing has moved and the harness cannot seed it");
+                return 1;
+            }
+
+            var refused = (HashSet<string>)refusedField.GetValue(control);
+            var note = lockedLabel.GetValue(control) as Label;
+            var apply = Descendants(control).OfType<Button>()
+                .FirstOrDefault(b => b.Text.StartsWith("Set as", StringComparison.Ordinal));
+            if (note == null || apply == null)
+            {
+                Console.WriteLine("FAIL: could not find the note under the table box and the apply button");
+                return 1;
+            }
+
+            var failures = 0;
+
+            refused.Add("account");
+            tableBox.SelectedIndex = IndexOfTable(tableBox, "account");
+            sync.Invoke(control, null);
+            Pump();
+
+            if (!note.Visible || note.Text.IndexOf("refused", StringComparison.Ordinal) < 0)
+            {
+                Console.WriteLine("FAIL: a table the environment refused says " +
+                                  (note.Visible ? note.Text : "nothing") + " under the box");
+                failures++;
+            }
+            else if (apply.Enabled)
+            {
+                Console.WriteLine("FAIL: apply is still live on a table the environment has refused");
+                failures++;
+            }
+            else
+            {
+                Console.WriteLine("OK: a refused table says why under the box and cannot be applied to");
+            }
+
+            Shoot(form, outputDir, "25-refused-table");
+
+            failures += NoScrollBars(control, "with the refusal note showing");
+
+            refused.Clear();
+            tableBox.SelectedIndex = -1;
+            sync.Invoke(control, null);
+            Pump();
+
             return failures;
         }
 
