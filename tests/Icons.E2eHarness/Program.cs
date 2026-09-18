@@ -141,6 +141,15 @@ namespace Icons.E2eHarness
                 },
                 new Step
                 {
+                    // First, because Account is now kept out of the list for two reasons and only
+                    // one of them is the one being tested here. Dataverse refuses an icon on every
+                    // table it made itself, so the window hides them all - and with that box left
+                    // ticked the next step would pass without the stock-icon reading ever running.
+                    Label = "show the tables that cannot take an icon, so the next test is about the other reason",
+                    Do = r => r.Probe.HideLocked.Checked = false
+                },
+                new Step
+                {
                     // Account has nothing stored on it and never has had, and a model-driven app
                     // draws it anyway. Reading IconVectorName alone put it in this list along with
                     // every other standard table; asking the org what it already draws is what
@@ -171,6 +180,33 @@ namespace Icons.E2eHarness
                     Label = "account is there when every table is shown",
                     Until = r => r.Probe.TableNames().Any(IsAccount),
                     TimeoutMs = 10000
+                },
+                new Step
+                {
+                    // What the tool says about it when it gets there, and the one claim in this
+                    // repo that was measured against a real org rather than reasoned about:
+                    // Dataverse refuses an icon on Account exactly as it refuses one on Attribute,
+                    // however customisable the definition says the table is. So the window must
+                    // say so and must not offer the write - the drawing would be stored, the
+                    // table would refuse it, and the web resource would be left pointing at
+                    // nothing.
+                    Label = "and picking it says the platform will not take an icon on it",
+                    Do = r =>
+                    {
+                        r.Probe.PickTable("account");
+                        r.Check(!r.Probe.Apply.Enabled,
+                            "apply must be dead on a table Dataverse refuses");
+                        var note = r.Probe.Field<System.Windows.Forms.Label>("_lockedLabel");
+                        r.Check(note.Visible
+                                && note.Text.IndexOf("platform's own tables", StringComparison.Ordinal) >= 0,
+                            "and the line under the box must say why; it says \""
+                            + (note.Visible ? note.Text : "nothing") + "\"");
+                    }
+                },
+                new Step
+                {
+                    Label = "back to the tables that can take one",
+                    Do = r => r.Probe.HideLocked.Checked = true
                 },
                 new Step
                 {

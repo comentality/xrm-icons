@@ -1067,6 +1067,10 @@ namespace Icons.UiHarness
             var tables = (IList)Activator.CreateInstance(typeof(List<>).MakeGenericType(itemType));
             tables.Add(SeededTable(itemType, "contact", "Contact"));
             tables.Add(SeededTable(itemType, "solution", "Solution", null, false));
+            // The other dead end, and the one nothing in a definition gives away: a table the
+            // platform made, which reports itself perfectly customisable and is refused an icon
+            // anyway. Measured - see TableItem.PlatformsOwn.
+            tables.Add(SeededTable(itemType, "account", "Account", null, true, platformsOwn: true));
             tablesField.SetValue(control, tables);
 
             var tableBox = RowControl(control, "Table") as ListBox;
@@ -1075,6 +1079,8 @@ namespace Icons.UiHarness
                 .OfType<CheckBox>()
                 .FirstOrDefault(c => c.Text.StartsWith("Hide the ones", StringComparison.Ordinal));
             var note = lockedLabel.GetValue(control) as Label;
+            var apply = Descendants(control).OfType<Button>()
+                .FirstOrDefault(b => b.Text.StartsWith("Set as", StringComparison.Ordinal));
 
             if (tableBox == null || filterBox == null || hideLocked == null || note == null)
             {
@@ -1096,12 +1102,12 @@ namespace Icons.UiHarness
 
             if (tableBox.Items.Count != 1 || !tableBox.Items[0].ToString().Contains("(contact)"))
             {
-                Console.WriteLine("FAIL: a locked table should not be offered, and the list holds " + Listed(tableBox));
+                Console.WriteLine("FAIL: neither dead end should be offered, and the list holds " + Listed(tableBox));
                 failures++;
             }
             else
             {
-                Console.WriteLine("OK: a table nobody can customise is left out of the list");
+                Console.WriteLine("OK: a table nobody can customise, and one the platform made, are both left out");
             }
 
             if (note.Visible)
@@ -1113,9 +1119,9 @@ namespace Icons.UiHarness
             hideLocked.Checked = false;
             Pump();
 
-            if (tableBox.Items.Count != 2)
+            if (tableBox.Items.Count != 3)
             {
-                Console.WriteLine("FAIL: unticking should give the locked table back, and gives " + Listed(tableBox));
+                Console.WriteLine("FAIL: unticking should give both dead ends back, and gives " + Listed(tableBox));
                 failures++;
             }
 
@@ -1132,6 +1138,31 @@ namespace Icons.UiHarness
             {
                 Console.WriteLine("OK: choosing a locked table says so under the table box");
             }
+
+            // The same line, a different reason. Telling them apart is the whole point of saying
+            // it in words: one is this environment's doing and could be undone, the other is the
+            // platform's and never will be.
+            tableBox.SelectedIndex = IndexOfTable(tableBox, "account");
+            Pump();
+
+            if (!note.Visible || note.Text.IndexOf("platform's own tables", StringComparison.Ordinal) < 0)
+            {
+                Console.WriteLine("FAIL: choosing a table the platform made says " +
+                                  (note.Visible ? note.Text : "nothing") + " under the box");
+                failures++;
+            }
+            else if (apply != null && apply.Enabled)
+            {
+                Console.WriteLine("FAIL: apply is live on a table Dataverse will refuse");
+                failures++;
+            }
+            else
+            {
+                Console.WriteLine("OK: a table the platform made says why, and cannot be applied to");
+            }
+
+            Shoot(form, outputDir, "26-platforms-own-table");
+            failures += NoScrollBars(control, "with the platform's-own note showing");
 
             Shoot(form, outputDir, "09-locked-table");
 
@@ -1389,13 +1420,15 @@ namespace Icons.UiHarness
         }
 
         private static object SeededTable(Type itemType, string logicalName, string displayName,
-                                          string currentIcon = null, bool customizable = true)
+                                          string currentIcon = null, bool customizable = true,
+                                          bool platformsOwn = false)
         {
             var item = Activator.CreateInstance(itemType, true);
             itemType.GetField("LogicalName").SetValue(item, logicalName);
             itemType.GetField("DisplayName").SetValue(item, displayName);
             itemType.GetField("Customizable").SetValue(item, customizable);
             itemType.GetField("CurrentIcon").SetValue(item, currentIcon);
+            itemType.GetField("PlatformsOwn").SetValue(item, platformsOwn);
             return item;
         }
 

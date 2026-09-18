@@ -300,40 +300,36 @@
       Uncustomising is a bigger and one-way operation, and this tool is not where it should be
       reached from.
 
-- [ ] Say which tables cannot take an icon *before* one is written for them. The platform refuses
-      some of its own with error -2147158445, which the SDK's list calls
-      `CannotUpdateSystemEntityIcons` and spells "System entity icons cannot be updated."
-      Attribute is one. The refusal is caught now, the window remembers the table and Apply goes
-      dead for it, but the first attempt still writes the drawing - the order is forced, the web
-      resource has to exist before the table can name it - so the first refusal leaves a web
-      resource in the customer's solution with nothing pointing at it. Predicting it is what this
-      item is.
-      What was measured, read-only, against Kosta Koniev's Environment on 17 September 2026: 881
-      entities, 648 the tool would list, 199 of them customisable. Thirty-one carry an
-      `IconVectorName`, and every one of the thirty-one is `IsCustomEntity` true - the Power Pages
-      and Dynamics tables, `mspp_*`, `msdyn_*`, `adx_*`, `chat`. Not one standard table in the org
-      carries any icon at all - which is the same fact the stock-icon reading in `StockIcons`
-      already stands on, seen from the other side: a standard table has all four slots empty and
-      the app draws it from a font. Attribute
-      reports `IsCustomizable` true, `IsCustomEntity` false, `IsLogicalEntity` false,
-      `IsRenameable` false, `CanCreateForms` false, `IsValidForAdvancedFind` false. Every one of
-      those last four is also false on `chat`, which does carry an icon, so `IsCustomEntity` is
-      the only candidate left standing that separates Attribute from every table known to take
-      one.
-      It is a candidate and not a finding, and the difference matters more here than usual,
-      because if it is right the tool has been wrong about 449 tables: the line under the box
-      tells somebody who unticked the filter that Account is "on its stock icon... and choosing an
-      icon below replaces it", and that sentence would be a promise the platform will not keep.
-      `tests\e2e.ps1` has never measured it either - it writes to a custom fixture table and
-      nothing else, so nothing in this repo has ever put an icon on a standard table and watched
-      what happened.
-      What settles it is one write to `account`: set `IconVectorName` to a real SVG web resource
-      and see whether the platform takes it. Both outcomes are recoverable - the empty string
-      clears it again, which `e2e.ps1` already asks the platform on every run - and a no-op write
-      will not do, because the refusal is almost certainly gated on the icon properties actually
-      changing rather than on the entity being touched at all. Renaming a standard table is
-      routine and goes through the same `UpdateEntity`.
-      If `IsCustomEntity` is the rule: the tables that cannot take one are named as such before
-      anything is written, the stock-icon sentence stops promising a replacement, and the
-      unset-only list stops offering 449 dead ends. If it is not: what is left is the runtime
-      catch that ships today, and a wider probe to find the real predicate.
+
+- [x] Say which tables cannot take an icon *before* one is written for them, and stop offering
+      the ones that never can. Measured against a real org on 18 September 2026, and the answer
+      is bigger than the table it started with.
+      It started with Attribute, which refuses an icon with error -2147158445 -
+      `CannotUpdateSystemEntityIcons`, "System entity icons cannot be updated." - while reporting
+      `IsCustomizable` true, so the tool's existing guard walked straight past it. Nothing else in
+      a definition tells these tables apart either: `IsRenameable`, `CanCreateForms`,
+      `CanCreateViews`, `IsValidForAdvancedFind` are all false on Attribute and all false on
+      `chat`, which does carry an icon.
+      What the read-only pass found was the shape of the answer rather than the answer: of 881
+      entities, 648 the tool would list, exactly 31 carry an `IconVectorName` and every one of the
+      31 is `IsCustomEntity` true. Not one standard table in the org carries any icon at all.
+      So a real icon was written, one table at a time, and taken off again - eighteen standard
+      tables asked, eighteen refused, all with the same error. The metadata ones (attribute,
+      entity, optionset), the ordinary business ones (account, contact), the people ones
+      (systemuser, team, businessunit, role), the activity ones (task, appointment), and the
+      platform's own (solution, workflow, savedquery, organization, audit, queue, annotation).
+      Account refuses exactly as Attribute does.
+      **A table the platform made cannot be given an icon. Only a custom table can.** That is
+      `IsCustomEntity`, and nothing else - `IsCustomizable` says nothing about it.
+      What changed: `TableItem.PlatformsOwn` carries it, the hide box is now "Hide the ones that
+      cannot take an icon" and covers both dead ends, the line under the table box says which of
+      the two reasons this one is, Apply is dead for them, and the stock-icon line stopped saying
+      "choosing an icon below replaces it" - which was a promise the platform does not keep, made
+      on 449 of the 648 tables the tool lists. The runtime catch stays behind it, for an
+      environment whose definitions say something this does not expect.
+      What this puts a question mark over is the stock-icon reading. It is a round trip a table -
+      bounded, eight at a time - and its whole job is to keep standard tables out of the
+      unset-only list. Those tables are now hidden by a flag that costs nothing. It still earns
+      its place for the line that says what a table is on when somebody unticks the box, and for
+      an environment that answers oddly, but the case is thinner than it was and it is worth
+      re-measuring before the next release.

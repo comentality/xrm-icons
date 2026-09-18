@@ -847,19 +847,26 @@ namespace Icons
                 "having one - untick to see every table, including those.");
             _unsetOnlyBox.CheckedChanged += (s, e) => ShowTables();
 
-            // A table locked against customisation cannot be given an icon by anybody, so it is
-            // not a candidate - and the unset-only list is where they gather, because a table
-            // that will never take an icon has never been given one. Hidden by default: a list
-            // that only offers what can be done with it is worth more than a complete one.
-            // Untick it to see them, and the line under the box says why the one you picked is
-            // a dead end.
+            // Two kinds of table cannot be given an icon by anybody, and neither is a candidate.
+            // One is locked against customisation. The other is any table the platform made
+            // itself - Account as much as Attribute - which Dataverse refuses outright, however
+            // customisable the definition says it is. Both gather in the unset-only list,
+            // because a table that will never take an icon has never been given one.
+            //
+            // Hidden by default: a list that only offers what can be done with it is worth more
+            // than a complete one. Untick it to see them, and the line under the box says which
+            // of the two reasons the one you picked is a dead end for.
             _hideLockedBox = new CheckBox
             {
-                Text = "Hide the ones locked against customisation",
+                Text = "Hide the ones that cannot take an icon",
                 Checked = true,
                 AutoSize = true,
                 Anchor = AnchorStyles.Left
             };
+            _hints.SetToolTip(_hideLockedBox,
+                "A table locked against customisation, and any table Dataverse made\r\n" +
+                "itself - which it refuses an icon on whatever else its definition says.\r\n" +
+                "Only tables somebody created in an environment can be given one.");
             _hideLockedBox.CheckedChanged += (s, e) => ShowTables();
 
             // A list, not a dropdown. The box above it narrows and this one points, which are

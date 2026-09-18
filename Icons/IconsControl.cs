@@ -48,6 +48,24 @@ namespace Icons
             public string CurrentIcon;
 
             /// <summary>
+            /// A table the platform made rather than somebody in this environment, and therefore
+            /// one that will not take an icon: Dataverse refuses every one of them with "System
+            /// entity icons cannot be updated", error -2147158445.
+            ///
+            /// Measured against a real org on 18 September 2026 rather than reasoned about, and
+            /// it had to be, because nothing else in a table's definition tells them apart:
+            /// Account, Contact, Task, Queue and Attribute all report IsCustomizable true, and
+            /// the refusal lands anyway. Eighteen standard tables were asked and eighteen
+            /// refused - the metadata ones, the ordinary business ones, the activity ones and
+            /// the platform's own. Not one table in that org carrying an icon is a standard
+            /// table; all 31 are custom.
+            ///
+            /// A definition that does not say leaves this false, so an environment that answers
+            /// oddly gets offered the write and the refusal is caught rather than predicted.
+            /// </summary>
+            public bool PlatformsOwn;
+
+            /// <summary>
             /// What the three classic slots point at now. Read with everything else because it
             /// costs nothing to - the same call already answers it - and because a write that
             /// includes the PNGs takes these over without touching what they point at now.
@@ -541,6 +559,12 @@ namespace Icons
             if (!table.Customizable)
                 return table.DisplayName + " is locked against customisation, so its icon cannot be changed.";
 
+            if (table.PlatformsOwn)
+                return "Dataverse will not put an icon on " + table.DisplayName +
+                       " - it is one of the platform's own tables, and it refuses every one of " +
+                       "them whatever the definition says about customising them. Only tables " +
+                       "somebody made in an environment can be given one.";
+
             if (_refusedIcons.Contains(table.LogicalName))
                 return "This environment refused an icon on " + table.DisplayName +
                        " - it is one of the platform's own tables, and Dataverse will not take one " +
@@ -577,9 +601,13 @@ namespace Icons
                 // and because "no icon" and "no icon of its own" are different errands.
                 if (string.IsNullOrEmpty(table?.Stock)) return;
 
+                // It used to end "and choosing an icon below replaces it", which is a promise
+                // the platform does not keep: a table the platform made refuses every icon, so
+                // the stock drawing is not a default it is sitting on, it is the icon. The red
+                // line above says so; this one stops saying otherwise.
                 _currentLabel.Text = "On its stock icon - the one an app draws for a standard " +
-                                     "table. Nothing is stored on the table, and choosing an " +
-                                     "icon below replaces it.";
+                                     "table. Nothing is stored on the table" +
+                                     (table.PlatformsOwn ? ", and nothing can be." : ".");
                 _currentLabel.Visible = true;
                 return;
             }
@@ -825,6 +853,7 @@ namespace Icons
                             LogicalName = e.LogicalName,
                             DisplayName = e.DisplayName?.UserLocalizedLabel?.Label ?? e.SchemaName ?? e.LogicalName,
                             Customizable = e.IsCustomizable == null || e.IsCustomizable.Value,
+                            PlatformsOwn = e.IsCustomEntity == false,
                             CurrentIcon = e.IconVectorName,
                             CurrentSmall = e.IconSmallName,
                             CurrentMedium = e.IconMediumName,
@@ -1246,6 +1275,10 @@ namespace Icons
         {
             var filter = (_tableFilterBox.Text ?? "").Trim();
             var unsetOnly = _unsetOnlyBox.Checked;
+
+            // One box for both reasons a table is a dead end, because they are one fact to
+            // somebody working: there is nothing to be done here. Which reason it is, is what
+            // the line under the box is for, once a table has actually been picked.
             var hideLocked = _hideLockedBox.Checked;
             var matching = _tables.Where(t =>
                 // A table an app already draws is not one nobody has got to. Account has nothing
@@ -1258,7 +1291,7 @@ namespace Icons
                 // only evidence of what it did - so they stay, marked, until the list is
                 // reloaded or the connection changes.
                 (!unsetOnly || t.HasNoIcon || _setThisSession.Contains(t.LogicalName)) &&
-                (!hideLocked || t.Customizable) &&
+                (!hideLocked || WhyNot(t) == null) &&
                 (filter.Length == 0 ||
                  t.DisplayName.IndexOf(filter, StringComparison.OrdinalIgnoreCase) >= 0 ||
                  t.LogicalName.IndexOf(filter, StringComparison.OrdinalIgnoreCase) >= 0));

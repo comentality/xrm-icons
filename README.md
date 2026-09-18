@@ -56,9 +56,11 @@ resources, update table definitions and publish customisations.
   Term* is not a terminal and *Social Profile* is not a car in profile. A table it can say
   nothing about seeds nothing rather than a confident wrong answer. It only ever writes over its
   own last suggestion: a search you typed is yours.
-- **Only the tables you can actually do something with** — a table locked against customisation
-  cannot be given an icon by anybody, so it is left out of the list; untick the box to see them,
-  and choosing one says under the table box why it is a dead end.
+- **Only the tables you can actually do something with** — two kinds cannot be given an icon by
+  anybody. A table locked against customisation, and any table Dataverse made itself, which it
+  refuses outright: only a custom table can carry one, and Account is as refused as Attribute is.
+  Both are left out of the list; untick the box to see them, and choosing one says under the
+  table box which of the two reasons it is a dead end.
 - **See which tables still need one** — *Only tables with no icon yet* narrows the list to the
   ones that really do look unfinished, which takes two answers rather than one. Nothing stored on
   the table, which the load reads along with everything else; and no stock icon either. A standard
@@ -67,7 +69,8 @@ resources, update table definitions and publish customisations.
   glyph, so the tool asks and leaves Account out. Without that, every standard table in the
   environment was in the list — 196 against 31 in a stock one, which is not a short list. The box
   is ticked when the window opens, because that list is the errand; the full one is a click away,
-  and picking Account there says why it was not in the short one. A table stops qualifying the
+  and picking Account there says why it was not in the short one — and, since Account is one of
+  the platform's own, why nothing can be done about it. A table stops qualifying the
   moment you give it an icon, so the list stays a working list rather than something to re-read —
   except for the ones you gave an icon to in this session, which keep their place with a dot
   beside them until the tables are read again. The row you were looking at when you pressed the
@@ -172,13 +175,14 @@ after it:
 
 - A table locked against customisation is called out the moment you select it, and cannot be
   applied to.
-- A table the environment has already refused an icon on cannot be applied to a second time.
-  Dataverse will not put an icon on some of its own tables — *System entity icons cannot be
-  updated* — and nothing in the definition says in advance which, so the first refusal is where
-  it is learned. After that the line under the table box says so and the button is dead. That
-  first attempt does leave a web resource behind: the drawing has to exist before the table can
-  name it, so the refusal comes after it is written, and the message says so rather than leaving
-  it to be found.
+- So is a table Dataverse made itself. **Only a custom table can be given an icon** — the
+  platform refuses every one of its own with *System entity icons cannot be updated*, and
+  Account refuses exactly as Attribute does, however customisable the definition says it is.
+  Nothing else in a table's definition tells them apart, so this was measured against a real
+  org rather than inferred: eighteen standard tables asked, eighteen refused. They are hidden
+  by default along with the locked ones, unticking shows them, and picking one says which of
+  the two reasons it is a dead end. If an environment somehow answers otherwise, the refusal is
+  caught on the way back and the table is not offered twice.
 - An apply with no unmanaged solution chosen is not offered at all, and a solutions load that
   fails says so and stops there rather than quietly writing to the default solution.
 - A web resource name Dataverse would reject is caught with the offending character named — the
