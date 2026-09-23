@@ -839,11 +839,19 @@ namespace Icons
                         .Where(e => e.IsIntersect != true && e.IsPrivate != true)
                         .ToList();
 
-                    // Only the empty ones. A table already carrying a web resource is drawn from
-                    // it rather than from the app's own font, so what the app would otherwise
-                    // have drawn is not what is on screen and not worth a round trip.
+                    // Only the empty ones, and of those only the ones the platform made. A table
+                    // already carrying a web resource is drawn from it rather than from the app's
+                    // own font, so what the app would otherwise have drawn is not what is on
+                    // screen and not worth a round trip. And a custom table has no glyph in that
+                    // font to be drawn from: the org serves /_imgs/svg_<otc>.svg for the tables
+                    // it shipped and for nothing else.
+                    //
+                    // Measured on 22 September 2026, against the org the icon rule was measured
+                    // against: of 617 tables this used to ask about, 421 were custom and not one
+                    // of those 421 was served anything. Asking only the 196 the platform made
+                    // finds all 37 stock icons there are, for a third of the round trips.
                     var empty = listed
-                        .Where(e => string.IsNullOrEmpty(e.IconVectorName))
+                        .Where(e => string.IsNullOrEmpty(e.IconVectorName) && e.IsCustomEntity == false)
                         .Select(e => e.ObjectTypeCode);
                     var stock = ReadStockIcons(orgUrl, empty);
 

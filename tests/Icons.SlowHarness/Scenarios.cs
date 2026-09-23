@@ -97,12 +97,23 @@ namespace Icons.SlowHarness
                     s.Tables.Clear();
                     for (var i = 0; i < 60; i++)
                     {
+                        // The platform's own, because those are the only tables the read is made
+                        // for: the glyph a stock icon is the vector of belongs to a table the
+                        // platform shipped, and the org serves nothing for a custom one. Sixty
+                        // custom tables would be a scenario about a read that never happens.
                         s.Tables.Add(SlowService.Table(
-                            "contoso_table" + i, "Contoso Table " + i, objectTypeCode: 10000 + i));
+                            "contoso_table" + i, "Contoso Table " + i,
+                            objectTypeCode: 10000 + i, platformsOwn: true));
                     }
                 }
             }
-                .At(200, "press Load", r => r.Probe.PressLoad())
+                .At(200, "press Load", r =>
+                {
+                    // And they are all dead ends, so the window would not list one of them. This
+                    // scenario is about the read and the budget rather than about the filter.
+                    r.Probe.HideLocked.Checked = false;
+                    r.Probe.PressLoad();
+                })
                 .At(3000, "the read is really out there", r =>
                 {
                     // Before anything is proved about the budget, prove there is something for a

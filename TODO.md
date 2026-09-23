@@ -327,9 +327,18 @@
       "choosing an icon below replaces it" - which was a promise the platform does not keep, made
       on 449 of the 648 tables the tool lists. The runtime catch stays behind it, for an
       environment whose definitions say something this does not expect.
-      What this puts a question mark over is the stock-icon reading. It is a round trip a table -
-      bounded, eight at a time - and its whole job is to keep standard tables out of the
-      unset-only list. Those tables are now hidden by a flag that costs nothing. It still earns
-      its place for the line that says what a table is on when somebody unticks the box, and for
-      an environment that answers oddly, but the case is thinner than it was and it is worth
-      re-measuring before the next release.
+      It also put a question mark over the stock-icon reading, which was re-measured on
+      22 September 2026 and answered. That read is a round trip a table - bounded, eight at a
+      time, twenty seconds for the lot - and it was being made for every table in the environment
+      with no icon stored: 617 of them in the probed org. Asked what it actually got back: 37
+      stock icons, every one of them on a table the platform made, and **not one of the 421
+      custom tables was served anything**. It could not have been. The glyph a stock icon is the
+      vector of belongs to a table the platform shipped; there is no glyph for a table somebody
+      created.
+      So the ask is now only the tables the platform made - 196 rather than 617, all 37 stock
+      icons still found, two thirds of the round trips gone. What is left still earns its place:
+      the line that says what a standard table is on when somebody unticks the hide box, and the
+      unset-only filter for anybody working with that box unticked. Doing it lazily, one table at
+      a time as it is picked, would take it to none at load, and is the next step if this is ever
+      measured to be slow - it was not measured to be slow, it was measured to be pointless for
+      421 tables.
