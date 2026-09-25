@@ -10,7 +10,7 @@
     <repository type="git" url="https://github.com/comentality/xrm-icons.git" branch="main" />
     <icon>icon.png</icon>
     <readme>docs\README.md</readme>
-    <description>Search a bundled library of Fluent, Phosphor, Lucide, Tabler, Font Awesome and Solar icons and set one as a Dataverse table icon, web resource and publish included.</description>
+    <description>Put a proper icon on a Dataverse table: pick one from six bundled icon libraries, and the tool uploads and publishes it. Searches Fluent, Phosphor, Lucide, Tabler, Font Awesome and Solar icons, writes the SVG web resource, points the table at it and publishes, all without leaving XrmToolBox.</description>
     <releaseNotes>v1.0.0
 - Search 21,698 icons from six families with no API key, no account, and no outbound host but Dataverse itself. Fluent, Phosphor, Lucide, Tabler, Font Awesome Free and Solar are bundled inside the DLL.
 - Search in Dynamics words and get the icon rather than the word: account finds the buildings, contact the people, appointment the calendars, case the headsets.
