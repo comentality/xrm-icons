@@ -251,6 +251,11 @@ only part written for the people using the tool.
 the lists said the Account table had stopped being offered a single usable icon. Both were true.
 Only one of them mattered.
 
----
+Nobody is too big to need this step. While this post sat in draft,
+[@Mattmaximo posted](https://x.com/Mattmaximo/status/2103589311526711604) two screenshots of
+macOS System Settings. The search box suggests Displays. Type Displays, and it finds nothing.
 
-See also: [@Mattmaximo on X](https://x.com/Mattmaximo/status/2103589311526711604).
+[![macOS System Settings suggests Displays, then finds no results for Displays](images/macos-settings-displays-no-results.jpg)](https://x.com/Mattmaximo/status/2103589311526711604)
+
+A search that cannot find its own suggestion trips no metric. Somebody has to type the word
+and read what comes back.
