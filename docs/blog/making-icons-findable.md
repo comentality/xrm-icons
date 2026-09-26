@@ -250,3 +250,7 @@ only part written for the people using the tool.
 **Then go and look.** The aggregate said +1.2% and nineteen of twenty lists unchanged. Reading
 the lists said the Account table had stopped being offered a single usable icon. Both were true.
 Only one of them mattered.
+
+---
+
+See also: [@Mattmaximo on X](https://x.com/Mattmaximo/status/2103589311526711604).
