@@ -65,7 +65,7 @@ namespace Icons.Tests
             var about = About();
 
             Assert.That(about.Name, Is.EqualTo("Icons"));
-            Assert.That(about.Description, Does.Contain("Dataverse table icon"));
+            Assert.That(about.Description, Does.Contain("icon on a Dataverse table"));
             Assert.That(about.Logo, Is.Not.Null, "XrmToolBox paints a tile from this; so does the box.");
         }
 
