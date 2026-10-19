@@ -4,7 +4,55 @@ Every released version, newest first, with whatever is waiting for the next one 
 bolded sentence of each entry is the one that goes on the package page, so it has to stand on
 its own.
 
-## Unreleased — 1.0.1-dev
+## v1.0.0 — 19 October 2026
+
+The first release. It was written up as finished on 10 September and then went on being worked
+on for five more weeks before anything shipped, so this is the whole of it: what the tool did on
+the day it was written up, and then what those weeks changed about it, newest first.
+
+### What it did on 10 September
+
+- **Search 18,637 icons from four families with no API key, no account, and no outbound host but Dataverse itself.** Microsoft's Fluent UI System Icons, Phosphor, Lucide and Tabler are bundled inside the DLL, all MIT or ISC, so the picker opens from behind a customer's proxy. Filter to one family when you want a house style — four of them draw a folder and all four are called Folder.
+
+- **Search in Dynamics words and get the icon rather than the word.** `account` finds the buildings and briefcases, `contact` finds the people, `appointment` finds the calendars, `case` finds the headsets. An icon actually named for your word still wins; the mapping only fills in where nothing is.
+
+- **The table you pick types the search for you, and says nothing when it cannot say anything true.** *Sales Order* searches for the order, *Hierarchy Rule* for the hierarchy — and only ever for a word some icon is really called or one the tool has been taught. *Payment Term* is not a terminal and *Social Profile* is not a car in profile, so those tables get an empty box rather than a confident wrong answer.
+
+- **Narrow the table list to the ones nobody has got to yet.** The load reads every table's current icon along with everything else, so this costs no extra round trip, and a table leaves the list the moment you give it an icon.
+
+  ![Only tables with no icon yet](https://raw.githubusercontent.com/comentality/xrm-icons/main/docs/images/release/unset-only.png)
+
+- **The web resource name follows your environment's convention rather than this tool's.** The same load reads where the icons you already have are stored, counting only your own publishers' prefixes so Microsoft's hundreds cannot outvote the handful somebody here chose. A table that already has an icon is offered that exact name, so applying updates it instead of leaving a second one beside it. Type any path over it and that is what gets written.
+
+- **See the icon on light and on dark before you commit, at the size a site map really renders it.**
+
+  ![The chosen icon previewed light and dark](https://raw.githubusercontent.com/comentality/xrm-icons/main/docs/images/release/preview.png)
+
+- **See it in context draws your icon into a real app's navigation, read from that app's own site map.** Every size in it was measured against a live model-driven app rather than guessed: the pane is 200px, the row 35, the icon box 16, and `currentColor` in the nav resolves to #424242. Without a connection it shows a stand-in and says so.
+
+  ![The icon in an app's navigation](https://raw.githubusercontent.com/comentality/xrm-icons/main/docs/images/release/in-context.png)
+
+- **Colour follows the app theme by default, which is what Microsoft asks for in a table icon.** The SVG is written with `fill="currentColor"` so it stays legible when the theme changes. A fixed colour is one radio button away for brand work.
+
+  ![Follow the app theme, or a fixed colour](https://raw.githubusercontent.com/comentality/xrm-icons/main/docs/images/release/colour.png)
+
+- **One button stores the SVG web resource, points the table's `IconVectorName` at it, and publishes both in a single call.** Publishing only one of them is how you get an app that shows the old icon, or asks for one that is not there yet.
+
+  ![The toolbar](https://raw.githubusercontent.com/comentality/xrm-icons/main/docs/images/release/toolbar.png)
+
+- **Ctrl+Z takes the write back: the table, the drawing that was written over, and a publish.** Ctrl+Y does it again. It is another write to somebody's environment rather than a keystroke against a document, so it asks first. It never deletes — a web resource this tool wrote stays where it is.
+
+- **An `ATTRIBUTION.html` beside the icons credits every one this tool has put there.** Each stored SVG carries a comment naming the set, the copyright holder, the licence and what was changed on the way in, and every apply rebuilds the page from those comments — so it says what is in the folder now rather than what any one session did.
+
+  ![The attribution page](https://raw.githubusercontent.com/comentality/xrm-icons/main/docs/images/release/attribution.png)
+
+- **The three classic PNG icons too, if you want them.** 16×16, 32×32 and 66×48 for the older `IconSmallName`, `IconMediumName` and `IconLargeName` properties. Off by default, because Microsoft's guidance is to use the vector instead.
+
+- **It says what is wrong before the round trip rather than after it.** An icon that paints its own colours will not follow the theme; a table locked against customisation cannot take one; a name Dataverse would refuse is refused here first, where the message can say which character it disliked.
+
+- Ships as one DLL with no dependencies beyond XrmToolBox, which is why it parses and rasterises SVG itself rather than referencing a library. The suite draws all 18,637 icons in the bundle, both as they ship and after the rewrite they are stored with. Three harnesses sit alongside the unit tests: one drives the real window against a Dataverse that answers in seconds, to see which buttons stay live and whether the answer landing last belongs to the question asked last; one photographs the real control; and one drives the whole workflow against a real environment and then asks the org what actually got written, because some questions only the platform can answer.
+
+### What changed before it shipped
 
 - **A table you have just given an icon keeps its place in the list, with a dot beside it.** It used to vanish the moment the write landed: the instant an icon goes on, the table stops qualifying for *Only tables with no icon yet*, the list is rebuilt without it, and the one row you were looking at when you pressed the button — the only evidence of what just happened — is the one row gone. Every table this session wrote to now stays where it is until the tables are read again or the connection changes. The list is drawn rather than listed so it can carry the mark: a dot in a gutter every row has, so the names stay in a column and the marked rows read as one. The dot means a stored icon, a web resource the table names — not the stock drawing an app puts beside a standard table, which 160 of them have and which the line under the box already says in words. The walk down the list still moves on to the next table waiting, from past the finished row rather than from the hole it used to leave.
 
@@ -54,13 +102,13 @@ its own.
 
 - **Fluent icons now answer to what Microsoft says they are for, as well as to what they are called.** Search for `keychain` and you get the key; for `patient`, the person; for `sync`, the cloud. Microsoft writes a line about each of its icons — a shield is *security, protection, safety* — and this tool never read a word of it, because the package it bundles ships no metadata at all and nobody had looked past the package. 12,482 of those words now travel with the drawings, covering about nine Fluent icons in ten, under the same licence the drawings already carry. They are worth less than a name on purpose: an icon *described* as security can never lead the grid over an icon *called* security, so the answer you were already getting is still the answer. It can outrank an icon that merely has the letters in it somewhere, which is the point — `email` used to bring back seven **voicemail** icons, because "email" is inside "vo-email", and now brings back envelopes.
 
- .   ![Searching for keychain finds the key](https://raw.githubusercontent.com/comentality/xrm-icons/main/docs/images/release/described-icons.png)
+  ![Searching for keychain finds the key](https://raw.githubusercontent.com/comentality/xrm-icons/main/docs/images/release/described-icons.png)
 
 - **Searching `account` offers a building again, and `product` a box rather than a Surface tablet.** The tool has always kept a small map of what Dataverse words look like — *account* is a building, a briefcase, an organization — because no icon set names anything "account". That map was scored so low that Microsoft's descriptions, arriving above it, swept it out of the grid for 27 of its 92 words: the Account table stopped being offered a single usable icon, and Product ranked Microsoft hardware over a box, because a Surface is "a product". The map now sits above the descriptions and below anything actually named for your word. It is the one part of the search written for Dataverse rather than for icon browsers, and it was worth more than its score said.
 
 - **Eleven standard tables now suggest a search that means what the table means, instead of half its name.** A table whose whole name found nothing used to fall back to one word of it, and the word it fell back to was often the emptier one. Recurring Appointment asked for *appointment* and got a video call; now it asks for the whole thing and leads with a repeating calendar. Invoice Line and Quote Line asked for *line* and got a straight line; they now lead with a receipt. Purchase Order asked for *order* and led with a reorder arrow; it now leads with a cart. Also Web Resource, Resource Group, Document Location, Document Template and Process Session. Nothing was added by hand for any of them — the second word simply has an answer now. Work Order and Unit Group did need a hand: each was matching on letters rather than on meaning, and each is covered below.
 
- .   ![Picking Recurring Appointment searches for the whole name and finds a repeating calendar](https://raw.githubusercontent.com/comentality/xrm-icons/main/docs/images/release/whole-table-name.png)
+  ![Picking Recurring Appointment searches for the whole name and finds a repeating calendar](https://raw.githubusercontent.com/comentality/xrm-icons/main/docs/images/release/whole-table-name.png)
 
 - **Work Order now suggests a clipboard, and Unit Group a stack of boxes.** Both were answering for the wrong reason. Search deliberately matches inside a word — typing `fold` should reach folder — so Work Order found a printed document, because "order" is inside b**order**; Unit Group found a crowd of people, because "unit" is inside comm**unit**y. Each offered one icon, confidently, in a box nobody had typed into. Neither collision was forbidden: the tool was taught what the words mean instead — a work order is a clipboard, a wrench, a toolbox; a unit is a box, a scale, a ruler — and the meaning simply outranks the coincidence. 137 icons to choose from now instead of one.
 
@@ -103,56 +151,6 @@ its own.
 - **Undoing an apply now rebuilds the page crediting the icons, rather than putting it back to what it said.** The page describes what is stored in the folder, and an undo does not empty the folder — nothing here deletes, so the drawing whose apply was taken back is still there and is still credited. Putting the page back made it the one thing in the folder claiming that drawing was gone. The case it is really for is applying twice under one name: the drawing goes back to the first icon, and the credit goes back to the set that drew it, which restoring could not do because the page it would restore to was written before that drawing was overwritten.
 
 - **Undo and Redo now name every web resource they are about to write, the way the first apply does.** Redo used to say it would write the SVG “the way it did the first time” and leave the attribution page and the PNG icons to be remembered; Undo said “the web resource that was written stays where it is” about two or more of them, and said nothing about the page it was touching. A gate that stands in front of a write should say what the write is.
-
-## v1.0.0 — 13 September 2026
-
-The first release. It was written up as finished on 10 September and then went on being worked
-on for three more days before anything shipped, so this is the whole of it: what the tool does,
-and then what those three days changed about it.
-
-### What it does
-
-- **Search 18,637 icons from four families with no API key, no account, and no outbound host but Dataverse itself.** Microsoft's Fluent UI System Icons, Phosphor, Lucide and Tabler are bundled inside the DLL, all MIT or ISC, so the picker opens from behind a customer's proxy. Filter to one family when you want a house style — four of them draw a folder and all four are called Folder.
-
-- **Search in Dynamics words and get the icon rather than the word.** `account` finds the buildings and briefcases, `contact` finds the people, `appointment` finds the calendars, `case` finds the headsets. An icon actually named for your word still wins; the mapping only fills in where nothing is.
-
-- **The table you pick types the search for you, and says nothing when it cannot say anything true.** *Sales Order* searches for the order, *Hierarchy Rule* for the hierarchy — and only ever for a word some icon is really called or one the tool has been taught. *Payment Term* is not a terminal and *Social Profile* is not a car in profile, so those tables get an empty box rather than a confident wrong answer.
-
-- **Narrow the table list to the ones nobody has got to yet.** The load reads every table's current icon along with everything else, so this costs no extra round trip, and a table leaves the list the moment you give it an icon.
-
-  ![Only tables with no icon yet](https://raw.githubusercontent.com/comentality/xrm-icons/main/docs/images/release/unset-only.png)
-
-- **The web resource name follows your environment's convention rather than this tool's.** The same load reads where the icons you already have are stored, counting only your own publishers' prefixes so Microsoft's hundreds cannot outvote the handful somebody here chose. A table that already has an icon is offered that exact name, so applying updates it instead of leaving a second one beside it. Type any path over it and that is what gets written.
-
-- **See the icon on light and on dark before you commit, at the size a site map really renders it.**
-
-  ![The chosen icon previewed light and dark](https://raw.githubusercontent.com/comentality/xrm-icons/main/docs/images/release/preview.png)
-
-- **See it in context draws your icon into a real app's navigation, read from that app's own site map.** Every size in it was measured against a live model-driven app rather than guessed: the pane is 200px, the row 35, the icon box 16, and `currentColor` in the nav resolves to #424242. Without a connection it shows a stand-in and says so.
-
-  ![The icon in an app's navigation](https://raw.githubusercontent.com/comentality/xrm-icons/main/docs/images/release/in-context.png)
-
-- **Colour follows the app theme by default, which is what Microsoft asks for in a table icon.** The SVG is written with `fill="currentColor"` so it stays legible when the theme changes. A fixed colour is one radio button away for brand work.
-
-  ![Follow the app theme, or a fixed colour](https://raw.githubusercontent.com/comentality/xrm-icons/main/docs/images/release/colour.png)
-
-- **One button stores the SVG web resource, points the table's `IconVectorName` at it, and publishes both in a single call.** Publishing only one of them is how you get an app that shows the old icon, or asks for one that is not there yet.
-
-  ![The toolbar](https://raw.githubusercontent.com/comentality/xrm-icons/main/docs/images/release/toolbar.png)
-
-- **Ctrl+Z takes the write back: the table, the drawing that was written over, and a publish.** Ctrl+Y does it again. It is another write to somebody's environment rather than a keystroke against a document, so it asks first. It never deletes — a web resource this tool wrote stays where it is.
-
-- **An `ATTRIBUTION.html` beside the icons credits every one this tool has put there.** Each stored SVG carries a comment naming the set, the copyright holder, the licence and what was changed on the way in, and every apply rebuilds the page from those comments — so it says what is in the folder now rather than what any one session did.
-
-  ![The attribution page](https://raw.githubusercontent.com/comentality/xrm-icons/main/docs/images/release/attribution.png)
-
-- **The three classic PNG icons too, if you want them.** 16×16, 32×32 and 66×48 for the older `IconSmallName`, `IconMediumName` and `IconLargeName` properties. Off by default, because Microsoft's guidance is to use the vector instead.
-
-- **It says what is wrong before the round trip rather than after it.** An icon that paints its own colours will not follow the theme; a table locked against customisation cannot take one; a name Dataverse would refuse is refused here first, where the message can say which character it disliked.
-
-- Ships as one DLL with no dependencies beyond XrmToolBox, which is why it parses and rasterises SVG itself rather than referencing a library. The suite draws all 18,637 icons in the bundle, both as they ship and after the rewrite they are stored with. Three harnesses sit alongside the unit tests: one drives the real window against a Dataverse that answers in seconds, to see which buttons stay live and whether the answer landing last belongs to the question asked last; one photographs the real control; and one drives the whole workflow against a real environment and then asks the org what actually got written, because some questions only the platform can answer.
-
-### What the last three days changed
 
 - **A table an app already draws no longer counts as a table with no icon, so *Only tables with no icon yet* is a short list again.** The box read `IconVectorName` and nothing else, so every standard table in the environment qualified — 196 of them against 31 carrying a web resource, which is 31 rows removed from 648 and called a narrowing. Account sat in it looking like something nobody had got to, when Account has never had an icon stored on it and has never looked as though it needed one: a model-driven app draws a standard table from a font of its own, `Dyn CRM Symbol`, by the glyph that belongs to the table — account is U+EED6, connection U+EFD4, activitypointer U+EFF4. The org serves the vector of that same glyph at `/_imgs/svg_<object type code>.svg`, which names each drawing after the glyph it is (`svg_1.svg` is titled `Account_EED6`), so the tool asks the environment rather than carrying a list of Microsoft's tables around going stale. Two things now have to be true to be in the short list: nothing stored on the table, and nothing drawn for it either. Picking a table that is only on its stock icon says so under the box you picked it in, so unticking to find Account explains itself.
 
