@@ -6,7 +6,7 @@
     <title>Icons</title>
     <authors>Comentality</authors>
     <license type="expression">MIT</license>
-    <projectUrl>https://github.com/comentality/xrm-icons</projectUrl>
+    <projectUrl>https://comentality.com/tools/#icons</projectUrl>
     <repository type="git" url="https://github.com/comentality/xrm-icons.git" branch="main" />
     <icon>icon.png</icon>
     <readme>docs\README.md</readme>

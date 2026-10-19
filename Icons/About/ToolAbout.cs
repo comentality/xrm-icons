@@ -27,7 +27,8 @@ namespace Comentality.Xtb.About
         /// <summary>Where feedback goes. One address for every tool.</summary>
         public const string FeedbackAddress = "feedback@comentality.com";
 
-        private const string SitePrefix = "https://comentality.com/xrm/xtb/";
+        /// <summary>Every tool is a section of one page on the site, named by its slug.</summary>
+        private const string SitePrefix = "https://comentality.com/tools/#";
 
         private ToolAbout(string name, string description, Image logo, string version,
                           string pageUrl, string repositoryUrl)
@@ -78,7 +79,7 @@ namespace Comentality.Xtb.About
         /// Reads a tool out of its own plugin class.
         /// </summary>
         /// <param name="pluginType">The class carrying the <c>ExportMetadata</c> attributes.</param>
-        /// <param name="pageSlug">The last segment of the tool's page, under comentality.com/xrm/xtb/.</param>
+        /// <param name="pageSlug">The tool's anchor on comentality.com/tools/, without the #.</param>
         /// <param name="repositoryUrl">The GitHub repository, with no trailing slash.</param>
         public static ToolAbout FromPlugin(Type pluginType, string pageSlug, string repositoryUrl)
         {

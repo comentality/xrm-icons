@@ -31,7 +31,7 @@ namespace Icons
         /// </summary>
         public string HelpUrl
         {
-            get { return "https://comentality.com/xrm/xtb/icons"; }
+            get { return "https://comentality.com/tools/#icons"; }
         }
 
         /// <summary>The host's own way in to the same box the toolbar opens.</summary>

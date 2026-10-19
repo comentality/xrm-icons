@@ -74,7 +74,7 @@ namespace Icons.Tests
         {
             var about = About();
 
-            Assert.That(about.PageUrl, Is.EqualTo("https://comentality.com/xrm/xtb/icons"));
+            Assert.That(about.PageUrl, Is.EqualTo("https://comentality.com/tools/#icons"));
             Assert.That(about.RepositoryUrl, Is.EqualTo("https://github.com/comentality/xrm-icons"));
             Assert.That(about.ReleaseNotesUrl,
                 Is.EqualTo("https://github.com/comentality/xrm-icons/releases/latest"));
