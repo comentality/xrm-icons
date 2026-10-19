@@ -11,6 +11,9 @@ resource with exactly the right name and type, pasting the base64 in, finding th
 the web resource name into the icon property, and publishing both. Icons does all of it from one
 window.
 
+It has a section on [comentality.com/tools](https://comentality.com/tools/#icons), beside the
+other XrmToolBox tools from the same place.
+
 ## Install
 
 - **XrmToolBox Tool Library** — search for *Icons* and install it.
@@ -204,7 +207,7 @@ after it:
 
 ## Where the icons come from
 
-Four sets, bundled whole:
+Six sets:
 
 | Family | Weights bundled | Licence |
 |---|---|---|
@@ -292,10 +295,10 @@ The rule, and what is specifically off limits to anyone working on this, is writ
 
 - [Events2Code](https://github.com/comentality/xrm-events-2-code) — turn form designer event
   registrations into JavaScript.
-- [Document Template X-Ray](https://github.com/comentality/xrm-document-x-ray) — see what fields
+- [Document Template XRay](https://github.com/comentality/xrm-document-template-xray) — see what fields
   a Word template actually uses.
 
 ## Licence
 
-MIT — see [LICENSE](LICENSE). The bundled icons are MIT from Microsoft; see **Where the icons
-come from** above.
+MIT — see [LICENSE](LICENSE). The bundled icons are under their own authors' licences — MIT,
+ISC and CC BY 4.0; see **Where the icons come from** above.
