@@ -4,11 +4,19 @@ Every released version, newest first, with whatever is waiting for the next one 
 bolded sentence of each entry is the one that goes on the package page, so it has to stand on
 its own.
 
-## v1.0.0 — 19 October 2026
+## v1.0.0 — 22 October 2026
 
 The first release. It was written up as finished on 10 September and then went on being worked
 on for five more weeks before anything shipped, so this is the whole of it: what the tool did on
 the day it was written up, and then what those weeks changed about it, newest first.
+
+### In short
+
+- **21,698 icons bundled offline, with no external connections, and every one legal to use: MIT, ISC or CC BY 4.0.** Fluent, Phosphor, Lucide, Tabler, Font Awesome Free and Solar.
+- **Search in Dynamics words and get the right icon: “account” finds buildings, “contact” finds people, “case” finds headsets.**
+- **Preview the icon in a realistic app interface, on light and on dark, before anything is written to your org.**
+- **One button stores the SVG, points the table at it and publishes both, and Ctrl+Z puts the old icon back.**
+- **Every icon it stores is credited on an ATTRIBUTION.html beside it, so the licences travel with the drawings.**
 
 ### What it did on 10 September
 
