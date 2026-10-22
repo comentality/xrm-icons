@@ -47,11 +47,16 @@ itself and nothing else is submitted.
 The first version is different: the tool has to be registered once at
 https://www.xrmtoolbox.com/plugins/new from the package id, after nuget.org has indexed it, and an
 administrator approves it. The form takes only the package id and reads the logo from nuget.org,
-and it refuses with "Logo Url is not valid" when nuget.org has stored the embedded icon as
-`application/octet-stream` instead of `image/png` — which it does now and then, for an identical
-PNG (1.0.0 got octet-stream; every sibling package got image/png). Check before registering:
-`curl -sI https://api.nuget.org/v3-flatcontainer/comentality.icons/<version>/icon`. If it is not
-`image/png`, the only fix is another version: nuget.org never re-reads a version's icon. The
+and it refuses with "Logo Url is not valid" when nuget.org serves the icon as
+`application/octet-stream` instead of `image/png`.
+
+That is why the nuspec names its icon with `<iconUrl>` rather than carrying one with `<icon>`,
+despite NU5048. nuget.org writes a carried icon twice — the flat-container job copies it out of
+the package with no content type, the icon job writes it again as `image/png` — and whichever
+lands last wins. On 22 October 2026 about one package in three on the whole of nuget.org lost
+that race, and 1.0.0 and 1.0.1 both did; a version's icon is never rewritten afterwards. An icon
+named by URL is only written by the icon job, which sniffs it. Check before registering:
+`curl -sI https://api.nuget.org/v3-flatcontainer/comentality.icons/<version>/icon`. The
 whole list it is checked against is XrmToolBox's
 [validation checklist](https://www.xrmtoolbox.com/documentation/for-developers/deploy-your-plugin-in-plugins-store/plugin-validation-check-list/).
 
