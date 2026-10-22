@@ -7,11 +7,11 @@ out as a LinkedIn Article instead, the article title is the chosen opener.
 
 ## Opener (pick one)
 
-1. Icons 1.0 is out -- an XrmToolBox tool that puts a decent icon on a Dataverse table. Type "account", get buildings. Pick one, and it writes the web resource, sets the table and publishes.
+1. Icons 1.0 is out this week -- an XrmToolBox tool that puts a decent icon on a Dataverse table. Type "account", get buildings. Pick one, and it writes the web resource, sets the table and publishes.
 
-2. No icon set has ever drawn an icon called "account". That was the hard half of the tool I shipped today.
+2. None of 21,698 icons is called "account". Dataverse tables are named after what they mean, icons after what they show. Closing that gap was the hard half of the XrmToolBox tool I shipped this week.
 
-3. Every custom table I ever made spent its first month with the grey default icon. Shipped a tool today so that stops: Icons, in the XrmToolBox Tool Library.
+3. A custom table gets the grey default icon and keeps it, because setting one is seven steps nobody wants to do. Shipped a tool this week so it is one: Icons, in the XrmToolBox Tool Library. (Needs your word that this matches your own experience before it goes out as "I".)
 
 ## Body
 
@@ -21,7 +21,7 @@ What is in it:
 
 21,698 icons from six sets -- Fluent, Phosphor, Lucide, Tabler, Font Awesome Free and Solar. All bundled in the DLL, all MIT, ISC or CC BY 4.0. No API key, no account, no outbound host beyond Dataverse itself, so it works from behind a customer's proxy.
 
-Search in Dynamics words. Icon sets name icons after what they depict, Dataverse names tables after what they mean. "account" finds buildings and briefcases, "contact" finds people, "case" finds headsets. Pick a table and it types the search for you.
+Search in Dynamics words. Icon sets name icons after what they depict, Dataverse names tables after what they mean. "account" finds buildings and briefcases, "contact" finds people, "appointment" finds calendars, "case" finds headsets. Pick a table and it types the search for you.
 
 Preview in an app's navigation, on light and on dark, at the size the app really draws it, before anything is written to the org.
 
@@ -29,7 +29,7 @@ One button stores the SVG, points the table at it and publishes both. Ctrl+Z put
 
 Every icon it stores is credited on an ATTRIBUTION.html beside it, so the licences travel with the drawings into the customer's org.
 
-The search ate five weeks -- most of it reading result lists by hand. "email" used to return seven voicemail icons, "team" offered the Steam logo, and the Account table lost every usable icon the day I added Microsoft's own descriptions. The scoring and what went wrong on the way is written up here: https://comentality.com/blog/making-icons-findable
+The search took most of the time between writing the tool up and shipping it -- much of that was reading result lists by hand. "email" used to return seven voicemail icons, "team" offered the Steam logo, and the Account table lost every usable icon the day I added Microsoft's own descriptions. The scoring and what went wrong on the way is written up here: https://comentality.com/blog/making-icons-findable/
 
 Install: open the XrmToolBox Tool Library and search for Icons. Source and releases: https://github.com/comentality/xrm-icons
 More on the tool: https://comentality.com/tools/#icons
@@ -53,5 +53,5 @@ Post them in this order; LinkedIn shows the first one largest.
    app's navigation, at 3x.
 4. `04-one-button-apply.png` -- the confirm dialog listing what an apply will do, at 2x.
 
-Suggested caption for the first image: "account" finds buildings. No icon set has an icon by
-that name.
+Suggested caption for the first image: "account" finds buildings. None of the 21,698 is called
+that.
