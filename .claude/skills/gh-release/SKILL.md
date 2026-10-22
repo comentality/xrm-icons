@@ -46,18 +46,18 @@ itself and nothing else is submitted.
 
 The first version is different: the tool has to be registered once at
 https://www.xrmtoolbox.com/plugins/new from the package id, after nuget.org has indexed it, and an
-administrator approves it. The form takes only the package id and reads the logo from nuget.org,
-and it refuses with "Logo Url is not valid" when nuget.org serves the icon as
-`application/octet-stream` instead of `image/png`.
+administrator approves it. The form takes only the package id and reads everything, logo
+included, from nuget.org.
 
-That is why the nuspec names its icon with `<iconUrl>` rather than carrying one with `<icon>`,
-despite NU5048. nuget.org writes a carried icon twice — the flat-container job copies it out of
-the package with no content type, the icon job writes it again as `image/png` — and whichever
-lands last wins. On 22 October 2026 about one package in three on the whole of nuget.org lost
-that race, and 1.0.0 and 1.0.1 both did; a version's icon is never rewritten afterwards. An icon
-named by URL is only written by the icon job, which sniffs it. Check before registering:
-`curl -sI https://api.nuget.org/v3-flatcontainer/comentality.icons/<version>/icon`. The
-whole list it is checked against is XrmToolBox's
+It refused 1.0.0 with "Logo Url is not valid", and two republishes went after the wrong cause:
+nuget.org had served 1.0.0's icon as `application/octet-stream`, but the form then accepted
+1.0.1, whose icon is octet-stream too. What changed between the refusal and the acceptance was
+time — 1.0.1 was registered minutes after nuget.org's *search* first listed it, and search lags
+the download feed. So wait until
+`https://azuresearch-usnc.nuget.org/query?q=packageid:<id>` returns the version before
+registering, and if the form still refuses, wait longer before republishing anything. (The
+nuspec names its icon with `<iconUrl>` since 1.0.2; that was part of the wrong fix, and is
+harmless.) The whole list a tool is checked against is XrmToolBox's
 [validation checklist](https://www.xrmtoolbox.com/documentation/for-developers/deploy-your-plugin-in-plugins-store/plugin-validation-check-list/).
 
 ## Before tagging

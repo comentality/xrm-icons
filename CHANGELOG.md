@@ -10,15 +10,16 @@ its own.
 
 - The package names its icon by URL instead of carrying it inside, with nothing in the tool
   changed. nuget.org stored the carried icon of 1.0.0 and 1.0.1 as a generic file rather than a
-  PNG, and the XrmToolBox Tool Library will not register a tool whose logo is not an image. It
-  does that to about one package in three with a carried icon; an icon named by URL is fetched
-  once and stored by the step that checks what it is.
+  PNG, and this was meant to get the tool past the XrmToolBox Tool Library's "Logo Url is not
+  valid". It was not the cause: the Tool Library went on to register 1.0.1, generic icon and
+  all. A package naming its icon by URL is harmless, so it stays.
 
 ## v1.0.1 — 22 October 2026
 
-- Republished, with nothing in the tool changed: nuget.org stored 1.0.0's package icon as a
-  generic file rather than a PNG, and the XrmToolBox Tool Library will not register a tool whose
-  icon is not an image.
+- Republished, with nothing in the tool changed, to get past the XrmToolBox Tool Library's
+  "Logo Url is not valid" on 1.0.0. The republish did not change what was wrong — the icon came
+  out the same — but the Tool Library registered this version anyway, a few minutes after
+  nuget.org's search first listed it. Asked too soon is the likelier explanation.
 
 ## v1.0.0 — 22 October 2026
 
