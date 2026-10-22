@@ -40,9 +40,17 @@ package is not referenceable and does not want to be.
 dotnet nuget push Comentality.Icons.<version>.nupkg --api-key <KEY> --source https://api.nuget.org/v3/index.json
 ```
 
-The XrmToolBox Tool Library indexes nuget.org by the `XrmToolBox` tag, which the nuspec carries,
-so that push *is* the Tool Library publish. There is nothing else to submit. Hand the command to
-the user — the API key is theirs to enter.
+The key is the same one the sibling tools keep in `.nuget-apikey`; read it from there without
+printing it. Once a tool is listed, the Tool Library picks every new version up from nuget.org by
+itself and nothing else is submitted.
+
+The first version is different: the tool has to be registered once at
+https://www.xrmtoolbox.com/plugins/new from the package id, after nuget.org has indexed it, and an
+administrator approves it. The form asks for a logo URL and refused the one NuGet gives an
+embedded icon (`v3-flatcontainer/.../icon`, served as `application/octet-stream`) with "Logo Url
+is not valid". Give it the site's copy instead: `https://comentality.com/tools/icons.png`. The
+whole list it is checked against is XrmToolBox's
+[validation checklist](https://www.xrmtoolbox.com/documentation/for-developers/deploy-your-plugin-in-plugins-store/plugin-validation-check-list/).
 
 ## Before tagging
 
