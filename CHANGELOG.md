@@ -4,7 +4,13 @@ Every released version, newest first, with whatever is waiting for the next one 
 bolded sentence of each entry is the one that goes on the package page, so it has to stand on
 its own.
 
-## Unreleased — 1.0.2-dev
+## v1.0.2 — 22 October 2026
+
+- The package names its icon by URL instead of carrying it inside, with nothing in the tool
+  changed. nuget.org stored the carried icon of 1.0.0 and 1.0.1 as a generic file rather than a
+  PNG, and the XrmToolBox Tool Library will not register a tool whose logo is not an image. It
+  does that to about one package in three with a carried icon; an icon named by URL is fetched
+  once and stored by the step that checks what it is.
 
 ## v1.0.1 — 22 October 2026
 
