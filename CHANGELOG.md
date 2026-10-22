@@ -4,6 +4,8 @@ Every released version, newest first, with whatever is waiting for the next one 
 bolded sentence of each entry is the one that goes on the package page, so it has to stand on
 its own.
 
+## Unreleased — 1.0.3-dev
+
 ## v1.0.2 — 22 October 2026
 
 - The package names its icon by URL instead of carrying it inside, with nothing in the tool
