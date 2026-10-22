@@ -4,6 +4,8 @@ Every released version, newest first, with whatever is waiting for the next one 
 bolded sentence of each entry is the one that goes on the package page, so it has to stand on
 its own.
 
+## Unreleased — 1.0.2-dev
+
 ## v1.0.1 — 22 October 2026
 
 - Republished, with nothing in the tool changed: nuget.org stored 1.0.0's package icon as a
