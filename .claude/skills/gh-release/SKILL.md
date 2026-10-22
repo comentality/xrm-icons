@@ -46,9 +46,12 @@ itself and nothing else is submitted.
 
 The first version is different: the tool has to be registered once at
 https://www.xrmtoolbox.com/plugins/new from the package id, after nuget.org has indexed it, and an
-administrator approves it. The form asks for a logo URL and refused the one NuGet gives an
-embedded icon (`v3-flatcontainer/.../icon`, served as `application/octet-stream`) with "Logo Url
-is not valid". Give it the site's copy instead: `https://comentality.com/tools/icons.png`. The
+administrator approves it. The form takes only the package id and reads the logo from nuget.org,
+and it refuses with "Logo Url is not valid" when nuget.org has stored the embedded icon as
+`application/octet-stream` instead of `image/png` — which it does now and then, for an identical
+PNG (1.0.0 got octet-stream; every sibling package got image/png). Check before registering:
+`curl -sI https://api.nuget.org/v3-flatcontainer/comentality.icons/<version>/icon`. If it is not
+`image/png`, the only fix is another version: nuget.org never re-reads a version's icon. The
 whole list it is checked against is XrmToolBox's
 [validation checklist](https://www.xrmtoolbox.com/documentation/for-developers/deploy-your-plugin-in-plugins-store/plugin-validation-check-list/).
 
