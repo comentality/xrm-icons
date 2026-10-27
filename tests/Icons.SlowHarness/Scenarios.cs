@@ -65,6 +65,7 @@ namespace Icons.SlowHarness
                 OfferSurvivesAFilter(),
                 StockIconsHang(),
                 AppSurvivesAReload(),
+                ReloadDuringAnAppRead(),
             };
         }
 
@@ -495,6 +496,54 @@ namespace Icons.SlowHarness
                         "the reload should read the app's site map again, once, and it was read "
                         + r.Service.Log("sitemap").Count + " time(s)");
                     r.Check(r.Probe.Apps.Enabled, "and the app box should be live again");
+                });
+        }
+
+        /// <summary>
+        /// The same refresh, pressed while the app's site map is still on the wire. The reload
+        /// moved the window on a generation, so the site map landed on a window that threw it
+        /// away - without taking down the "Reading..." it had put up, or giving the app box back.
+        /// And the reload's own read of the app list had been skipped, because a read was still
+        /// out. The preview sat there saying it was reading, with nothing being read.
+        /// </summary>
+        private static Scenario ReloadDuringAnAppRead()
+        {
+            return new Scenario
+            {
+                Name = "reload-during-an-app-read",
+                Why = "refreshing while an app's navigation is still loading must not leave the preview stuck",
+                Wire = s =>
+                {
+                    s.AddApp("Contoso Sales", "contoso_account", "contoso_case");
+                    s.Latency = Slow("sitemap", 3000);
+                }
+            }
+                .At(200, "press Load", r => r.Probe.PressLoad())
+                .At(2000, "pick a table and an app", r =>
+                {
+                    r.Probe.PickTable("contoso_account");
+                    r.Probe.PickApp("Contoso Sales");
+                })
+                .At(2500, "press Load while the site map is still out", r =>
+                {
+                    r.Check(r.Probe.ContextNote.IndexOf("Reading Contoso Sales", StringComparison.Ordinal) >= 0,
+                        "the site map should still be on its way, and the preview says \""
+                        + r.Probe.ContextNote + "\" - if it is in already, this scenario tests nothing");
+                    r.Probe.PressLoad();
+                })
+                .At(9000, "long after both reads", r =>
+                {
+                    r.Check(r.Probe.ContextNote.IndexOf("Reading", StringComparison.Ordinal) < 0,
+                        "nothing is being read any more, and the preview still says \"" + r.Probe.ContextNote + "\"");
+                    r.Check(r.Probe.Apps.Enabled, "the app box should be live again");
+                    r.Check(r.Probe.SelectedApp == "Contoso Sales",
+                        "the app box should still be on Contoso Sales, and is on \""
+                        + (r.Probe.SelectedApp ?? "nothing") + "\"");
+                    r.Check(r.Probe.ContextNote.IndexOf("Contoso Sales", StringComparison.Ordinal) >= 0,
+                        "the preview should be the app's own navigation, and says \"" + r.Probe.ContextNote + "\"");
+                    r.Check(r.Service.Log("apps").Count == 2,
+                        "the reload should have read the app list again, and it was read "
+                        + r.Service.Log("apps").Count + " time(s)");
                 });
         }
 

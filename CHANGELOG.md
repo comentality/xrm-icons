@@ -22,7 +22,9 @@ its own.
 - **Refreshing the table list keeps the app you chose for the preview, and redraws its navigation.**
   The refresh read the app list again and emptied the box while filling it, so the preview
   went back to the stand-in navigation. Now the same app stays chosen, and its navigation is
-  read again, so the preview shows the environment as it is now.
+  read again, so the preview shows the environment as it is now. Refreshing, or applying an
+  icon, while an app's navigation is still loading no longer leaves the preview stuck on
+  *Reading…* with the App box greyed out.
 
 ## v1.0.2 — 22 October 2026
 

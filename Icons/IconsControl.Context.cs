@@ -24,6 +24,25 @@ namespace Icons
         private bool _readingNavigation;
 
         /// <summary>
+        /// Which read the preview is waiting on. Every read takes the next number, and only the
+        /// answer carrying the latest one is shown - or allowed to say the reading is over.
+        ///
+        /// Not the window's generation, which moves for a reload and for every write as well.
+        /// An answer checked against that was thrown away whole by a reload pressed while it
+        /// was out, "Reading..." and the dead app box included, and nothing was left to put
+        /// them back. What makes an answer about the preview stale is a newer question about
+        /// the preview, or another environment - and <see cref="ResetContext"/> moves this for
+        /// that.
+        /// </summary>
+        private int _navigationRead;
+
+        /// <summary>
+        /// The app somebody chose last, from the moment they chose it rather than from the
+        /// moment it arrived, so a reload pressed while it is still on the wire keeps it too.
+        /// </summary>
+        private AppNavigation _chosenApp;
+
+        /// <summary>
         /// The chosen icon, parsed, kept until a different one is chosen. RefreshContextIcon
         /// runs on every change the window makes - every keystroke in the name box among them -
         /// and reading an SVG out of the bundle and parsing it for each of those is a cost with
@@ -60,6 +79,7 @@ namespace Icons
         {
             if (_context == null) return;
 
+            _chosenApp = null;
             _shownApp = null;
             _shownEntries = null;
             _shownDrawings = null;
@@ -96,6 +116,8 @@ namespace Icons
         {
             _apps = null;
             _readingNavigation = false;
+            _navigationRead++;
+            _chosenApp = null;
             _shownApp = null;
             _shownEntries = null;
             _shownDrawings = null;
@@ -169,12 +191,12 @@ namespace Icons
         /// </summary>
         private void ReadApps()
         {
-            if (_readingNavigation || Service == null) return;
+            // Not held back by a read still out. This is the end of a load, and a load is a
+            // newer question about the environment than any read it overtakes.
+            if (Service == null) return;
             if (_context == null || _context.IsDisposed) return;
 
-            var generation = _generation;
-            _readingNavigation = true;
-            if (_context != null && !_context.IsDisposed) _context.ShowBusy("Reading this environment's apps...");
+            var read = StartNavigationRead("Reading this environment's apps...");
 
             WorkAsync(new WorkAsyncInfo
             {
@@ -182,12 +204,7 @@ namespace Icons
                 Work = (worker, args) => { args.Result = SiteMapSource.Apps(Service); },
                 PostWorkCallBack = args =>
                 {
-                    _readingNavigation = false;
-
-                    // The tab can be closed while this was on the wire, taking the preview with
-                    // it; the callback still runs.
-                    if (IsDisposed || generation != _generation) return;
-                    if (_context == null || _context.IsDisposed) return;
+                    if (!FinishNavigationRead(read)) return;
 
                     AppNavigation kept = null;
 
@@ -204,9 +221,9 @@ namespace Icons
                         // navigation is read again, because a reload is a request for the org as
                         // it is now - but the box going back to empty and the preview to the
                         // stand-in is the window forgetting a choice nobody took back.
-                        kept = _shownApp == null
+                        kept = _chosenApp == null
                             ? null
-                            : _apps.FirstOrDefault(a => a.SiteMapId == _shownApp.SiteMapId);
+                            : _apps.FirstOrDefault(a => a.SiteMapId == _chosenApp.SiteMapId);
 
                         _context.ShowBusy("");
                         _context.ShowApps(_apps, kept);
@@ -294,7 +311,7 @@ namespace Icons
         {
             if (app == null || Service == null || _readingNavigation) return;
 
-            var generation = _generation;
+            _chosenApp = app;
 
             // What the site map needs to know about the tables it names. Already in hand from
             // the load, so choosing an app costs the site map and its icons and nothing else.
@@ -303,8 +320,7 @@ namespace Icons
                 t => new SiteMapTable { DisplayName = t.DisplayName, VectorIcon = t.CurrentIcon },
                 StringComparer.OrdinalIgnoreCase);
 
-            _readingNavigation = true;
-            if (_context != null && !_context.IsDisposed) _context.ShowBusy("Reading " + app.Name + "...");
+            var read = StartNavigationRead("Reading " + app.Name + "...");
 
             WorkAsync(new WorkAsyncInfo
             {
@@ -317,10 +333,7 @@ namespace Icons
                 },
                 PostWorkCallBack = args =>
                 {
-                    _readingNavigation = false;
-
-                    if (IsDisposed || generation != _generation) return;
-                    if (_context == null || _context.IsDisposed) return;
+                    if (!FinishNavigationRead(read)) return;
 
                     _context.ShowBusy("");
 
@@ -340,6 +353,27 @@ namespace Icons
                     FillForChosenTable();
                 }
             });
+        }
+
+        /// <summary>The preview is reading something; says what, and returns the read's number.</summary>
+        private int StartNavigationRead(string what)
+        {
+            _readingNavigation = true;
+            if (_context != null && !_context.IsDisposed) _context.ShowBusy(what);
+            return ++_navigationRead;
+        }
+
+        /// <summary>
+        /// Whether the answer to this read is the one to show. If it is, the reading is over;
+        /// if a newer read has started since, that one says when it is over, not this. False
+        /// as well once the tab has been closed - the callback runs anyway.
+        /// </summary>
+        private bool FinishNavigationRead(int read)
+        {
+            if (read != _navigationRead) return false;
+
+            _readingNavigation = false;
+            return !IsDisposed && _context != null && !_context.IsDisposed;
         }
 
         /// <summary>
