@@ -6,6 +6,18 @@ its own.
 
 ## Unreleased — 1.0.3-dev
 
+- **Choosing another table now moves your icon to that table's row in the app navigation preview.**
+  The row was picked once, when the app was, so after switching tables the preview went on
+  showing your icon beside the first table, under that table's name. It now follows the table
+  you have chosen, including one you chose while the app's navigation was still loading.
+
+- **The table list gets more of the window, and its two filters now fit on one line.** The
+  preview of the navigation is 30% shorter, and the list takes the height it gives up. The
+  boxes are now *No icons only* and *Hide uncustomizable*, and they move onto two lines when
+  the pane is narrow. Their tooltips still say what each box covers.
+
+  ![No icons only and Hide uncustomizable on one line, above a taller table list](https://raw.githubusercontent.com/comentality/xrm-icons/main/docs/images/release/filters-one-line.png)
+
 ## v1.0.2 — 22 October 2026
 
 - The package names its icon by URL instead of carrying it inside, with nothing in the tool
