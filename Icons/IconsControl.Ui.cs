@@ -1141,8 +1141,10 @@ namespace Icons
             // docked to the top of the pane: the row it is usually about has to be the row
             // under it, or it reads as a caption for the table list.
             AddRow(form, 0, "Solution", _solutionBox);
-            AddRow(form, 1, "Find table", _tableFilterBox);
-            AddWrappingRow(form, 2, Beside(_unsetOnlyBox, _hideLockedBox, last: false, wrap: true));
+            // The two filters before the box that searches, so the list reads top to bottom as
+            // what narrows it, then what finds in it, then it.
+            AddWrappingRow(form, 1, Beside(_unsetOnlyBox, _hideLockedBox, last: false, wrap: true));
+            AddRow(form, 2, "Find table", _tableFilterBox);
             // Seven rows of list at least, measured in the font it will be drawn in rather than
             // written down in pixels - see FitForm for why a number here would be right on one
             // machine. Seven is enough to show a filter narrowed to a handful as a handful; a
