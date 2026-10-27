@@ -38,6 +38,19 @@ namespace Icons
         private IReadOnlyList<AppNavigation> _apps;
 
         /// <summary>
+        /// The app whose own navigation is on screen, and what was read for it, kept so that
+        /// choosing another table can move the icon to that table's row without a round trip.
+        /// Which row is ours is decided when the rows are built, so a navigation built once and
+        /// left alone went on showing the icon beside the table chosen when the app was.
+        /// Null while the stand-in is showing.
+        /// </summary>
+        private AppNavigation _shownApp;
+        private IReadOnlyList<SiteMapEntry> _shownEntries;
+
+        /// <summary>The app's own icon for each of <see cref="_shownEntries"/>, parsed once.</summary>
+        private IList<SvgImage> _shownDrawings;
+
+        /// <summary>
         /// The navigation before the environment has said anything: something to look at from
         /// the first moment the window opens, and a note saying what it is. An invented
         /// navigation and the environment's own are worth very different amounts, and the
@@ -46,6 +59,10 @@ namespace Icons
         private void ShowStandIn(string note)
         {
             if (_context == null) return;
+
+            _shownApp = null;
+            _shownEntries = null;
+            _shownDrawings = null;
 
             var stand = StandInNavigation();
             _context.ShowNavigation(stand.Key, stand.Value, note, true);
@@ -79,6 +96,9 @@ namespace Icons
         {
             _apps = null;
             _readingNavigation = false;
+            _shownApp = null;
+            _shownEntries = null;
+            _shownDrawings = null;
 
             if (_context == null || _context.IsDisposed) return;
 
@@ -255,8 +275,6 @@ namespace Icons
             if (app == null || Service == null || _readingNavigation) return;
 
             var generation = _generation;
-            var chosenTable = (_tableBox.SelectedItem as TableItem)?.LogicalName ?? "";
-            var chosenLabel = (_tableBox.SelectedItem as TableItem)?.DisplayName;
 
             // What the site map needs to know about the tables it names. Already in hand from
             // the load, so choosing an app costs the site map and its icons and nothing else.
@@ -293,9 +311,45 @@ namespace Icons
                     }
 
                     var answer = (KeyValuePair<IReadOnlyList<SiteMapEntry>, Dictionary<string, string>>)args.Result;
-                    Fill(app, answer.Key, answer.Value, chosenTable, chosenLabel);
+                    _shownApp = app;
+                    _shownEntries = answer.Key;
+                    _shownDrawings = Drawings(answer.Key, answer.Value);
+
+                    // The table chosen now, not the one chosen when the read went out: on a slow
+                    // link somebody has moved on by the time the site map lands.
+                    FillForChosenTable();
                 }
             });
+        }
+
+        /// <summary>
+        /// Builds the app's navigation again around whichever table is chosen now. Called when
+        /// the table changes, and not on every change the window makes - a navigation costs a
+        /// font per row to draw, and the icon, colour and caption already follow through
+        /// <see cref="RefreshContextIcon"/>. Only the row they go in needs the rebuild.
+        /// </summary>
+        private void FillForChosenTable()
+        {
+            if (_shownEntries == null || _readingNavigation) return;
+            if (_context == null || _context.IsDisposed) return;
+
+            var table = _tableBox.SelectedItem as TableItem;
+            Fill(_shownApp, _shownEntries, _shownDrawings, table?.LogicalName ?? "", table?.DisplayName);
+        }
+
+        /// <summary>
+        /// What the app itself draws beside each row. A row with no web resource is not an
+        /// empty row: a standard table is drawn from the app's own font, and the org serves the
+        /// vector of that same glyph - so the preview can show what is really beside that row
+        /// rather than a hole where an icon the user can see plainly is.
+        /// </summary>
+        private IList<SvgImage> Drawings(IReadOnlyList<SiteMapEntry> entries, Dictionary<string, string> svg)
+        {
+            return entries
+                .Select(e => e.Kind == SiteMapEntryKind.Group
+                    ? null
+                    : Parse(e.IconWebResource, svg) ?? Draw(StockFor(e.TableLogicalName)))
+                .ToList();
         }
 
         /// <summary>
@@ -305,14 +359,16 @@ namespace Icons
         /// note says which of the two happened.
         /// </summary>
         private void Fill(AppNavigation app, IReadOnlyList<SiteMapEntry> entries,
-            Dictionary<string, string> svg, string chosenTable, string chosenLabel)
+            IList<SvgImage> drawings, string chosenTable, string chosenLabel)
         {
             var rows = new List<NavRow>();
             var mine = -1;
             var itsOwnRow = false;
 
-            foreach (var entry in entries)
+            for (var i = 0; i < entries.Count; i++)
             {
+                var entry = entries[i];
+
                 if (entry.Kind == SiteMapEntryKind.Group)
                 {
                     rows.Add(new NavRow(entry.Label, null, true));
@@ -328,12 +384,7 @@ namespace Icons
                     continue;
                 }
 
-                // A row with no web resource is not an empty row. A standard table is drawn from
-                // the app's own font, and the org serves the vector of that same glyph - so the
-                // preview can show what is really beside that row rather than a hole where an
-                // icon the user can see plainly is.
-                rows.Add(new NavRow(entry.Label,
-                    Parse(entry.IconWebResource, svg) ?? Draw(StockFor(entry.TableLogicalName))));
+                rows.Add(new NavRow(entry.Label, drawings[i]));
             }
 
             var note = app.Name + " - this environment's own navigation.";

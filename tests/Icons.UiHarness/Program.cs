@@ -10,6 +10,7 @@ using System.Runtime.InteropServices;
 using System.Windows.Forms;
 using Comentality.Xtb.About;
 using Icons.Catalog;
+using Icons.Logic;
 using Icons.Ui;
 
 namespace Icons.UiHarness
@@ -163,6 +164,7 @@ namespace Icons.UiHarness
                     failures += CheckContextPreviewIsInTheWindow(control, form, outputDir);
                     failures += CheckNameSurvivesRebuild(control, form, outputDir);
                     failures += CheckUnsetOnlyFilter(control, form, outputDir);
+                    failures += CheckThePreviewFollowsTheTable(control);
                     failures += CheckLockedTablesAreHiddenAndExplained(control, form, outputDir);
                     failures += CheckASetTableKeepsItsPlaceAndIsMarked(control, form, outputDir);
                     failures += CheckRasterHelpOffered(control);
@@ -910,6 +912,95 @@ namespace Icons.UiHarness
             return failures;
         }
 
+
+        /// <summary>
+        /// An app's own navigation, and the icon moving to the row of whichever table is chosen.
+        ///
+        /// Which row is ours was decided once, when the app was picked, so choosing another
+        /// table afterwards left the icon beside the first one - under that table's own label,
+        /// since in an app's navigation the label is the app's to write. The preview then showed
+        /// an icon for Admin Program Status sitting in CA Overpayment's row.
+        ///
+        /// Handed the site map directly: what is checked is what happens after it arrives, and
+        /// nothing without a connection produces one.
+        /// </summary>
+        private static int CheckThePreviewFollowsTheTable(IconsControl control)
+        {
+            const BindingFlags Private = BindingFlags.Instance | BindingFlags.NonPublic;
+
+            var tablesField = typeof(IconsControl).GetField("_tables", Private);
+            var showTables = typeof(IconsControl).GetMethod("ShowTables", Private);
+            var itemType = typeof(IconsControl).GetNestedType("TableItem", BindingFlags.NonPublic);
+            var fill = typeof(IconsControl).GetMethod("FillForChosenTable", Private);
+            var reset = typeof(IconsControl).GetMethod("ResetContext", Private);
+            var preview = Descendants(control).OfType<ContextPreview>().FirstOrDefault();
+            var surface = preview?.Controls.OfType<Panel>().FirstOrDefault(c => c.GetType().Name == "Surface");
+            if (tablesField == null || showTables == null || itemType == null || fill == null
+                || reset == null || surface == null)
+            {
+                Console.WriteLine("FAIL: the preview's plumbing has moved and the harness cannot hand it a site map");
+                return 1;
+            }
+
+            var tables = (IList)Activator.CreateInstance(typeof(List<>).MakeGenericType(itemType));
+            tables.Add(SeededTable(itemType, "account", "Account"));
+            tables.Add(SeededTable(itemType, "contact", "Contact"));
+            tables.Add(SeededTable(itemType, "contract", "Contract"));
+            tablesField.SetValue(control, tables);
+
+            var tableBox = RowControl(control, "Table") as ListBox;
+            var filterBox = RowControl(control, "Find table") as TextBox;
+            filterBox.Text = "";
+            showTables.Invoke(control, null);
+            tableBox.SelectedIndex = IndexOfTable(tableBox, "contact");
+            Pump();
+
+            // What the read hands over when it lands: the app, its site map, and the app's own
+            // drawing for each row - none, here, which the preview draws as an empty slot.
+            var entries = new List<SiteMapEntry>
+            {
+                new SiteMapEntry(SiteMapEntryKind.Group, "Customers", "", ""),
+                new SiteMapEntry(SiteMapEntryKind.Table, "Accounts", "", "account"),
+                new SiteMapEntry(SiteMapEntryKind.Table, "Contacts", "", "contact"),
+                new SiteMapEntry(SiteMapEntryKind.Table, "Contracts", "", "contract")
+            };
+            typeof(IconsControl).GetField("_shownApp", Private)
+                .SetValue(control, new AppNavigation { Name = "Sales Hub", SiteMapId = Guid.NewGuid() });
+            typeof(IconsControl).GetField("_shownEntries", Private).SetValue(control, entries);
+            typeof(IconsControl).GetField("_shownDrawings", Private)
+                .SetValue(control, entries.Select(e => (SvgImage)null).ToList());
+            fill.Invoke(control, null);
+            Pump();
+
+            var selected = surface.GetType().GetProperty("Selected");
+            var failures = 0;
+
+            if ((int)selected.GetValue(surface) != 2)
+            {
+                Console.WriteLine("FAIL: with Contact chosen the icon should stand in the Contacts row (2), and stands in "
+                                  + selected.GetValue(surface));
+                failures++;
+            }
+
+            tableBox.SelectedIndex = IndexOfTable(tableBox, "contract");
+            Pump();
+
+            if ((int)selected.GetValue(surface) != 3)
+            {
+                Console.WriteLine("FAIL: choosing Contract left the icon in row " + selected.GetValue(surface)
+                                  + " of the app's navigation, not in the Contracts row (3)");
+                failures++;
+            }
+
+            if (failures == 0)
+                Console.WriteLine("OK: choosing another table moves the icon to that table's row of the app's navigation");
+
+            // Back to the stand-in, which is what the checks after this one expect to find.
+            reset.Invoke(control, null);
+            Pump();
+
+            return failures;
+        }
 
         /// <summary>
         /// Picking a table puts that table's own word in the search box, and goes on doing it

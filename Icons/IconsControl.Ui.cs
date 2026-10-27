@@ -1716,8 +1716,13 @@ namespace Icons
             ShowCurrentIcon(table, mine);
 
             // Only a real table, so a filter that empties the list on its way to the next one
-            // does not read as arriving somewhere for the first time.
-            if (table != null) _lastTable = table.LogicalName;
+            // does not read as arriving somewhere for the first time - and does not send the
+            // preview's icon off to a row in the middle of the app while it passes through.
+            if (table != null)
+            {
+                _lastTable = table.LogicalName;
+                FillForChosenTable();
+            }
 
             SyncEnabled();
         }
