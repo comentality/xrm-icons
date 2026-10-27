@@ -1810,7 +1810,7 @@ namespace Icons
 
                     // And the list on screen disagrees with the list in memory unless it is
                     // rebuilt: a table just given an icon has no business still being offered
-                    // under "only tables with no icon yet". It drops out of the list, which is
+                    // under "No icons only". It drops out of the list, which is
                     // the point - that one is done.
                     var wasAt = _tableBox.SelectedIndex;
                     ShowTables();

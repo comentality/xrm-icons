@@ -44,8 +44,19 @@ namespace Icons
         /// <summary>Where the two rows the form has to be told the height of sit among its rows,
         /// so they can be told again in a new font. Every other row is as tall as what stands
         /// in it.</summary>
-        private const int TableRow = 4;
+        private const int TableRow = 3;
         private const int SolutionRow = 0;
+
+        /// <summary>
+        /// How much of the height left over once the form has what it asks for goes to the
+        /// navigation, the rest going to the table list. All of it went to the navigation once,
+        /// and on a tall screen that was a site map of thirty rows above a list of seven - when
+        /// the list is the thing being worked down and the navigation is looked at for one row.
+        /// </summary>
+        private const double PreviewShare = 0.7;
+
+        /// <summary>The table list at its own height: seven rows, in the font it is drawn in.</summary>
+        private int ListHeight { get { return Font.Height * 7 + 6; } }
 
         /// <summary>
         /// The one button in this window that is filled in, in the five colours Fluent gives a
@@ -149,8 +160,9 @@ namespace Icons
                 SizeToggle(_outlineButton);
                 SizeToggle(_solidButton);
 
-                // Seven rows of list - see where the row is added for why seven.
-                _form.RowStyles[TableRow].Height = Font.Height * 7 + 6;
+                // Seven rows of list - see where the row is added for why seven. FitOnce gives it
+                // more when the pane has the height.
+                _form.RowStyles[TableRow].Height = ListHeight;
 
                 // The one line above the form, and the air around it.
                 _iconLabel.Height = Font.Height + 7;
@@ -318,6 +330,35 @@ namespace Icons
             var needed = _form.GetPreferredSize(new Size(_form.Width, 0)).Height + chrome;
 
             var room = _targetSplit.Height - _targetSplit.SplitterWidth;
+
+            // What the form asks for with the list at its own seven rows, whatever the last fit
+            // made it - worked out from that rather than from the list as it stands, so the
+            // answer is the same however many times it is asked and a fit cannot feed the next.
+            //
+            // Then the list takes its share of what is over. Never below seven rows, and never
+            // at the cost of the navigation's minimum: in a pane short enough for either, the
+            // list is what it always was and the preview gives up what it has.
+            var list = _form.RowStyles[TableRow];
+            needed -= (int)list.Height - ListHeight;
+
+            var spare = room - needed;
+            var preview = Math.Max(_targetSplit.Panel1MinSize, (int)Math.Round(spare * PreviewShare));
+            var extra = Math.Max(0, spare - preview);
+
+            if ((int)list.Height != ListHeight + extra)
+            {
+                _layingTargetSplit = true;
+                try { list.Height = ListHeight + extra; }
+                finally { _layingTargetSplit = false; }
+
+                // The splitter need not move for this, and then nothing tells the form's host
+                // that the form has shrunk back inside it. A note appearing under the list grows
+                // the form past the host for a moment, and the scroll bar that put up stays up
+                // for a form that fits.
+                SettlePane();
+            }
+
+            needed += extra;
             var distance = Math.Min(room - _targetSplit.Panel2MinSize, room - needed);
             if (distance < _targetSplit.Panel1MinSize) distance = _targetSplit.Panel1MinSize;
             if (distance > room - _targetSplit.Panel2MinSize) return false;
@@ -360,7 +401,15 @@ namespace Icons
                 // sets off cannot come back round as another fit. Catching up is not new
                 // information; without this the two of them run for as long as you let them.
                 _layingTargetSplit = true;
-                try { _targetSplit.Panel2.PerformLayout(); }
+                try
+                {
+                    _targetSplit.Panel2.PerformLayout();
+
+                    // And the host itself, which a list that shrank back leaves the size it was:
+                    // laying out Panel2 reaches it only if its size changes, and until it is laid
+                    // out it goes on scrolling a form that is no longer there.
+                    _formHost.PerformLayout();
+                }
                 finally
                 {
                     _layingTargetSplit = false;
@@ -834,9 +883,12 @@ namespace Icons
             // Ticked to begin with, because that errand is the reason anybody opens this tool:
             // the list of tables with nothing is the work, and the full list is what you ask for
             // when you have come to change one that is already there.
+            //
+            // Short, so the two boxes share a line: every line this form spends on a setting is
+            // a line the table list does not get. The tooltips say the rest.
             _unsetOnlyBox = new CheckBox
             {
-                Text = "Only tables with no icon yet",
+                Text = "No icons only",
                 Checked = true,
                 AutoSize = true,
                 Anchor = AnchorStyles.Left
@@ -858,10 +910,10 @@ namespace Icons
             // of the two reasons the one you picked is a dead end for.
             _hideLockedBox = new CheckBox
             {
-                Text = "Hide the ones that cannot take an icon",
+                Text = "Hide uncustomizable",
                 Checked = true,
                 AutoSize = true,
-                Anchor = AnchorStyles.Left
+                Margin = new Padding(10, 3, 3, 3)
             };
             _hints.SetToolTip(_hideLockedBox,
                 "A table locked against customisation, and any table Dataverse made\r\n" +
@@ -1073,7 +1125,7 @@ namespace Icons
                 AutoSize = true,
                 AutoSizeMode = AutoSizeMode.GrowAndShrink,
                 ColumnCount = 2,
-                RowCount = 10,
+                RowCount = 9,
                 Padding = new Padding(8, 6, 8, 6)
             };
             // The captions' column is as wide as the longest caption, whatever font that is in.
@@ -1090,18 +1142,17 @@ namespace Icons
             // under it, or it reads as a caption for the table list.
             AddRow(form, 0, "Solution", _solutionBox);
             AddRow(form, 1, "Find table", _tableFilterBox);
-            AddRow(form, 2, "", _unsetOnlyBox);
-            AddRow(form, 3, "", _hideLockedBox);
-            // Seven rows of list, measured in the font it will be drawn in rather than written
-            // down in pixels - see FitForm for why a number here would be right on one machine.
-            // Seven is enough to show a filter narrowed to a handful as a handful, and few
-            // enough that the navigation above it keeps most of the height.
-            AddRow(form, 4, _loadButton, "Table", _tableBox, Font.Height * 7 + 6);
-            AddNoteRow(form, 5, _lockedLabel);
-            AddNoteRow(form, 6, _currentLabel);
-            AddRow(form, 7, "Web resource", _nameBox);
-            AddRow(form, 8, "Colour", ColourRows());
-            AddWrappingRow(form, 9, Beside(_rasterBox, _rasterHelp, last: true, wrap: true));
+            AddWrappingRow(form, 2, Beside(_unsetOnlyBox, _hideLockedBox, last: false, wrap: true));
+            // Seven rows of list at least, measured in the font it will be drawn in rather than
+            // written down in pixels - see FitForm for why a number here would be right on one
+            // machine. Seven is enough to show a filter narrowed to a handful as a handful; a
+            // pane with the height to spare gives it more - see PreviewShare.
+            AddRow(form, TableRow, _loadButton, "Table", _tableBox, ListHeight);
+            AddNoteRow(form, 4, _lockedLabel);
+            AddNoteRow(form, 5, _currentLabel);
+            AddRow(form, 6, "Web resource", _nameBox);
+            AddRow(form, 7, "Colour", ColourRows());
+            AddWrappingRow(form, 8, Beside(_rasterBox, _rasterHelp, last: true, wrap: true));
 
             _form = form;
             _form.SizeChanged += (s, e) => FitForm();

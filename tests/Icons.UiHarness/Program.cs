@@ -642,7 +642,13 @@ namespace Icons.UiHarness
                 .Select(i => new NavRow("Table " + i, null))
                 .ToList();
 
-            preview.ShowNavigation(many, 3, "A stand-in navigation, near the top.", true);
+            // From the top. The stand-in shown before this may have been scrolled to its own
+            // chosen row, and a row in view is left where it is - which is the point of the
+            // check, and would leave this one judging the stand-in's offset rather than its own.
+            preview.ShowNavigation(many, 1, "A stand-in navigation, near the top.", true);
+            Wheel(surface, 40);
+            Pump();
+            preview.ShowNavigation(many, 1, "A stand-in navigation, near the top.", true);
             Pump();
 
             if ((int)offset.GetValue(surface) != 0)
@@ -830,7 +836,7 @@ namespace Icons.UiHarness
             var filterBox = RowControl(control, "Find table") as TextBox;
             var unsetOnly = Descendants(control)
                 .OfType<CheckBox>()
-                .FirstOrDefault(c => c.Text.StartsWith("Only tables", StringComparison.Ordinal));
+                .FirstOrDefault(c => c.Text.StartsWith("No icons only", StringComparison.Ordinal));
 
             if (tableBox == null || filterBox == null || unsetOnly == null)
             {
@@ -1168,7 +1174,7 @@ namespace Icons.UiHarness
             var filterBox = RowControl(control, "Find table") as TextBox;
             var hideLocked = Descendants(control)
                 .OfType<CheckBox>()
-                .FirstOrDefault(c => c.Text.StartsWith("Hide the ones", StringComparison.Ordinal));
+                .FirstOrDefault(c => c.Text.StartsWith("Hide uncustomizable", StringComparison.Ordinal));
             var note = lockedLabel.GetValue(control) as Label;
             var apply = Descendants(control).OfType<Button>()
                 .FirstOrDefault(b => b.Text.StartsWith("Set as", StringComparison.Ordinal));
@@ -1308,7 +1314,7 @@ namespace Icons.UiHarness
                 : string.Join(", ", box.Items.Cast<object>().Select(i => i.ToString()));
         }
         /// <summary>
-        /// What "only tables with no icon yet" does with a table this session has just given one,
+        /// What "No icons only" does with a table this session has just given one,
         /// and what the row looks like once it has one.
         ///
         /// There is no connection here, so the apply itself cannot be driven - what the apply
@@ -1346,7 +1352,7 @@ namespace Icons.UiHarness
             var tableBox = RowControl(control, "Table") as ListBox;
             var unsetOnly = Descendants(control)
                 .OfType<CheckBox>()
-                .FirstOrDefault(c => c.Text.StartsWith("Only tables", StringComparison.Ordinal));
+                .FirstOrDefault(c => c.Text.StartsWith("No icons only", StringComparison.Ordinal));
             if (tableBox == null || unsetOnly == null)
             {
                 Console.WriteLine("FAIL: could not find the table row and the unset-only box");

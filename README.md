@@ -62,9 +62,9 @@ resources, update table definitions and publish customisations.
 - **Only the tables you can actually do something with** — two kinds cannot be given an icon by
   anybody. A table locked against customisation, and any table Dataverse made itself, which it
   refuses outright: only a custom table can carry one, and Account is as refused as Attribute is.
-  Both are left out of the list; untick the box to see them, and choosing one says under the
+  Both are left out of the list; untick *Hide uncustomizable* to see them, and choosing one says under the
   table box which of the two reasons it is a dead end.
-- **See which tables still need one** — *Only tables with no icon yet* narrows the list to the
+- **See which tables still need one** — *No icons only* narrows the list to the
   ones that really do look unfinished, which takes two answers rather than one. Nothing stored on
   the table, which the load reads along with everything else; and no stock icon either. A standard
   table like Account has never had an icon stored on it, and never looked as though it needed one:
@@ -141,7 +141,7 @@ resources, update table definitions and publish customisations.
    you ship can see the icon, and its publisher prefix is what the suggested name is built from.
    The tables are listed in the open rather than behind a dropdown: type into *Find table* to
    narrow them, then press Enter or Down to move into the list, where the arrow keys walk it.
-   The list starts on the tables with no icon yet; untick *Only tables with no icon yet* for all of them. Type enough of a table's
+   The list starts on the tables with no icon yet; untick *No icons only* for all of them. Type enough of a table's
    name to leave one and that one is chosen, and what you typed stays put when you pick — so the
    narrowed list holds still while you work down it. The solution is required:
    without one they would land in the default solution, where nothing you ship can see them. The
@@ -163,7 +163,7 @@ resources, update table definitions and publish customisations.
    window lands on it again with the library still open. **Ctrl+Y** puts it back. Inside a text
    box Ctrl+Z is left alone: there it still means the name you were halfway through typing.
 
-With *Only tables with no icon yet* ticked — which is how the window opens — applying marks that
+With *No icons only* ticked — which is how the window opens — applying marks that
 table with a dot, leaves it where it is, and lands on the next one waiting — a name suggested for
 it, a search already made for it — so a run down the list is pick an icon, apply, pick an icon,
 apply, with the ones you have done still in view behind you.

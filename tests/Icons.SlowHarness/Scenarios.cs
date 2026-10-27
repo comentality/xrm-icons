@@ -1034,7 +1034,7 @@ namespace Icons.SlowHarness
         }
 
         /// <summary>
-        /// "Only tables with no icon yet" is a working list, and the point of a working list is
+        /// "No icons only" is a working list, and the point of a working list is
         /// that it gets shorter. A table that already carries an icon is never in it - not at
         /// the next reload but from the moment the tables are read, which on a slow link is the
         /// difference between a list you can work down and one you have to keep re-reading.
