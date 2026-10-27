@@ -11,12 +11,18 @@ its own.
   showing your icon beside the first table, under that table's name. It now follows the table
   you have chosen, including one you chose while the app's navigation was still loading.
 
-- **The table list gets more of the window, and its two filters now fit on one line.** The
+- **The table list gets more of the window, and its two filters now share one line above Find table.** The
   preview of the navigation is 30% shorter, and the list takes the height it gives up. The
-  boxes are now *No icons only* and *Hide uncustomizable*, and they move onto two lines when
-  the pane is narrow. Their tooltips still say what each box covers.
+  boxes are now *No icons only* and *Hide uncustomizable*, between the solution and the search
+  box, and they move onto two lines when the pane is narrow. Their tooltips still say what
+  each box covers.
 
-  ![No icons only and Hide uncustomizable on one line, above a taller table list](https://raw.githubusercontent.com/comentality/xrm-icons/main/docs/images/release/filters-one-line.png)
+  ![No icons only and Hide uncustomizable on one line, under Solution and above Find table and a taller table list](https://raw.githubusercontent.com/comentality/xrm-icons/main/docs/images/release/filters-one-line.png)
+
+- **Refreshing the table list keeps the app you chose for the preview, and redraws its navigation.**
+  The refresh read the app list again and emptied the box while filling it, so the preview
+  went back to the stand-in navigation. Now the same app stays chosen, and its navigation is
+  read again, so the preview shows the environment as it is now.
 
 ## v1.0.2 — 22 October 2026
 
