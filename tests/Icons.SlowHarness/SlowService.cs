@@ -57,6 +57,13 @@ namespace Icons.SlowHarness
         public readonly List<Entity> Solutions = new List<Entity>();
 
         /// <summary>
+        /// The model-driven apps this org has, by name, with the site map each one draws its
+        /// navigation from. None unless a scenario is about the preview.
+        /// </summary>
+        private readonly List<KeyValuePair<string, Guid>> _apps = new List<KeyValuePair<string, Guid>>();
+        private readonly Dictionary<Guid, string> _siteMaps = new Dictionary<Guid, string>();
+
+        /// <summary>
         /// What GetPreferredSolution answers with. Empty means the environment refuses the
         /// message, which is what one without the feature does.
         /// </summary>
@@ -101,6 +108,24 @@ namespace Icons.SlowHarness
             row["ismanaged"] = false;
             lock (_lock) _webResources[row.Id] = row;
             return row.Id;
+        }
+
+        /// <summary>
+        /// An app with its own navigation: one group, a row for each of the tables named.
+        /// Returns the site map's id, which is what the tool knows an app by.
+        /// </summary>
+        public Guid AddApp(string name, params string[] tables)
+        {
+            var map = Guid.NewGuid();
+            var rows = string.Concat(tables.Select(t => "<SubArea Id=\"" + t + "\" Entity=\"" + t + "\"/>"));
+            lock (_lock)
+            {
+                _apps.Add(new KeyValuePair<string, Guid>(name, map));
+                _siteMaps[map] = "<SiteMap><Area Id=\"a\"><Group Id=\"g\">"
+                                 + "<Titles><Title LCID=\"1033\" Title=\"Everything\"/></Titles>"
+                                 + rows + "</Group></Area></SiteMap>";
+            }
+            return map;
         }
 
         /// <summary>
@@ -305,14 +330,32 @@ namespace Icons.SlowHarness
             var q = query as QueryExpression;
             if (q == null) throw new NotSupportedException("The tool only queries with a QueryExpression.");
 
-            // This org has no model-driven app, and says so by answering rather than by
-            // refusing: the preview asks after every load, and a fake that threw here would
-            // put "could not read this environment's apps" on a window nothing is wrong with.
+            // An org with no model-driven app says so by answering rather than by refusing:
+            // the preview asks after every load, and a fake that threw here would put "could
+            // not read this environment's apps" on a window nothing is wrong with.
+            //
+            // The app's unique id comes back as text, as the platform sends it.
             if (q.EntityName == "appmodule")
-                return Answer(Begin("apps"), () => new EntityCollection());
+                return Answer(Begin("apps"), () =>
+                {
+                    lock (_lock)
+                        return new EntityCollection(_apps.Select(a => new Entity("appmodule", Guid.NewGuid())
+                        {
+                            ["appmoduleidunique"] = a.Value.ToString(),
+                            ["name"] = a.Key
+                        }).ToList());
+                });
 
             if (q.EntityName == "appmodulecomponent")
-                return Answer(Begin("app-components"), () => new EntityCollection());
+                return Answer(Begin("app-components"), () =>
+                {
+                    lock (_lock)
+                        return new EntityCollection(_apps.Select(a => new Entity("appmodulecomponent", Guid.NewGuid())
+                        {
+                            ["appmoduleidunique"] = a.Value.ToString(),
+                            ["objectid"] = a.Value.ToString()
+                        }).ToList());
+                });
 
             // What this environment already keeps under those names, read at the end of a
             // load so the window can say which library icon a table is carrying.
@@ -400,6 +443,23 @@ namespace Icons.SlowHarness
         public void Delete(string entityName, Guid id) { throw new NotSupportedException("The tool never deletes."); }
         public void Associate(string entityName, Guid entityId, Relationship relationship, EntityReferenceCollection relatedEntities) { throw new NotSupportedException("The tool never associates."); }
         public void Disassociate(string entityName, Guid entityId, Relationship relationship, EntityReferenceCollection relatedEntities) { throw new NotSupportedException("The tool never disassociates."); }
-        public Entity Retrieve(string entityName, Guid id, ColumnSet columnSet) { throw new NotSupportedException("The tool retrieves in bulk only."); }
+        public Entity Retrieve(string entityName, Guid id, ColumnSet columnSet)
+        {
+            // An app's site map is the one record the tool reads by id.
+            if (entityName != "sitemap")
+                throw new NotSupportedException("The tool retrieves only a site map by id, not " + entityName + ".");
+
+            return Answer(Begin("sitemap"), () =>
+            {
+                string xml;
+                lock (_lock)
+                {
+                    if (!_siteMaps.TryGetValue(id, out xml))
+                        throw new FaultException<OrganizationServiceFault>(
+                            new OrganizationServiceFault { Message = "No site map " + id });
+                }
+                return new Entity("sitemap", id) { ["sitemapxml"] = xml };
+            });
+        }
     }
 }

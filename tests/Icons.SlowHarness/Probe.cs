@@ -136,6 +136,29 @@ namespace Icons.SlowHarness
         }
         public ListView Grid { get { return Field<ListView>("_grid"); } }
 
+        /// <summary>The preview's app box, which lives inside the preview rather than the control.</summary>
+        public ComboBox Apps
+        {
+            get
+            {
+                var preview = Field<ContextPreview>("_context");
+                return (ComboBox)typeof(ContextPreview).GetField("_appBox", Priv).GetValue(preview);
+            }
+        }
+
+        /// <summary>The app the preview's box is showing, by name, or null.</summary>
+        public string SelectedApp
+        {
+            get { return Apps.SelectedItem == null ? null : Apps.SelectedItem.ToString(); }
+        }
+
+        /// <summary>Chooses an app in the preview, the way the dropdown does.</summary>
+        public void PickApp(string name)
+        {
+            var box = Apps;
+            box.SelectedIndex = box.Items.Cast<object>().ToList().FindIndex(i => i.ToString() == name);
+        }
+
         /// <summary>What the in-context preview is saying about the navigation it is drawing.</summary>
         public string ContextNote
         {

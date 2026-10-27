@@ -64,6 +64,7 @@ namespace Icons.SlowHarness
                 CarryingAnIcon(),
                 OfferSurvivesAFilter(),
                 StockIconsHang(),
+                AppSurvivesAReload(),
             };
         }
 
@@ -452,6 +453,48 @@ namespace Icons.SlowHarness
 
                     r.Check(r.Probe.Search.Text.IndexOf("account", StringComparison.OrdinalIgnoreCase) >= 0,
                         "which should still seed its search, and the box holds \"" + r.Probe.Search.Text + "\"");
+                });
+        }
+
+        /// <summary>
+        /// Somebody picks an app to see their icon in its own navigation, then presses the table
+        /// list's refresh. The refresh read the app list again, and filling the box emptied it:
+        /// the app was gone from the box and the preview was back on the stand-in, for a choice
+        /// nobody took back. A reload of the same environment keeps the app, and reads its
+        /// navigation again, because a reload is a request for the org as it is now.
+        /// </summary>
+        private static Scenario AppSurvivesAReload()
+        {
+            return new Scenario
+            {
+                Name = "app-survives-a-reload",
+                Why = "refreshing the tables keeps the app chosen for the preview",
+                Wire = s => s.AddApp("Contoso Sales", "contoso_account", "contoso_case")
+            }
+                .At(200, "press Load", r => r.Probe.PressLoad())
+                .At(2000, "pick a table and an app", r =>
+                {
+                    r.Probe.PickTable("contoso_account");
+                    r.Probe.PickApp("Contoso Sales");
+                })
+                .At(3000, "the app's own navigation is up; press Load again", r =>
+                {
+                    r.Check(r.Probe.ContextNote.IndexOf("Contoso Sales", StringComparison.Ordinal) >= 0,
+                        "the preview should be showing Contoso Sales, and says \"" + r.Probe.ContextNote + "\"");
+                    r.Probe.PressLoad();
+                })
+                .At(6000, "after the reload", r =>
+                {
+                    r.Check(r.Probe.SelectedApp == "Contoso Sales",
+                        "the app box should still be on Contoso Sales, and is on \""
+                        + (r.Probe.SelectedApp ?? "nothing") + "\"");
+                    r.Check(r.Probe.ContextNote.IndexOf("Contoso Sales", StringComparison.Ordinal) >= 0,
+                        "the preview should still be the app's own navigation, and says \""
+                        + r.Probe.ContextNote + "\"");
+                    r.Check(r.Service.Log("sitemap").Count == 2,
+                        "the reload should read the app's site map again, once, and it was read "
+                        + r.Service.Log("sitemap").Count + " time(s)");
+                    r.Check(r.Probe.Apps.Enabled, "and the app box should be live again");
                 });
         }
 

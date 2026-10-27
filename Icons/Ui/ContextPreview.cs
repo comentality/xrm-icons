@@ -125,14 +125,19 @@ namespace Icons.Ui
         /// <summary>
         /// The apps this environment has. An empty list is not an error: the tool opens without
         /// a connection, and the stand-in navigation is what it shows until there is one.
+        ///
+        /// <paramref name="chosen"/> is the app to leave showing in the box, when the list is
+        /// being read again rather than for the first time. Chosen quietly: whoever passes it
+        /// is about to read that app's navigation, and does not need asking to.
         /// </summary>
-        public void ShowApps(IReadOnlyList<AppNavigation> apps)
+        public void ShowApps(IReadOnlyList<AppNavigation> apps, AppNavigation chosen = null)
         {
             _filling = true;
             try
             {
                 _appBox.Items.Clear();
                 foreach (var app in apps ?? new List<AppNavigation>()) _appBox.Items.Add(app);
+                if (chosen != null) _appBox.SelectedItem = chosen;
                 _appBox.Enabled = _appBox.Items.Count > 0;
             }
             finally

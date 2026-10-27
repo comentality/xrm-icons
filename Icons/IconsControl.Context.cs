@@ -189,6 +189,8 @@ namespace Icons
                     if (IsDisposed || generation != _generation) return;
                     if (_context == null || _context.IsDisposed) return;
 
+                    AppNavigation kept = null;
+
                     if (args.Error != null)
                     {
                         _context.ShowBusy("");
@@ -197,16 +199,34 @@ namespace Icons
                     else
                     {
                         _apps = (IReadOnlyList<AppNavigation>)args.Result;
+
+                        // A reload of the same environment keeps the app somebody chose. Its
+                        // navigation is read again, because a reload is a request for the org as
+                        // it is now - but the box going back to empty and the preview to the
+                        // stand-in is the window forgetting a choice nobody took back.
+                        kept = _shownApp == null
+                            ? null
+                            : _apps.FirstOrDefault(a => a.SiteMapId == _shownApp.SiteMapId);
+
                         _context.ShowBusy("");
-                        _context.ShowApps(_apps);
-                        ShowStandIn(_apps.Count == 0
-                            ? "This environment has no app with a navigation. Showing a stand-in."
-                            : "A stand-in navigation. Choose an app to see the real one.");
+                        _context.ShowApps(_apps, kept);
+
+                        if (kept == null)
+                        {
+                            ShowStandIn(_apps.Count == 0
+                                ? "This environment has no app with a navigation. Showing a stand-in."
+                                : "A stand-in navigation. Choose an app to see the real one.");
+                        }
                     }
 
                     // Last of all, and after the preview either way: an app list that will not
                     // come back must cost the preview and nothing else.
                     ReadStoredIcons();
+
+                    // Queued behind the stored icons rather than ahead of them, which is the order
+                    // a first load leaves them in: somebody choosing the app by hand chooses it
+                    // after this chain is over.
+                    if (kept != null) Context_AppChosen(_context, kept);
                 }
             });
         }
