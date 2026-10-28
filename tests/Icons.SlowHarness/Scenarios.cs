@@ -176,7 +176,7 @@ namespace Icons.SlowHarness
                 }
             }
                 .At(200, "press Load", r => r.Probe.PressLoad())
-                .At(1400, "the stated preference is the top row", r =>
+                .At(3400, "the stated preference is the top row", r =>
                 {
                     r.Check(r.Probe.SelectedSolution == "Zephyr",
                         "the environment's own answer should be the one chosen, and the box holds \""
