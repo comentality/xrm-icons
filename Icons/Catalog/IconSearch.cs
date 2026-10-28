@@ -18,7 +18,8 @@ namespace Icons.Catalog
         /// Words a Dynamics customiser types, and the words Fluent draws them under. One-way on
         /// purpose: it exists to stop the obvious searches returning nothing, not to be a
         /// thesaurus, and a synonym hit never outranks an icon actually called that - nor one
-        /// whose name merely starts with the word.
+        /// whose name merely starts with the word - unless <see cref="NamedOtherwise"/> says
+        /// that name means something else.
         ///
         /// It is longer than it looks like it should be because it was measured rather than
         /// guessed. Running 162 standard Dataverse tables through <see cref="SeedFor"/> left a
@@ -153,6 +154,30 @@ namespace Icons.Catalog
             { "work",           new[] { "clipboard", "wrench", "toolbox" } },
             { "unit",           new[] { "box", "scale", "ruler" } },
             { "group",          new[] { "people", "multiple", "stack" } },
+        };
+
+        /// <summary>
+        /// Dataverse words that some bundled family names an icon after in another sense. Each
+        /// is a word in <see cref="Synonyms"/> too, and on these alone the vocabulary outranks
+        /// the name: an icon called the word, or starting with it, scores no more than one that
+        /// merely contains it, so the curated answers lead and the other sense follows them.
+        ///
+        /// Kept by hand because nothing in the catalog could keep it. Only Fluent says what its
+        /// icons depict, so Phosphor's wooden log and Phosphor's user are the same to the search:
+        /// a name, and nothing else. Of the sixteen Dataverse words the newer families name
+        /// outright, fourteen are drawn in the Dataverse sense - user, invoice, goal, milestone -
+        /// so distrusting a name, or a family, would have cost more than these six. Add a word
+        /// only after looking at every icon named after it: the cap falls on all of them.
+        /// </summary>
+        private static readonly HashSet<string> NamedOtherwise =
+            new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+        {
+            "quote",    // quotation marks in Fluent, Lucide, Tabler and Font Awesome
+            "log",      // a wooden log in Phosphor; log-in and log-out in Lucide
+            "rating",   // a content rating - mature, 12+, 18+ - in Fluent and Tabler
+            "security", // a CCTV camera in Fluent and Phosphor
+            "order",    // a drag handle for sorting, re_order, in Fluent; menu-order in Tabler
+            "unit",     // a bookcase, shelving-unit, in Lucide; Phosphor's unite is a set union
         };
 
         /// <summary>
@@ -358,6 +383,12 @@ namespace Icons.Catalog
             // nothing here, and the picture they name sits in the grid under a third word.
             if (best < 100) best = Ladder(icon.AliasWords, term, best);
 
+            // Except where the vocabulary knows the name means something else. Quote is a price
+            // offered to a customer and Lucide draws quotation marks under it; such a name is
+            // worth what a substring is, 30, under the curated answer and the description both,
+            // so it stays in the grid and stops leading it. See NamedOtherwise.
+            if (best > 30 && NamedOtherwise.Contains(term)) best = 30;
+
             // And a description is worth less than a name and less than this tool's own
             // vocabulary. It is a true thing about the drawing, said by the people who drew it -
             // Microsoft's own metadata says a shield is about security, protection and safety -
@@ -385,7 +416,8 @@ namespace Icons.Catalog
             // set says about it. This is the tool's own vocabulary rather than anybody else's,
             // measured against 162 real tables, and it is the best thing here about what a
             // Dataverse word means - so it outranks a description. It still never outranks the
-            // icon actually called the word, nor one whose name merely starts with it.
+            // icon actually called the word, nor one whose name merely starts with it, unless
+            // that name is one NamedOtherwise has already pushed down to a substring's 30.
             if (best == 0)
             {
                 string[] mapped;

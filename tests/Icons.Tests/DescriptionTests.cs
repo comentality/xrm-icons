@@ -110,18 +110,23 @@ namespace Icons.Tests
         [Test]
         public void A_description_never_leads_over_an_icon_really_called_that()
         {
-            // Three icons across the six families have security in their name, and Fluent's
-            // shield is only described as it. The named ones have to come first, or every
-            // search would start answering with something adjacent to what was asked for.
-            var ranked = IconSearch.Rank(_catalog.Icons, "security");
+            // Font Awesome names a helmet-safety, and Fluent's shield is only described as being
+            // about safety. The named one has to come first, or every search would start
+            // answering with something adjacent to what was asked for.
+            //
+            // This used to be measured on security, and security has stopped being an example of
+            // it: the three icons named for it are two CCTV cameras and a folder, and the
+            // vocabulary now ranks its own answer above them. That is NamedOtherwise, and
+            // OtherSenseTests holds it; the rule here still holds for every word not on it.
+            var ranked = IconSearch.Rank(_catalog.Icons, "safety");
 
-            Assert.That(ranked.First().Words, Does.Contain("security"),
-                "the grid should lead with an icon actually called security");
+            Assert.That(ranked.First().Words, Does.Contain("safety"),
+                "the grid should lead with an icon actually called safety");
             Assert.That(ranked.Any(i => i.Family == IconFamily.Fluent && i.Name == "shield"), Is.True,
                 "and the shield should still be in it");
 
             var leader = ranked.ToList().IndexOf(ranked.First(i => i.Family == IconFamily.Fluent && i.Name == "shield"));
-            var named = ranked.ToList().IndexOf(ranked.First(i => i.Words.Contains("security")));
+            var named = ranked.ToList().IndexOf(ranked.First(i => i.Words.Contains("safety")));
             Assert.That(named, Is.LessThan(leader));
         }
 
