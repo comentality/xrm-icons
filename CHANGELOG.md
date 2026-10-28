@@ -4,6 +4,8 @@ Every released version, newest first, with whatever is waiting for the next one 
 bolded sentence of each entry is the one that goes on the package page, so it has to stand on
 its own.
 
+## Unreleased — 1.1.1-dev
+
 ## v1.1.0 — 28 October 2026
 
 - **You can now take an icon off a table with Remove it, beside the icon it carries, and Ctrl+Z puts it back.**
