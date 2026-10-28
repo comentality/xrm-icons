@@ -7,36 +7,18 @@ out as a LinkedIn Article instead, the article title is the chosen opener.
 
 ## Opener (pick one)
 
-1. Icons 1.0 is out this week -- an XrmToolBox tool that puts a decent icon on a Dataverse table. Type "account", get buildings. Pick one, and it writes the web resource, sets the table and publishes.
-
-2. None of 21,698 icons is called "account". Dataverse tables are named after what they mean, icons after what they show. Closing that gap was the hard half of the XrmToolBox tool I shipped this week.
-
-3. A custom table gets the grey default icon and keeps it, because setting one is seven steps nobody wants to do. Shipped a tool this week so it is one: Icons, in the XrmToolBox Tool Library. (Needs your word that this matches your own experience before it goes out as "I".)
+Icons 1.0 -- Just released new XrmToolBox tool to quickly set table icons, working offline, with realistic previews, and great search.
 
 ## Body
 
-Setting a table icon by hand -- find an SVG, check its licence, make a web resource with exactly the right name and type, paste the base64 in, find the table, type the name into the icon property, publish both. Every table, every time. Icons does all of it from one window inside XrmToolBox.
+I don't think anyone is setting icons by hand no more, but it is still a tedious process. Find Fluent-compatible outline icon set, figure out the metaphor, get blocked by license in the end.
 
-What is in it:
+Our Icons tool does much better:
 
-21,698 icons from six sets -- Fluent, Phosphor, Lucide, Tabler, Font Awesome Free and Solar. All bundled in the DLL, all MIT, ISC or CC BY 4.0. No API key, no account, no outbound host beyond Dataverse itself, so it works from behind a customer's proxy.
-
-Search in Dynamics words. Icon sets name icons after what they depict, Dataverse names tables after what they mean. "account" finds buildings and briefcases, "contact" finds people, "appointment" finds calendars, "case" finds headsets. Pick a table and it types the search for you.
-
-Preview in an app's navigation, on light and on dark, at the size the app really draws it, before anything is written to the org.
-
-One button stores the SVG, points the table at it and publishes both. Ctrl+Z puts the old icon back.
-
-Every icon it stores is credited on an ATTRIBUTION.html beside it, so the licences travel with the drawings into the customer's org.
-
-The search took most of the time between writing the tool up and shipping it -- much of that was reading result lists by hand. "email" used to return seven voicemail icons, "team" offered the Steam logo, and the Account table lost every usable icon the day I added Microsoft's own descriptions. The scoring and what went wrong on the way is written up here: https://comentality.com/blog/making-icons-findable/
-
-Install: open the XrmToolBox Tool Library and search for Icons. Source and releases: https://github.com/comentality/xrm-icons
-More on the tool: https://comentality.com/tools/#icons
-
-Next on the list -- a button that takes an icon off a table, and a three-way table filter. If a table of yours gets a wrong suggestion, tell me which one. I want to know.
-
-#XrmToolBox #Dataverse #PowerPlatform #Dynamics365
+* 21,698 icons from six sets -- Fluent, Phosphor, Lucide, Tabler, Font Awesome Free and Solar. All bundled with the tool.
+* MIT, ISC or CC BY 4.0. No API key, no outbound host beyond Dataverse itself, so it works from behind a customer's proxy.
+* Search in Dynamics words. Icon sets name icons after what they depict, Dataverse names tables after what they mean. "account" finds buildings and briefcases, "contact" finds people, "appointment" finds calendars, "case" finds headsets. Pick a table and it types the search for you.
+* To have some fun in the work routine -- realistic preview that looks like a tear away from Model Driven App.
 
 ## Images (in this folder)
 
