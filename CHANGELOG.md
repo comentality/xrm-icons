@@ -6,6 +6,15 @@ its own.
 
 ## Unreleased — 1.0.3-dev
 
+- **Six Dataverse words now lead with what they mean: Quote finds receipts first, not quotation marks.**
+  Some icon families name an icon after a Dataverse word in another sense, and an icon's own
+  name outranked everything. Quote led with quotation marks, Log with a wooden log, Rating
+  with a content rating, Security with a CCTV camera, Order with a drag handle and Unit with a
+  bookcase, so Rating Model, Field Security Profile and Work Order Service opened on them.
+  Receipts, lists, stars, locks and shields, carts, and boxes and rulers now come first, and
+  the other sense is still in the grid for anyone who wants it. Searches without these six
+  words rank as they did.
+
 - **Choosing another table now moves your icon to that table's row in the app navigation preview.**
   The row was picked once, when the app was, so after switching tables the preview went on
   showing your icon beside the first table, under that table's name. It now follows the table
