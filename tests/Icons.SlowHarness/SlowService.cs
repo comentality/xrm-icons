@@ -178,6 +178,9 @@ namespace Icons.SlowHarness
 
         // ===== the log =====
 
+        /// <summary>IconVectorName as the last table update sent it, null included.</summary>
+        public string LastVectorWritten { get; private set; }
+
         public List<Call> Log()
         {
             lock (_lock) return _calls.ToList();
@@ -286,6 +289,9 @@ namespace Icons.SlowHarness
 
             if (request is UpdateEntityRequest)
             {
+                // What the table was told to point at, kept so a scenario can tell a write that
+                // cleared the icon from one that left it alone: empty and null look alike in a log.
+                LastVectorWritten = ((UpdateEntityRequest)request).Entity?.IconVectorName;
                 return Answer(Begin("table-update"), () => (OrganizationResponse)new UpdateEntityResponse());
             }
 

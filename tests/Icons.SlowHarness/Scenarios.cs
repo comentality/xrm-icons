@@ -52,6 +52,7 @@ namespace Icons.SlowHarness
                 UndoPutsItBack(),
                 UndoGuarded(),
                 UndoForgottenOnSwitch(),
+                RemovePutsItBack(),
                 UnsetOnlyFilter(),
                 TableSeedsTheSearch(),
                 FilterOfOnePicksIt(),
@@ -1036,6 +1037,100 @@ namespace Icons.SlowHarness
                     r.Check(r.Service.Log("table-update").Count == 3,
                         "doing it again is a third write, and there were "
                         + r.Service.Log("table-update").Count);
+                    r.Check(r.Probe.Undo.Enabled && !r.Probe.Redo.Enabled,
+                        "and the two buttons should have changed places");
+                    r.Check(r.Probe.Trouble == null,
+                        "with nothing wrong, and the trouble line says \"" + (r.Probe.Trouble ?? "") + "\"");
+                });
+        }
+
+        /// <summary>
+        /// An icon this session never put on, taken off. There is nothing on the undo stack for
+        /// it, so the link in the line saying what the table carries is the only way in - and
+        /// what it sends has to be an empty name rather than a null one, because a null is the
+        /// platform's "leave this alone" and the removal would publish and change nothing.
+        /// Taking it off lands on the undo stack, so Ctrl+Z is the way back.
+        /// </summary>
+        private static Scenario RemovePutsItBack()
+        {
+            const string icon = "con_/icons/contoso_settled.svg";
+
+            return new Scenario
+            {
+                Name = "remove-puts-it-back",
+                Why = "an icon this session never applied must come off in one write, and Ctrl+Z must put it back",
+                Wire = s =>
+                {
+                    s.Tables.Add(SlowService.Table("contoso_settled", "Contoso Settled", icon: icon));
+                    s.Tables.Add(SlowService.Table("contoso_locked", "Contoso Locked", customizable: false,
+                        icon: "con_/icons/contoso_locked.svg"));
+                    s.Latency = Slow("publish", 300);
+                }
+            }
+                .At(200, "press Load", r => r.Probe.PressLoad())
+                .At(1200, "pick a locked table that carries one", r =>
+                {
+                    r.Probe.UnsetOnly.Checked = false;
+                    r.Probe.HideLocked.Checked = false;
+                    r.Probe.PickTable("contoso_locked");
+
+                    r.Check((r.Probe.Carrying ?? "").IndexOf("Remove it", StringComparison.Ordinal) < 0,
+                        "a table locked against customisation should not be offered a removal, and the line says \""
+                        + (r.Probe.Carrying ?? "nothing") + "\"");
+                })
+                .At(1400, "pick the table that carries one", r =>
+                {
+                    r.Probe.PickTable("contoso_settled");
+
+                    r.Check((r.Probe.Carrying ?? "").IndexOf("Remove it", StringComparison.Ordinal) >= 0,
+                        "the line saying what it carries should offer to take it off, and says \""
+                        + (r.Probe.Carrying ?? "nothing") + "\"");
+                    r.Check(!r.Probe.Undo.Enabled, "and nothing this session did is on the undo stack");
+                })
+                .At(1600, "press Remove it and confirm", r => r.Probe.PressRemove())
+                .At(4200, "it is off", r =>
+                {
+                    r.Check(!r.Probe.Applying, "the removal should be finished by now");
+                    r.Check(r.Dialogs.Count(d => d == "Remove the icon") == 1,
+                        "one confirm before it went out, and the dialogs were: " + string.Join(" | ", r.Dialogs));
+                    r.Check(r.Service.Log("table-update").Count == 1,
+                        "the table should have been written once, and was written "
+                        + r.Service.Log("table-update").Count + " times");
+                    r.Check(r.Service.LastVectorWritten == "",
+                        "with an empty icon name - a null leaves the icon on - and it sent "
+                        + (r.Service.LastVectorWritten == null ? "null" : "\"" + r.Service.LastVectorWritten + "\""));
+                    r.Check(r.Service.Log("publish").Count == 1,
+                        "and one publish behind it, and there were " + r.Service.Log("publish").Count);
+                    r.Check(r.Service.Log("webresource-create").Count + r.Service.Log("webresource-update").Count == 0,
+                        "and no web resource touched - nothing here deletes or rewrites one");
+                    r.Check((r.Probe.Tables.SelectedItem ?? "").ToString().Contains("contoso_settled"),
+                        "the window should stay on the table it took the icon off, and it is on \""
+                        + (r.Probe.Tables.SelectedItem ?? "nothing") + "\"");
+                    r.Check((r.Probe.Carrying ?? "").IndexOf(icon, StringComparison.Ordinal) < 0,
+                        "and should stop saying it carries " + icon + ", but says \"" + (r.Probe.Carrying ?? "") + "\"");
+                    r.Check(r.Probe.Undo.Enabled && r.Probe.Undo.ToolTipText.IndexOf("back on", StringComparison.Ordinal) >= 0,
+                        "Undo should offer to put it back, and its tooltip says \"" + r.Probe.Undo.ToolTipText + "\"");
+                    r.Check(r.Probe.Trouble == null,
+                        "with nothing wrong, and the trouble line says \"" + (r.Probe.Trouble ?? "") + "\"");
+                })
+                .At(4400, "press Ctrl+Z", r => r.Probe.SendKey(Keys.Control | Keys.Z))
+                .At(7000, "it is back on", r =>
+                {
+                    r.Check(r.Service.Log("table-update").Count == 2,
+                        "putting it back is a second write, and there were " + r.Service.Log("table-update").Count);
+                    r.Check(r.Service.LastVectorWritten == icon,
+                        "pointing at " + icon + " again, and it sent \"" + (r.Service.LastVectorWritten ?? "null") + "\"");
+                    r.Check((r.Probe.Carrying ?? "").IndexOf(icon, StringComparison.Ordinal) >= 0,
+                        "and the line should say it carries it again, and says \"" + (r.Probe.Carrying ?? "nothing") + "\"");
+                    r.Check(!r.Probe.Undo.Enabled && r.Probe.Redo.Enabled,
+                        "with the removal offered again the other way");
+                })
+                .At(7200, "press Ctrl+Y", r => r.Probe.SendKey(Keys.Control | Keys.Y))
+                .At(9800, "it is off again", r =>
+                {
+                    r.Check(r.Service.Log("table-update").Count == 3,
+                        "taking it off again is a third write, and there were " + r.Service.Log("table-update").Count);
+                    r.Check(r.Service.LastVectorWritten == "", "with an empty name again");
                     r.Check(r.Probe.Undo.Enabled && !r.Probe.Redo.Enabled,
                         "and the two buttons should have changed places");
                     r.Check(r.Probe.Trouble == null,

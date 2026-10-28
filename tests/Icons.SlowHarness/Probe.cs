@@ -100,15 +100,27 @@ namespace Icons.SlowHarness
                 .ToArray();
         }
 
-        /// <summary>Clicks the link in the line saying what the table is carrying.</summary>
-        public void FollowCarryingLink()
+        /// <summary>Clicks the link to the icon in the line saying what the table is carrying.</summary>
+        public void FollowCarryingLink() { ClickCarryingLink("Show it in the library"); }
+
+        /// <summary>Clicks the link that takes the table's icon off.</summary>
+        public void PressRemove() { ClickCarryingLink("Remove it"); }
+
+        /// <summary>
+        /// Clicks the link in the carrying line whose words are these, or nothing when the line
+        /// is not offering it - the same as a person finding no such link to click.
+        /// </summary>
+        private void ClickCarryingLink(string words)
         {
             var label = Field<LinkLabel>("_currentLabel");
-            if (label.Links.Count == 0 || label.LinkArea.Length == 0) return;
+            var link = label.Links.Cast<LinkLabel.Link>().FirstOrDefault(
+                l => l.Length > 0 && l.Start + l.Length <= label.Text.Length &&
+                     label.Text.Substring(l.Start, l.Length) == words);
+            if (link == null) return;
 
             typeof(LinkLabel)
                 .GetMethod("OnLinkClicked", BindingFlags.Instance | BindingFlags.NonPublic)
-                .Invoke(label, new object[] { new LinkLabelLinkClickedEventArgs(label.Links[0]) });
+                .Invoke(label, new object[] { new LinkLabelLinkClickedEventArgs(link) });
         }
         /// <summary>What the window says the chosen table is already carrying, or null when it says nothing.</summary>
         public string Carrying

@@ -26,6 +26,15 @@ its own.
   icon, while an app's navigation is still loading no longer leaves the preview stuck on
   *Reading…* with the App box greyed out.
 
+- **You can now take an icon off a table with Remove it, beside the icon it carries, and Ctrl+Z puts it back.**
+  Before, the only way to take one off was to undo an apply made in the same session. The
+  link is there for any table that carries an icon and can be customised. It asks first, then
+  empties the table's icon and publishes it. The table goes back to the plain placeholder an
+  app draws for a table with no icon. The classic PNGs this tool wrote beside the icon come
+  off with it, and any other classic icon stays. No web resource is deleted.
+
+  ![Carrying con_/icons/contoso_settled.svg, followed by a Remove it link](https://raw.githubusercontent.com/comentality/xrm-icons/main/docs/images/release/remove-it.png)
+
 ## v1.0.2 — 22 October 2026
 
 - The package names its icon by URL instead of carrying it inside, with nothing in the tool

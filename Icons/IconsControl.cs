@@ -117,6 +117,16 @@ namespace Icons
 
             /// <summary>The whole write again, for doing it a second time.</summary>
             public IconApplyRequest Request;
+
+            /// <summary>
+            /// Set for an icon taken off rather than put on. Then Request is null and the two
+            /// below are the whole of it: taking it off is a revert with nothing to go back to,
+            /// so undoing that is a revert to what it named, and doing it again is the first one
+            /// sent a second time.
+            /// </summary>
+            public bool Removal;
+            public IconRevertRequest TakeOff;
+            public IconRevertRequest PutBack;
         }
 
         /// <summary>
@@ -438,15 +448,20 @@ namespace Icons
             _undoButton.Enabled = !Busy && _undoable.Count > 0;
             _redoButton.Enabled = !Busy && _redoable.Count > 0;
 
-            _undoButton.ToolTipText = _undoable.Count == 0
+            var undo = _undoable.Count == 0 ? null : _undoable.Peek();
+            _undoButton.ToolTipText = undo == null
                 ? "Nothing to take back yet (Ctrl+Z)"
-                : "Put " + _undoable.Peek().TableDisplayName + " back the way it was before " +
-                  _undoable.Peek().IconDisplayName + " went on it (Ctrl+Z)";
+                : undo.Removal
+                    ? "Put " + undo.IconDisplayName + " back on " + undo.TableDisplayName + " (Ctrl+Z)"
+                    : "Put " + undo.TableDisplayName + " back the way it was before " +
+                      undo.IconDisplayName + " went on it (Ctrl+Z)";
 
-            _redoButton.ToolTipText = _redoable.Count == 0
+            var redo = _redoable.Count == 0 ? null : _redoable.Peek();
+            _redoButton.ToolTipText = redo == null
                 ? "Nothing to do again (Ctrl+Y)"
-                : "Set " + _redoable.Peek().IconDisplayName + " on " +
-                  _redoable.Peek().TableDisplayName + " again (Ctrl+Y)";
+                : redo.Removal
+                    ? "Take " + redo.IconDisplayName + " off " + redo.TableDisplayName + " again (Ctrl+Y)"
+                    : "Set " + redo.IconDisplayName + " on " + redo.TableDisplayName + " again (Ctrl+Y)";
         }
 
         /// <summary>
@@ -590,7 +605,7 @@ namespace Icons
         {
             _currentIdentity = null;
             _currentLabel.Text = "";
-            _currentLabel.LinkArea = new LinkArea(0, 0);
+            _currentLabel.Links.Clear();
             _currentLabel.Visible = false;
 
             var name = (table?.CurrentIcon ?? "").Trim();
@@ -637,12 +652,38 @@ namespace Icons
             // The link is only worth offering when there is somewhere to go: an icon in the
             // bundle, not already the one in hand.
             var goable = _currentIdentity?.Entry != null && !ReferenceEquals(_currentIdentity.Entry, _selectedIcon);
-            var link = goable ? "  Show it in the library" : "";
 
-            _currentLabel.Text = said + link;
-            _currentLabel.LinkArea = goable ? new LinkArea(said.Length + 2, link.Length - 2) : new LinkArea(0, 0);
+            // And taking it off, beside the line that says what it is - which is where somebody
+            // who has come to take it off is already looking. Only where a write could land: a
+            // table locked against customisation says why under the box, and offering to change
+            // it here would be offering the round trip that ends in the same sentence.
+            var removable = WhyNot(table) == null;
+
+            var links = new List<KeyValuePair<string, Action>>();
+            if (goable) links.Add(new KeyValuePair<string, Action>(ShowInLibraryLink, ShowCurrentIconInLibrary));
+            if (removable) links.Add(new KeyValuePair<string, Action>(RemoveLink, RemoveIcon));
+
+            var text = said;
+            _currentLabel.Links.Clear();
+            var at = new List<int>();
+            foreach (var link in links)
+            {
+                text += "  ";
+                at.Add(text.Length);
+                text += link.Key;
+            }
+
+            // The text first, the links after: a link added against the old text is checked
+            // against its length and refused.
+            _currentLabel.Text = text;
+            for (var i = 0; i < links.Count; i++)
+                _currentLabel.Links.Add(at[i], links[i].Key.Length, links[i].Value);
             _currentLabel.Visible = true;
         }
+
+        /// <summary>The words of the two links in the line saying what a table is carrying.</summary>
+        private const string ShowInLibraryLink = "Show it in the library";
+        private const string RemoveLink = "Remove it";
 
         /// <summary>
         /// Puts the grid on one icon, if that icon is among the ones the filters and the search
@@ -1862,6 +1903,12 @@ namespace Icons
             // a second time.
             var change = _undoable.Peek();
 
+            if (change.Removal)
+            {
+                UndoRemoval(change);
+                return;
+            }
+
             // Applying twice to one table reuses the name, so the second undo is not about
             // where the table points - it is about what is inside the thing it points at, and
             // saying "goes back to" the name it already carries would read as doing nothing.
@@ -2010,6 +2057,12 @@ namespace Icons
 
             var change = _redoable.Peek();
 
+            if (change.Removal)
+            {
+                RedoRemoval(change);
+                return;
+            }
+
             // The same list the first apply gave, rather than "the way it did the first time":
             // the page and the PNGs are written again here too, and a gate that leaves them to
             // be remembered is a gate that says less than the write it stands in front of.
@@ -2111,6 +2164,191 @@ namespace Icons
                     SyncEnabled();
                 }
             });
+        }
+
+        // ===== taking it off =====
+        //
+        // For an icon this session never put on, so there is nothing on the undo stack to take
+        // back: one from another session, another tool, or somebody's hands. The write is the
+        // undo's own with nothing to go back to - see IconRemoval - and it lands on the undo
+        // stack like an apply does, so Ctrl+Z puts it back.
+
+        /// <summary>Takes the chosen table's icon off, after saying what that leaves it with.</summary>
+        private void RemoveIcon()
+        {
+            if (Busy || Service == null) return;
+
+            var table = _tableBox.SelectedItem as TableItem;
+            if (table == null || string.IsNullOrWhiteSpace(table.CurrentIcon) || WhyNot(table) != null) return;
+
+            var vector = table.CurrentIcon.Trim();
+            var icon = _currentIdentity?.Entry?.DisplayName ?? vector;
+            var solution = (_solutionBox.SelectedItem as SolutionItem)?.UniqueName;
+
+            var takeOff = IconRemoval.Off(table.LogicalName, vector,
+                table.CurrentSmall, table.CurrentMedium, table.CurrentLarge, solution);
+            var putBack = IconRemoval.Back(table.LogicalName, vector,
+                table.CurrentSmall, table.CurrentMedium, table.CurrentLarge, solution);
+
+            // There is no such thing as a table with no icon on screen. Emptying the slot hands
+            // it back to whatever an app draws for a table without one, and the sentence has to
+            // name that rather than promise a blank.
+            var lands = string.IsNullOrEmpty(StockFor(table.LogicalName))
+                ? table.DisplayName + " goes back to the plain placeholder an app draws for a table " +
+                  "that has no icon of its own."
+                : table.DisplayName + " goes back to the stock icon an app draws for it.";
+
+            var classic = takeOff.RestoreRasterIcons
+                ? " The classic PNG icons stored beside it come off with it."
+                : "";
+
+            var staying = IconRemoval.Staying(vector, table.CurrentSmall, table.CurrentMedium, table.CurrentLarge);
+            var others = staying.Length == 0
+                ? ""
+                : " Its classic " + (staying.Length == 1 ? "icon, " : "icons, ") + string.Join(", ", staying) +
+                  ", " + (staying.Length == 1 ? "is" : "are") + " not this icon's and " +
+                  (staying.Length == 1 ? "stays" : "stay") + " as " + (staying.Length == 1 ? "it is." : "they are.");
+
+            var confirm = MessageBox.Show(this,
+                "Take " + icon + " off " + table.DisplayName + "?\n\n" +
+                lands + classic + others + "\n\n" +
+                vector + " stays where it is - nothing here deletes a web resource.\n\n" +
+                "This is a write to the environment, and it publishes the table. Ctrl+Z puts it back.",
+                "Remove the icon", MessageBoxButtons.OKCancel, MessageBoxIcon.Question);
+            if (confirm != DialogResult.OK) return;
+
+            var change = new AppliedChange
+            {
+                TableLogicalName = table.LogicalName,
+                TableDisplayName = table.DisplayName,
+                IconDisplayName = icon,
+                Removal = true,
+                TakeOff = takeOff,
+                PutBack = putBack
+            };
+
+            Rewrite(takeOff, "Taking it off...", "Could not take it off", result =>
+            {
+                Remember(change);
+                SettleOn(takeOff);
+                _outcome = "Took " + icon + " off " + table.DisplayName;
+                _outcomeSteps = string.Join("\n", result.Steps);
+            });
+        }
+
+        /// <summary>Puts an icon that was taken off back where it was.</summary>
+        private void UndoRemoval(AppliedChange change)
+        {
+            var confirm = MessageBox.Show(this,
+                "Put " + change.IconDisplayName + " back on " + change.TableDisplayName + "?\n\n" +
+                change.TableDisplayName + " points at " + change.PutBack.VectorName + " again" +
+                (change.PutBack.RestoreRasterIcons ? ", and its classic PNG icons at the ones beside it." : ".") +
+                "\n\nThis is another write to the environment, and it publishes the table.",
+                "Undo the last change", MessageBoxButtons.OKCancel, MessageBoxIcon.Question);
+            if (confirm != DialogResult.OK) return;
+
+            Rewrite(change.PutBack, "Putting it back...", "Could not put it back", result =>
+            {
+                _undoable.Pop();
+                _redoable.Push(change);
+                SettleOn(change.PutBack);
+                _outcome = "Put " + change.IconDisplayName + " back on " + change.TableDisplayName;
+                _outcomeSteps = string.Join("\n", result.Steps);
+            });
+        }
+
+        /// <summary>Takes an icon off again, after an undo put it back.</summary>
+        private void RedoRemoval(AppliedChange change)
+        {
+            var confirm = MessageBox.Show(this,
+                "Take " + change.IconDisplayName + " off " + change.TableDisplayName + " again?\n\n" +
+                "This writes the table the way it did the first time, and publishes it.",
+                "Do it again", MessageBoxButtons.OKCancel, MessageBoxIcon.Question);
+            if (confirm != DialogResult.OK) return;
+
+            Rewrite(change.TakeOff, "Taking it off...", "Could not take it off", result =>
+            {
+                _redoable.Pop();
+                _undoable.Push(change);
+                SettleOn(change.TakeOff);
+                _outcome = "Took " + change.IconDisplayName + " off " + change.TableDisplayName + " again";
+                _outcomeSteps = string.Join("\n", result.Steps);
+            });
+        }
+
+        /// <summary>
+        /// One revert out to the environment, under the same rules as every other write: one at
+        /// a time, cancellable between calls, and an answer for a connection that has since
+        /// changed thrown away. Landed is only called for a write that finished.
+        /// </summary>
+        private void Rewrite(IconRevertRequest request, string working, string failed,
+                             Action<IconRevertResult> landed)
+        {
+            var generation = ++_generation;
+            _applying = true;
+            _writeStep = working;
+            _trouble = null;
+            _outcome = null;
+            _outcomeSteps = null;
+            SyncEnabled();
+
+            WorkAsync(new WorkAsyncInfo
+            {
+                Message = working,
+                IsCancelable = true,
+                Work = (worker, args) =>
+                {
+                    args.Result = IconApplier.Revert(
+                        Service,
+                        request,
+                        () => worker.CancellationPending,
+                        message => worker.ReportProgress(0, message));
+                },
+                ProgressChanged = args =>
+                {
+                    if (IsDisposed) return;
+                    if (generation != _generation) return;
+                    _statusLabel.Text = args.UserState as string ?? working;
+                },
+                PostWorkCallBack = args =>
+                {
+                    if (IsDisposed) return;
+                    if (generation != _generation) return;
+
+                    _applying = false;
+
+                    // Every step writes a value rather than a difference, so asking again is the
+                    // answer to a write that stopped halfway, whichever way it was going.
+                    if (args.Cancelled || args.Error is IconApplier.CancelledException)
+                    {
+                        _trouble = "Cancelled. The table may or may not have been changed, " +
+                                   "depending on how far it had got - reload to see. Asking for it " +
+                                   "again is safe.";
+                        SyncEnabled();
+                        return;
+                    }
+
+                    if (args.Error != null)
+                    {
+                        _trouble = failed + ": " + args.Error.Message;
+                        SyncEnabled();
+                        MessageBox.Show(this, args.Error.Message, failed,
+                            MessageBoxButtons.OK, MessageBoxIcon.Error);
+                        return;
+                    }
+
+                    landed((IconRevertResult)args.Result);
+                    SyncEnabled();
+                }
+            });
+        }
+
+        /// <summary>The window's copy of the table, brought into line with a revert that landed.</summary>
+        private void SettleOn(IconRevertRequest request)
+        {
+            SettleOn(request.TableLogicalName, request.VectorName,
+                     request.SmallName, request.MediumName, request.LargeName,
+                     request.RestoreRasterIcons);
         }
 
         /// <summary>

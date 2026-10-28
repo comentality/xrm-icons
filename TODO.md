@@ -262,7 +262,7 @@
       marking an icon's family with a glyph were tried in the grid and all four reverted, and
       `_tableBox` is a plain ListBox drawing `TableItem.ToString`, so a word costs nothing and a
       glyph costs an owner-draw.
-- [ ] A button that takes a table's icon off, for a table this session never applied to. Undo
+- [x] A button that takes a table's icon off, for a table this session never applied to. Undo
       already does the write — an `IconRestoreRequest` with an empty `VectorName`, which is the
       one thing about it that had to be measured rather than assumed: empty clears and null means
       leave this one alone, and `tests/e2e.ps1` asks the platform that on every run. What is
@@ -299,6 +299,16 @@
       are looking at. The button writes the empty string.
       Uncustomising is a bigger and one-way operation, and this tool is not where it should be
       reached from.
+      Done on 28 October 2026, as a link rather than a button: *Remove it*, in the line under
+      the table list that says what the table carries, which is where somebody who has come to
+      take it off is already looking. It is offered only where a write could land. The classic
+      slots were settled by name: the three PNGs this tool writes beside a vector, named after
+      it, are one icon in four sizes and come off with it; a classic icon named anything else
+      was somebody's separate decision and is written back as it stands. The confirmation
+      names which of the two the table has. The removal goes on the undo stack like an apply,
+      so Ctrl+Z puts it back and Ctrl+Y takes it off again. `Logic/IconRemoval.cs` builds both
+      requests, and the `remove-puts-it-back` slow scenario checks that the write sends an
+      empty name and not a null.
 
 
 - [x] Say which tables cannot take an icon *before* one is written for them, and stop offering

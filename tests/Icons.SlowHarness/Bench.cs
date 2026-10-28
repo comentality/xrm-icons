@@ -384,6 +384,7 @@ namespace Icons.SlowHarness
         private static bool Confirms(string caption)
         {
             return caption == "Set table icon"
+                || caption == "Remove the icon"
                 || caption == "Undo the last change"
                 || caption == "Do it again";
         }

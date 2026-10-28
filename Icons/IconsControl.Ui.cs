@@ -974,7 +974,8 @@ namespace Icons
             // about the table, not a complaint about it. The link is how somebody gets to that
             // icon in the library when the filters or the search are not showing it - a click,
             // because re-searching the grid under somebody who is using it is not the tool's
-            // to do unasked.
+            // to do unasked. The second link takes the icon off; each carries what it does as
+            // its LinkData, so the line can hold either, both or neither.
             _currentLabel = new LinkLabel
             {
                 Dock = DockStyle.Fill,
@@ -985,7 +986,7 @@ namespace Icons
                 ForeColor = SystemColors.GrayText,
                 Padding = new Padding(0, 1, 0, 5)
             };
-            _currentLabel.LinkClicked += (s, e) => ShowCurrentIconInLibrary();
+            _currentLabel.LinkClicked += (s, e) => (e.Link.LinkData as Action)?.Invoke();
 
             _solutionBox = new ComboBox { Dock = DockStyle.Fill, DropDownStyle = ComboBoxStyle.DropDownList };
             _solutionBox.SelectedIndexChanged += (s, e) => { SuggestName(); SyncEnabled(); };
