@@ -15,6 +15,8 @@ its own.
   the other sense is still in the grid for anyone who wants it. Searches without these six
   words rank as they did.
 
+  ![A search for quote, led by receipts and documents](https://raw.githubusercontent.com/comentality/xrm-icons/main/docs/images/release/quote-means-a-quote.png)
+
 - **Choosing another table now moves your icon to that table's row in the app navigation preview.**
   The row was picked once, when the app was, so after switching tables the preview went on
   showing your icon beside the first table, under that table's name. It now follows the table

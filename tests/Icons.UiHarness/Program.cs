@@ -65,6 +65,12 @@ namespace Icons.UiHarness
                     }
                     else
                     {
+                        // A word some families name an icon after in another sense: the receipts
+                        // it means should lead, and the quotation marks follow them.
+                        search.Text = "quote";
+                        Pump();
+                        Shoot(form, outputDir, "02-searched-other-sense");
+
                         search.Text = "account";
                         Pump();
                         Shoot(form, outputDir, "02-searched");
