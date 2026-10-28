@@ -128,7 +128,7 @@
       either, and got the five entries `app`, `business`, `duplicate`, `rating` and `time` in
       Synonyms - which is what the fixture always said the answer to a silent table was. No
       standard table seeds an empty box, and none of the eighteen seeds its wrong word.
-- [ ] Rank a synonym answer against an exact name that means something else. This is the other
+- [x] Rank a synonym answer against an exact name that means something else. This is the other
       half of the item above, and the seeding rule does not touch it: an exact name hit scores
       100 and a synonym answer 15, so a family that happens to name an icon after a Dataverse
       word leads the grid whatever it actually drew. Quote gets Lucide and Tabler's quotation
@@ -139,6 +139,29 @@
       not. The other fourteen words the four families turned up are right, so the rule cannot be
       to distrust the newer families, and it cannot be to distrust an exact hit either: the whole
       point of `person` leading with person is that an exact hit usually is the answer.
+      Done on 28 October 2026, and by hand, because the catalog could not do it. Only Fluent
+      says what its icons depict - Phosphor, Lucide, Tabler and Solar carry no description at
+      all - so Phosphor's wooden log and Phosphor's user look the same to the search. Both
+      rules that would have spared the hand were measured and failed. Trusting an exact hit
+      only when it agrees with the vocabulary demotes all fourteen right words, because `user`
+      says nothing about a person and `invoice` nothing about a receipt. Not counting a word
+      inside a longer name costs Team its `people_team`, Price its `tag-price` and Account its
+      `person_account`. So `NamedOtherwise` lists six words - quote, log, rating, security,
+      order, and unit, whose `shelving-unit` the item above already called a bookcase - and on
+      those alone a name hit is worth what a substring is, 30, under the curated 50. Quote
+      now leads with receipts, Log with lists, Rating with stars, Security with locks and
+      shields, Order with carts and Unit with boxes and rulers; the other sense is still in the
+      grid, further down. Over every curated word and every standard table's seed, those six
+      and `order line` are the only searches whose top six moved. `OtherSenseTests` holds the
+      six and the fourteen.
+      Two things it turned up and left alone. Fluent loses its own band on two of the six:
+      its shield is described as security and its star as rating, which scores 45, and the
+      curated 50 only reaches an icon that says nothing about the word - so Rating leads with
+      Phosphor's star and 155 icons stand ahead of Fluent's. And more words a family names in
+      another sense: case (`case-lower`, `pc-case`), field (`soccer-field`), claim
+      (`baggage-claim`), course (`course-up`), booking (`brand-booking`), inspection
+      (`inspection-panel`) and trace (`http-trace`). Each wants every icon named after it
+      looked at before it goes on the list.
 - [x] Preview the icon in context, in a window of its own. Narrowed to the navigation: the
       grid and form header were mocked and dropped, because the navigation is where the icon
       is actually looked at. `See it in context` opens it; with a connection it reads an
