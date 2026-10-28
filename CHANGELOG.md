@@ -4,7 +4,16 @@ Every released version, newest first, with whatever is waiting for the next one 
 bolded sentence of each entry is the one that goes on the package page, so it has to stand on
 its own.
 
-## Unreleased — 1.0.3-dev
+## v1.1.0 — 28 October 2026
+
+- **You can now take an icon off a table with Remove it, beside the icon it carries, and Ctrl+Z puts it back.**
+  Before, the only way to take one off was to undo an apply made in the same session. The
+  link is there for any table that carries an icon and can be customised. It asks first, then
+  empties the table's icon and publishes it. The table goes back to the plain placeholder an
+  app draws for a table with no icon. The classic PNGs this tool wrote beside the icon come
+  off with it, and any other classic icon stays. No web resource is deleted.
+
+  ![Carrying con_/icons/contoso_settled.svg, followed by a Remove it link](https://raw.githubusercontent.com/comentality/xrm-icons/main/docs/images/release/remove-it.png)
 
 - **Six Dataverse words now lead with what they mean: Quote finds receipts first, not quotation marks.**
   Some icon families name an icon after a Dataverse word in another sense, and an icon's own
@@ -36,15 +45,6 @@ its own.
   read again, so the preview shows the environment as it is now. Refreshing, or applying an
   icon, while an app's navigation is still loading no longer leaves the preview stuck on
   *Reading…* with the App box greyed out.
-
-- **You can now take an icon off a table with Remove it, beside the icon it carries, and Ctrl+Z puts it back.**
-  Before, the only way to take one off was to undo an apply made in the same session. The
-  link is there for any table that carries an icon and can be customised. It asks first, then
-  empties the table's icon and publishes it. The table goes back to the plain placeholder an
-  app draws for a table with no icon. The classic PNGs this tool wrote beside the icon come
-  off with it, and any other classic icon stays. No web resource is deleted.
-
-  ![Carrying con_/icons/contoso_settled.svg, followed by a Remove it link](https://raw.githubusercontent.com/comentality/xrm-icons/main/docs/images/release/remove-it.png)
 
 ## v1.0.2 — 22 October 2026
 

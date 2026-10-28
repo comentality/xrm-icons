@@ -2,7 +2,7 @@
 <package xmlns="http://schemas.microsoft.com/packaging/2012/06/nuspec.xsd">
   <metadata>
     <id>Comentality.Icons</id>
-    <version>1.0.3-dev</version>
+    <version>1.1.0</version>
     <title>Icons</title>
     <authors>Comentality</authors>
     <license type="expression">MIT</license>
@@ -11,13 +11,14 @@
     <iconUrl>https://comentality.com/tools/icons.png</iconUrl>
     <readme>docs\README.md</readme>
     <description>Put a proper icon on a Dataverse table: pick one from six bundled icon libraries, and the tool uploads and publishes it. Searches Fluent, Phosphor, Lucide, Tabler, Font Awesome and Solar icons, writes the SVG web resource, points the table at it and publishes, all without leaving XrmToolBox.</description>
-    <releaseNotes>v1.0.2
+    <releaseNotes>v1.1.0
 - 21,698 icons bundled offline, with no external connections, and every one legal to use: MIT, ISC or CC BY 4.0. Fluent, Phosphor, Lucide, Tabler, Font Awesome Free and Solar.
-- Search in Dynamics words and get the right icon: “account” finds buildings, “contact” finds people, “case” finds headsets.
+- Search in Dynamics words and get the right icon: “account” finds buildings, “contact” finds people, “case” finds headsets, and “quote” finds receipts rather than quotation marks.
 - Preview the icon in a realistic app interface, on light and on dark, before anything is written to your org.
 - One button stores the SVG, points the table at it and publishes both, and Ctrl+Z puts the old icon back.
+- Take an icon off any table you can customise, whoever put it there, and Ctrl+Z puts it back.
 - Every icon it stores is credited on an ATTRIBUTION.html beside it, so the licences travel with the drawings.
-Full changelog, with screenshots: https://github.com/comentality/xrm-icons/blob/v1.0.2/CHANGELOG.md
+Full changelog, with screenshots: https://github.com/comentality/xrm-icons/blob/v1.1.0/CHANGELOG.md
     </releaseNotes>
     <tags>XrmToolBox Dynamics365 CRM PowerPlatform Dataverse Icon Icons SVG WebResource Customization</tags>
     <dependencies>
