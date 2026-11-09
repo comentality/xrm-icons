@@ -1,0 +1,4 @@
+{
+  "command": "dotnet test tests/Icons.Tests/Icons.Tests.csproj -v q -nologo",
+  "timeoutSeconds": 900
+}
